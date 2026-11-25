@@ -22,7 +22,7 @@ export function today(env = process.env) {
   if (override) {
     if (!isValidDate(override)) {
       throw new UsageError(
-        'GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ' + override,
+        `GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${override}`,
         '사용법은 gagyebu help를 보세요.',
       );
     }

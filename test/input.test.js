@@ -47,7 +47,7 @@ test('날짜를 계산할 때 윤일과 연도 경계를 반영한다', () => {
     ['2026-01-01', '어제', '2025-12-31'], ['2026-01-01', '그제', '2025-12-30'],
     ['0096-03-01', '어제', '0096-02-29'], ['0000-01-01', '어제', null],
   ]) {
-    assert.equal(parseDate(input, { GAGYEBU_TODAY: base }), expected, base + ' ' + input);
+    assert.equal(parseDate(input, { GAGYEBU_TODAY: base }), expected, `${base} ${input}`);
   }
 });
 
@@ -77,7 +77,7 @@ test('설정된 기준일을 검사하고 완전한 날짜는 기준일 없이 �
   for (const input of ['2026-02-30', '오늘', '2026-3-1']) {
     assert.throws(() => today({ GAGYEBU_TODAY: input }), {
       constructor: UsageError,
-      message: 'GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ' + input,
+      message: `GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${input}`,
       usage: '사용법은 gagyebu help를 보세요.',
     });
   }

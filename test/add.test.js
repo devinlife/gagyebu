@@ -153,7 +153,7 @@ test('잘못된 사용법을 거부하고 데이터 파일을 만들지 않는�
     ['1', '2'], ['1', '--nope'], ['1', '--type', 'transfer'],
     ['1', '--date', '2026-02-30'], ['1', '--date', '2026-13-01'],
     ['1', '--date', '2026-02-29'], ['1', '--date', '2026-2-3'],
-    ['1', '--date', '02-30'], ['1', '--date', '13/1'], ['1', '--date', '내일'],
+    ['1', '--date', '13/1'], ['1', '--date', '내일'],
     ['1', '--category='], ['1', '--data='], ['1', '--data', ''], ['1', '--help=nope'],
     ['1', '--date', '2026-02-30\r\n추가 줄'],
   ]) {
@@ -162,6 +162,10 @@ test('잘못된 사용법을 거부하고 데이터 파일을 만들지 않는�
   for (const option of ['type', 'category', 'date', 'memo', 'data']) {
     assertUsageError(run('1', `--${option}`), `--${option}`);
   }
+  const invalidDate = run('1', '--date', '02-30', '--data', data);
+  assertUsageError(invalidDate);
+  assert.equal(invalidDate.stderr,
+    `오류: 날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 02-30\n${usage}\n`);
   assert.deepEqual(readdirSync(directory), []);
 });
 

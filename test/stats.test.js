@@ -137,8 +137,9 @@ test('stats는 잘못된 기간과 인자에 사용법 오류를 돌려준다', 
   }
 });
 
-test('stats --help는 사용법 한 줄을 출력한다', () => {
-  const { status, stdout, stderr } = runCli(['stats', '--help']);
+test('stats --help는 사용법 한 줄을 출력한다', (t) => {
+  const env = testEnv(tempDir(t));
+  const { status, stdout, stderr } = runCli(['stats', '--help'], { env });
   assert.equal(status, 0);
   assert.equal(stderr, '');
   assert.equal(stdout, `${usage}\n`);

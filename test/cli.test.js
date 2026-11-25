@@ -6,7 +6,7 @@ import pkg from '../package.json' with { type: 'json' };
 import { reportError } from '../src/cli.js';
 import { DataError, UsageError } from '../src/errors.js';
 import { commands } from '../src/registry.js';
-import { assertUsageError, binPath, runCli } from './helpers.js';
+import { assertUsageError, binPath, runCli, tempDir, testEnv } from './helpers.js';
 
 function run(...args) {
   return runCli([...args]);
@@ -28,12 +28,13 @@ test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력�
   }
 });
 
-test('등록된 모든 명령은 --help로 자기 사용법을 출력한다', () => {
+test('등록된 모든 명령은 --help로 자기 사용법을 출력한다', (t) => {
+  const env = testEnv(tempDir(t));
   const names = Object.keys(commands);
   assert.ok(names.length > 0);
 
   for (const name of names) {
-    const { status, stdout, stderr } = run(name, '--help');
+    const { status, stdout, stderr } = runCli([name, '--help'], { env, timeout: 5000 });
     assert.equal(status, 0, name);
     assert.equal(stderr, '', name);
     assert.ok(stdout.startsWith('사용법: gagyebu '), name);

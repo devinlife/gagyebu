@@ -76,8 +76,9 @@ test('serve는 잘못된 옵션과 인자를 사용법 오류로 보고한다', 
   }
 });
 
-test('serve --help는 사용법 한 줄을 출력한다', () => {
-  const { status, stdout, stderr } = runCli(['serve', '--help']);
+test('serve --help는 사용법 한 줄을 출력한다', (t) => {
+  const env = testEnv(tempDir(t));
+  const { status, stdout, stderr } = runCli(['serve', '--help'], { env, timeout: 5000 });
   assert.equal(status, 0);
   assert.equal(stdout, `${usage}\n`);
   assert.equal(stderr, '');

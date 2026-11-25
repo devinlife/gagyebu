@@ -8,10 +8,16 @@ import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
 
 export const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 
-export function runCli(args, { env, input, encoding = 'utf8' } = {}) {
-  const result = spawnSync(process.execPath, [binPath, ...args], { encoding, env, input });
+export function runCli(args, { env, input, encoding = 'utf8', timeout } = {}) {
+  const result = spawnSync(process.execPath, [binPath, ...args], { encoding, env, input, timeout });
   assert.ifError(result.error);
   return result;
+}
+
+export function output({ status, stdout, stderr }) {
+  assert.equal(status, 0, stderr);
+  assert.equal(stderr, '');
+  return stdout;
 }
 
 export function assertUsageError({ status, stdout, stderr }, message, usage) {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { assertUsageError, currentData, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
+import { assertUsageError, currentData, output, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu balance [--date YYYY-MM-DD] [--json] [--data <경로>]';
 
@@ -17,12 +17,6 @@ function fixture(t) {
   ];
   const original = writeJson(file, currentData({ accounts, transactions, nextId: 5 }));
   return { file, original, run: (...args) => runCli(['balance', ...args], { env }) };
-}
-
-function output({ status, stdout, stderr }) {
-  assert.equal(status, 0, stderr);
-  assert.equal(stderr, '');
-  return stdout;
 }
 
 test('기준일까지의 거래와 시작 잔액을 합산하고 음수 잔액을 표시한다', (t) => {

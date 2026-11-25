@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
-import { runCli, tempDir, testEnv } from './helpers.js';
+import { output, runCli, tempDir, testEnv } from './helpers.js';
 
 function run(args, env) {
-  const { status, stdout, stderr } = runCli(args, { env });
-  assert.equal(status, 0, `${args.join(' ')}\n${stderr}`);
-  return stdout;
+  return output(runCli(args, { env }));
 }
 
 function json(args, env) {

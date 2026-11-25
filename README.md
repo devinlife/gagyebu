@@ -29,7 +29,7 @@ gagyebu summary
 
 | 명령 | 하는 일 | 주요 옵션 |
 | --- | --- | --- |
-| `help` | 사용법과 명령 목록을 보여 줍니다. | `--help` |
+| `help` | 사용법과 명령 목록을 보여 줍니다. | — |
 | `add` | 거래 하나를 더합니다. | `--type`, `--category`, `--account`, `--date`, `--memo`, `--tag` |
 | `transfer` | 계좌 사이의 이체를 기록합니다. | `--from`, `--to`, `--date`, `--memo` |
 | `recurring` | 매달 반복할 거래 규칙을 관리합니다. | `add --day <일>`, `list`, `rm`, `apply --month YYYY-MM`, `apply --dry-run` |
@@ -52,6 +52,8 @@ gagyebu summary
 | `serve` | JSON API와 보고서 화면 웹 서버를 띄웁니다. | `--port` |
 
 각 명령의 전체 사용법은 `gagyebu <명령> --help`로 본다.
+
+`import`는 이체 행이 하나라도 있는 CSV 파일 전체를 거부한다. 내보낸 이체 행에는 받는 계좌가 없다. 수입·지출을 가져오기 전에 대상 가계부에 CSV의 계좌와 분류를 등록한다.
 
 ## 웹 화면 띄우기
 

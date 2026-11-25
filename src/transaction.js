@@ -119,7 +119,8 @@ export function filterTransactions(transactions, { from, to, type, category, acc
     && (to === undefined || transaction.date <= to)
     && (type === undefined || type === transaction.type)
     && (category === undefined || category === transaction.category)
-    && (account === undefined || account === transaction.account)
+    && (account === undefined || account === transaction.account
+      || (transaction.type === TRANSFER && account === transaction.toAccount))
     && tags.every((tag) => transaction.tags.includes(tag))
     && (search === undefined || matchesQuery(transaction, search))).sort((a, b) => {
     if (a.date === b.date) {
@@ -137,12 +138,17 @@ function matchesQuery({ memo, category, tags }, search) {
 export function listTotals(transactions) {
   let income = 0;
   let expense = 0;
+  let transferCount = 0;
+  let transfer = 0;
   for (const { type, amount } of transactions) {
     if (type === INCOME) {
       income += amount;
     } else if (type === EXPENSE) {
       expense += amount;
+    } else if (type === TRANSFER) {
+      transferCount += 1;
+      transfer += amount;
     }
   }
-  return { count: transactions.length, income, expense };
+  return { count: transactions.length, income, expense, transferCount, transfer };
 }

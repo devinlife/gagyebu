@@ -3,8 +3,8 @@ import { formatTable, formatWon } from './format.js';
 import { parseCategory, parseNonemptyOption, parsePeriod, parseTags, parseType } from './input.js';
 import { parseOptions } from './options.js';
 import { validateDataOption } from './store.js';
-import { listTotals } from './transaction.js';
-import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
+import { categoryText, listTotals } from './transaction.js';
+import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
 export function parseListingArgs(argv, usage, parseQuery) {
   const { args, options, error } = parseOptions(argv, {
@@ -51,11 +51,12 @@ export function printTransactions(list, { json }) {
     const memo = [transaction.memo, ...transaction.tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
     rows.push([
       String(transaction.id), transaction.date, TYPE_LABELS[transaction.type],
-      formatWon(transaction.amount), transaction.category, transaction.account, memo,
+      formatWon(transaction.amount), categoryText(transaction), transaction.account, memo,
     ]);
   }
 
-  const { count, income, expense } = listTotals(list);
+  const { count, income, expense, transferCount, transfer } = listTotals(list);
+  const transferText = transferCount > 0 ? `, ${TYPE_LABELS[TRANSFER]} ${transferCount}건 ${formatWon(transfer)}` : '';
   console.log(formatTable(rows, { right: [0, 3] }));
-  console.log(`${count}건, ${TYPE_LABELS[INCOME]} ${formatWon(income)}, ${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}`);
+  console.log(`${count}건, ${TYPE_LABELS[INCOME]} ${formatWon(income)}, ${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}${transferText}`);
 }

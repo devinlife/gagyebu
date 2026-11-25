@@ -119,3 +119,20 @@ test('잘못된 계좌 명령은 해당 사용법을 보여 준다', (t) => {
   }
   assertUsageError(run('add', '카드', '--opening'), '--opening 값이 없습니다', usages.add);
 });
+
+test('이체에 쓰인 양쪽 계좌의 거래를 세고 삭제를 거부한다', (t) => {
+  const { file, run } = fixture(t);
+  const accounts = [{ name: '현금', opening: 0 }, { name: '통장', opening: 0 }];
+  const transactions = [transaction({ id: 1, type: 'transfer', category: '', toAccount: '통장' })];
+  const original = writeJson(file, currentData({ accounts, nextId: 2, transactions }));
+  const list = run('list', '--json');
+  assert.equal(list.status, 0, list.stderr);
+  assert.deepEqual(JSON.parse(list.stdout), accounts.map((account) => ({ ...account, count: 1 })));
+  for (const { name } of accounts) {
+    const { status, stdout, stderr } = run('rm', name);
+    assert.equal(status, 1, stderr);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 1건의 거래가 쓰는 계좌입니다: ${name}\n`);
+    assert.equal(readFileSync(file, 'utf8'), original);
+  }
+});

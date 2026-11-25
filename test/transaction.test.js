@@ -164,12 +164,12 @@ test('수정할 필드를 새 거래에 적용하고 거래와 분류를 확인�
   });
 });
 
-test('목록 합계에서 이체는 건수에만 포함한다', () => {
+test('목록 합계에서 이체 건수와 금액은 수입·지출과 따로 센다', () => {
   assert.deepEqual(listTotals([
     transaction({ id: 1, amount: 700 }),
     transaction({ id: 2, type: 'income', amount: 3000 }),
-    transaction({ id: 3, type: 'transfer', amount: 5000 }),
-  ]), { count: 3, income: 3000, expense: 700 });
+    transaction({ id: 3, type: 'transfer', amount: 5000, category: '', toAccount: '통장' }),
+  ]), { count: 3, income: 3000, expense: 700, transferCount: 1, transfer: 5000 });
 });
 
 test('거래 삭제는 첫 일치 거래와 나머지를 돌려주고 입력을 보존한다', () => {

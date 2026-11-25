@@ -229,13 +229,16 @@ test('메모 뒤에 태그를 붙이고 옛 거래의 메모 시작 칸을 유�
 
 test('이체를 표에 표시하고 수입과 지출 합계에서 뺀다', (t) => {
   const { run, write } = fixture(t);
-  write([sameDayIncome, first, { ...last, type: 'transfer', category: '', toAccount: '통장', amount: 9000 }]);
+  const transfer = { ...last, type: 'transfer', category: '', toAccount: '통장', amount: 10000 };
+  write([sameDayIncome, first, transfer]);
 
   const { status, stdout, stderr } = run();
   assert.equal(status, 0);
   assert.equal(stderr, '');
-  assert.match(stdout, /이체 +9,000원/);
-  assert.ok(stdout.endsWith('3건, 수입 1,234,567원, 지출 1,200원\n'));
+  assert.match(stdout, /이체 +10,000원 +현금→통장/);
+  assert.ok(stdout.endsWith('3건, 수입 1,234,567원, 지출 1,200원, 이체 1건 10,000원\n'));
+  assert.deepEqual(readJson(run('--account', '통장', '--json')), [transfer]);
+  assert.deepEqual(readJson(run('--account', '현금', '--json')), [first, sameDayIncome, transfer]);
 });
 
 test('계좌 필터를 분류 필터와 함께 적용하고 없는 계좌는 빈 목록으로 보여 준다', (t) => {

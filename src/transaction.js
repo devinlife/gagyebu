@@ -84,7 +84,9 @@ function requireDistinctAccounts(from, to, usage) {
 }
 
 export function buildTransfer(data, { date, amount, from, to, memo, tags = [] }, filePath, usage) {
-  requireDistinctAccounts(from, to, usage);
+  if (from !== '' && to !== '') {
+    requireDistinctAccounts(from, to, usage);
+  }
   const id = requireNextId(data, filePath);
   requireAccount(data.accounts, from);
   requireAccount(data.accounts, to);

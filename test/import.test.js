@@ -114,15 +114,17 @@ test('이체 계좌와 분류 오류를 줄 번호와 함께 모으고 데이터
     '2026-02-10,1000,transfer,현금,,,',
     '2026-02-10,1000,transfer,현금,현금,,',
     '2026-02-10,1000,transfer,현금,통장,식비,',
+    '2026-02-10,1000,transfer,,,,',
     '',
   ].join('\n'));
-  const expected = '오류: 6개 행이 잘못되어 아무것도 더하지 않았습니다\n'
+  const expected = '오류: 7개 행이 잘못되어 아무것도 더하지 않았습니다\n'
     + '3행: 없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)\n'
     + '4행: 없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)\n'
     + '5행: 없는 계좌입니다:  (gagyebu account add로 더하세요)\n'
     + '6행: 없는 계좌입니다:  (gagyebu account add로 더하세요)\n'
     + '7행: 보내는 계좌와 받는 계좌는 달라야 합니다\n'
-    + '8행: 이체에는 분류가 없습니다\n';
+    + '8행: 이체에는 분류가 없습니다\n'
+    + '9행: 없는 계좌입니다:  (gagyebu account add로 더하세요)\n';
   for (const flags of [[], ['--dry-run']]) {
     assertResult(run(csv, ...flags), 1, '', expected);
     assert.deepEqual(readFileSync(dataPath), original);

@@ -54,6 +54,10 @@ function countTransactions(filePath) {
   }
 }
 
+function directoryReadError(directory, error) {
+  return new DataError(`백업 폴더를 읽을 수 없습니다: ${directory} (${error.code ?? error.message})`);
+}
+
 export function listBackups(directory) {
   let entries;
   try {
@@ -62,7 +66,7 @@ export function listBackups(directory) {
     if (error.code === 'ENOENT') {
       return [];
     }
-    throw new DataError(`백업 폴더를 읽을 수 없습니다: ${directory} (${error.code ?? error.message})`);
+    throw directoryReadError(directory, error);
   }
 
   const backups = [];
@@ -70,13 +74,19 @@ export function listBackups(directory) {
     const match = entry.isFile() ? backupName.exec(entry.name) : null;
     if (match) {
       const [, stamp, number = '1'] = match;
-      backups.push({ name: entry.name, stamp, number: BigInt(number) });
+      backups.push({ name: entry.name, stamp, number: Number(number) });
     }
   }
-  backups.sort((a, b) => b.stamp.localeCompare(a.stamp) || Number(b.number - a.number));
+  backups.sort((a, b) => b.stamp.localeCompare(a.stamp) || b.number - a.number);
 
   return backups.map(({ name }) => {
     const filePath = path.join(directory, name);
-    return { name, size: statSync(filePath).size, count: countTransactions(filePath) };
+    let size;
+    try {
+      ({ size } = statSync(filePath));
+    } catch (error) {
+      throw directoryReadError(directory, error);
+    }
+    return { name, size, count: countTransactions(filePath) };
   });
 }

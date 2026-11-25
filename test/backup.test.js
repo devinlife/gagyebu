@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { backupDirectory, createBackup } from '../src/backup.js';
@@ -128,6 +128,25 @@ test('비어 있거나 없는 백업 폴더는 빈 목록으로 처리한다', (
       assert.equal(stderr, '');
     }
     assert.equal(existsSync(target), exists);
+  }
+});
+
+test('백업 폴더를 탐색할 수 없으면 오류 한 줄을 출력한다', {
+  skip: process.getuid === undefined || process.getuid() === 0,
+}, (t) => {
+  const directory = tempDir(t);
+  const env = testEnv(directory);
+  const target = path.join(directory, 'backups');
+  mkdirSync(target);
+  writeJson(path.join(target, 'gagyebu-20261126-090507.json'), currentData());
+  chmodSync(target, 0o600);
+  try {
+    const { status, stdout, stderr } = runCli(['backup', '--list'], { env });
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 백업 폴더를 읽을 수 없습니다: ${target} (EACCES)\n`);
+  } finally {
+    chmodSync(target, 0o700);
   }
 });
 

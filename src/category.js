@@ -1,6 +1,6 @@
 import { DataError, UsageError, unexpectedArgument } from './errors.js';
-import { countTransactionsBy } from './transaction-counts.js';
-import { EXPENSE, TYPES } from './types.js';
+import { TYPES } from './types.js';
+import { countUses } from './usage.js';
 
 export const DEFAULT_CATEGORY = '기타';
 
@@ -34,16 +34,13 @@ export function requireCategoryIndex(categories, type, name, suffix = '') {
   return index;
 }
 
-export function countCategories(transactions, type) {
-  return countTransactionsBy(transactions.filter((transaction) => transaction.type === type), 'category');
-}
-
-export function listCategories({ categories, transactions }, type) {
+export function listCategories(data, type) {
+  const { categories } = data;
   const types = type === undefined ? TYPES : [type];
   const list = {};
   for (const entryType of types) {
-    const counts = countCategories(transactions, entryType);
-    list[entryType] = categories[entryType].map((name) => ({ name, count: counts.get(name) ?? 0 }));
+    const counts = countUses(data, 'category', entryType);
+    list[entryType] = categories[entryType].map((name) => ({ name, count: counts.get(name)?.transactions ?? 0 }));
   }
   return list;
 }
@@ -55,13 +52,15 @@ export function addCategory(categories, type, name) {
   return { ...categories, [type]: [...categories[type], name] };
 }
 
-export function removeCategory({ categories, transactions, budgets }, type, name) {
+export function removeCategory(data, type, name) {
+  const { categories } = data;
   const index = requireCategoryIndex(categories, type, name);
-  const count = countCategories(transactions, type).get(name) ?? 0;
+  const uses = countUses(data, 'category', type).get(name);
+  const count = uses?.transactions ?? 0;
   if (count > 0) {
     throw new DataError(`${count}건의 거래가 쓰는 분류입니다: ${name}`);
   }
-  if (type === EXPENSE && Object.hasOwn(budgets, name)) {
+  if (uses?.budgets > 0) {
     throw new DataError(`예산이 있는 분류입니다: ${name}`);
   }
   return { ...categories, [type]: categories[type].toSpliced(index, 1) };

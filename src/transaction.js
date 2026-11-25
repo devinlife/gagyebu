@@ -3,7 +3,6 @@ import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { formatTag, formatWon, withParticle } from './format.js';
 import { MISSING_AMOUNT, parseAmount, parseCategory, parseDate, parseImportType, parseNonemptyOption, parseTags, parseType, today } from './input.js';
-import { readError } from './store.js';
 import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
 const TRANSFER_HAS_NO_CATEGORY = '이체에는 분류가 없습니다';
@@ -61,10 +60,9 @@ export function parseTransactionFields({ amount, date, ...entry }, usage) {
   return { ...parsedEntry, amount: parsedAmount, date: parsedDate };
 }
 
-export function buildTransaction(data, { date, type, amount, category, account = DEFAULT_ACCOUNT, memo, tags }, filePath) {
-  const id = requireNextId(data, filePath);
+export function buildTransaction(data, { date, type, amount, category, account = DEFAULT_ACCOUNT, memo, tags }) {
   requireEntryReferences(data, { type, category, account });
-  return { id, date, type, amount, category, account, memo, tags };
+  return { id: data.nextId, date, type, amount, category, account, memo, tags };
 }
 
 export function appendTransaction(data, transaction) {
@@ -83,24 +81,16 @@ function requireDistinctAccounts(from, to, usage) {
   }
 }
 
-export function buildTransfer(data, { date, amount, from, to, memo, tags = [] }, filePath, usage) {
+export function buildTransfer(data, { date, amount, from, to, memo, tags = [] }, usage) {
   if (from !== '' && to !== '') {
     requireDistinctAccounts(from, to, usage);
   }
-  const id = requireNextId(data, filePath);
   requireAccount(data.accounts, from);
   requireAccount(data.accounts, to);
-  return { id, date, type: TRANSFER, amount, category: '', account: from, toAccount: to, memo, tags };
+  return { id: data.nextId, date, type: TRANSFER, amount, category: '', account: from, toAccount: to, memo, tags };
 }
 
-function requireNextId({ nextId: id }, filePath) {
-  if (!Number.isSafeInteger(id) || id < 1) {
-    throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
-  }
-  return id;
-}
-
-function buildImportEntry(data, fields, filePath) {
+function buildImportEntry(data, fields) {
   const date = parseDate(fields.date, undefined, 'date는');
   const amount = parseAmount(fields.amount);
   const type = parseImportType(fields.type);
@@ -114,12 +104,12 @@ function buildImportEntry(data, fields, filePath) {
     }
     return buildTransfer(data, {
       date, amount, from: fields.account ?? '', to: fields.to_account, memo, tags: parseTags(fields.tags),
-    }, filePath);
+    });
   }
   return buildTransaction(data, {
     date, type, amount, category: fields.category || DEFAULT_CATEGORY,
     account: fields.account || undefined, memo, tags: parseTags(fields.tags),
-  }, filePath);
+  });
 }
 
 function isDuplicate(existing, entry) {
@@ -132,7 +122,7 @@ function isDuplicate(existing, entry) {
     : existing.category === entry.category;
 }
 
-export function importTransactions(data, rows, filePath) {
+export function importTransactions(data, rows) {
   const added = [];
   const errors = [];
   let duplicates = 0;
@@ -144,7 +134,7 @@ export function importTransactions(data, rows, filePath) {
     }
 
     try {
-      const entry = buildImportEntry({ ...data, nextId: data.nextId + added.length }, fields, filePath);
+      const entry = buildImportEntry({ ...data, nextId: data.nextId + added.length }, fields);
 
       if (data.transactions.some((existing) => isDuplicate(existing, entry))) {
         duplicates += 1;

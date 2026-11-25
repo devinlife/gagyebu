@@ -112,16 +112,12 @@ test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그�
   const data = Object.freeze(currentData({ nextId: 7, transactions: Object.freeze([]) }));
   const { date, type, amount, category, account, memo, tags } = transaction({});
   const fields = { date, type, amount, category, account, memo, tags };
-  const filePath = '/data.json';
-  assert.deepEqual(buildTransaction(data, fields, filePath), transaction({ id: 7 }));
-  assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }, filePath), {
+  assert.deepEqual(buildTransaction(data, fields), transaction({ id: 7 }));
+  assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }), {
     constructor: DataError, field: 'category', message: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)',
   });
-  assert.throws(() => buildTransaction(data, { ...fields, account: '미등록' }, filePath), {
+  assert.throws(() => buildTransaction(data, { ...fields, account: '미등록' }), {
     constructor: DataError, field: 'account', message: '없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)',
-  });
-  assert.throws(() => buildTransaction({ ...data, nextId: 0 }, fields, filePath), {
-    constructor: DataError, message: '데이터 파일을 읽을 수 없습니다: /data.json (nextId 또는 transactions가 올바르지 않습니다)',
   });
   assert.equal(data.nextId, 7);
   assert.deepEqual(data.transactions, []);
@@ -129,7 +125,7 @@ test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그�
 
 test('이체를 만들 때 보내는 계좌와 받는 계좌가 같으면 사용법 오류를 낸다', () => {
   const transferUsage = '사용법: gagyebu transfer';
-  assert.throws(() => buildTransfer(currentData({}), { from: '현금', to: '현금' }, '/data.json', transferUsage), {
+  assert.throws(() => buildTransfer(currentData({}), { from: '현금', to: '현금' }, transferUsage), {
     constructor: UsageError, message: '보내는 계좌와 받는 계좌는 달라야 합니다', usage: transferUsage,
   });
 });
@@ -146,7 +142,7 @@ test('가져올 거래를 검증해 기존 거래의 중복을 세고 새 번호
     { line: 3, fields: { ...expense, tags: ['#법인'], memo: '점심' } },
     { line: 4, fields: income },
     { line: 5, fields: income },
-  ], '/data.json');
+  ]);
   assert.deepEqual(added, [
     transaction({ id: 7, amount: 12000, account: '카드', tags: ['법인'], memo: '점심' }),
     transaction({ id: 8, amount: 12300, type: 'income', category: '기타' }),
@@ -170,7 +166,7 @@ test('중복 판정의 다섯 필드 중 하나라도 다르면 거래를 더한
     { memo: '점심' },
   ];
   const rows = changes.map((change, index) => ({ line: index + 3, fields: { ...fields, ...change } }));
-  assert.deepEqual(importTransactions(data, [{ line: 2, fields }, ...rows], '/data.json'), {
+  assert.deepEqual(importTransactions(data, [{ line: 2, fields }, ...rows]), {
     added: [
       { ...existing, id: 2, date: '2026-02-11' },
       { ...existing, id: 3, type: 'income' },
@@ -193,7 +189,7 @@ test('가져올 각 행의 첫 오류를 모으고 중복도 검증한다', () =
     { line: 6, fields: { ...fields, type: 'transfer' } },
     { line: 7, fields: { ...fields, tags: ['a b'] } },
     { line: 8, error: '칸 수가 머리 줄과 다릅니다(2개, 머리 줄 4개)' },
-  ], '/data.json'), {
+  ]), {
     added: [],
     duplicates: 0,
     errors: [

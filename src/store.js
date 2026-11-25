@@ -118,6 +118,27 @@ function validateTransaction(transaction, index, invalid) {
   return { ...transaction, tags };
 }
 
+function validateTransactionIds(data, transactions, invalid) {
+  const ids = new Set();
+  let maxId = 0;
+  for (const { id } of transactions) {
+    if (ids.has(id)) {
+      throw invalid(`거래 #${id}가 두 번 있습니다`);
+    }
+    ids.add(id);
+    maxId = Math.max(maxId, id);
+  }
+
+  const { nextId = maxId + 1 } = data;
+  if (!Number.isSafeInteger(nextId)) {
+    throw invalid('nextId가 올바르지 않습니다');
+  }
+  if (nextId <= maxId) {
+    throw invalid(`nextId(${nextId})가 가장 큰 거래 번호(${maxId})보다 커야 합니다`);
+  }
+  return nextId;
+}
+
 export function readData(filePath) {
   let text;
   try {
@@ -236,7 +257,8 @@ function validateData(data, invalid) {
   }
   const transactions = data.transactions.map((transaction, index) => validateTransaction(transaction, index, invalid));
 
-  return { ...data, budgets, transactions, ...validateRecurring(data, transactions, invalid) };
+  const nextId = validateTransactionIds(data, transactions, invalid);
+  return { ...data, budgets, transactions, nextId, ...validateRecurring(data, transactions, invalid) };
 }
 
 const HISTORY_LIMIT = 20;

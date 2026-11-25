@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--account <이름>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
@@ -213,7 +213,7 @@ test('깨진 JSON과 잘못된 데이터 구조를 처리 오류로 보고한다
   for (const [original, reason] of [
     ['{깨진 JSON', 'JSON 형식이 잘못되었습니다'],
     [JSON.stringify({ version: 1, nextId: 1, transactions: {} }), 'transactions가 올바르지 않습니다'],
-    [JSON.stringify({ version: 1, nextId: 0, transactions: [] }), 'nextId 또는 transactions가 올바르지 않습니다'],
+    [JSON.stringify({ version: 1, nextId: 0, transactions: [] }), 'nextId(0)가 가장 큰 거래 번호(0)보다 커야 합니다'],
   ]) {
     writeFileSync(data, original);
     const { status, stdout, stderr } = run('1', '--data', data);
@@ -223,6 +223,18 @@ test('깨진 JSON과 잘못된 데이터 구조를 처리 오류로 보고한다
     assert.equal(readFileSync(data, 'utf8'), original);
     assert.deepEqual(readdirSync(directory), ['data.json']);
   }
+});
+
+test('이미 사용한 다음 번호로는 거래를 추가하지 않고 파일을 보존한다', (t) => {
+  const { data, directory, run } = fixture(t);
+  const original = writeJson(data, currentData({ nextId: 1, transactions: [transaction({ id: 1 })] }));
+
+  const { status, stdout, stderr } = run('1000', '--data', data);
+  assert.equal(status, 1, stderr);
+  assert.equal(stdout, '');
+  assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${data} (nextId(1)가 가장 큰 거래 번호(1)보다 커야 합니다)\n`);
+  assert.equal(readFileSync(data, 'utf8'), original);
+  assert.deepEqual(readdirSync(directory), ['data.json']);
 });
 
 test('실제로 있는 윤일과 100년 이전 날짜를 받는다', (t) => {

@@ -209,6 +209,8 @@ test('없거나 깨진 백업은 백업 파일 읽기 오류로 보고한다', (
     ['{}', 'version이 올바르지 않습니다: undefined'],
     [JSON.stringify({ version: CURRENT_VERSION + 1 }), `지원하지 않는 version입니다: ${CURRENT_VERSION + 1}`],
     [JSON.stringify(currentData({ transactions: [null] })), '거래 1번째: 객체가 아닙니다'],
+    [JSON.stringify(currentData({ nextId: 3, transactions: [transaction({ id: 2 }), transaction({ id: 2 })] })),
+      '거래 #2가 두 번 있습니다'],
   ]) {
     if (contents !== undefined) {
       writeFileSync(filePath, contents);
@@ -322,6 +324,34 @@ test('거래 필드가 잘못되면 위치와 원인을 한 줄로 보고하고 
     assert.equal(stdout, '', reason);
     assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})\n`);
   }
+});
+
+test('거래 번호 중복과 잘못된 다음 번호를 데이터 읽기 오류로 보고한다', (t) => {
+  const env = testEnv(tempDir(t));
+  const filePath = env.GAGYEBU_DATA;
+  const transactions = [transaction({ id: 5 }), transaction({ id: 2 })];
+  for (const [overrides, reason] of [
+    [{ transactions: [...transactions, transaction({ id: 2 }), transaction({ id: 5 })] }, '거래 #2가 두 번 있습니다'],
+    [{ nextId: 5 }, 'nextId(5)가 가장 큰 거래 번호(5)보다 커야 합니다'],
+    [{ nextId: 4 }, 'nextId(4)가 가장 큰 거래 번호(5)보다 커야 합니다'],
+    [{ nextId: 0, transactions: [] }, 'nextId(0)가 가장 큰 거래 번호(0)보다 커야 합니다'],
+    ...[1.5, '2', 2 ** 53].map((nextId) => [{ nextId }, 'nextId가 올바르지 않습니다']),
+  ]) {
+    const original = writeJson(filePath, currentData({ nextId: 6, transactions, ...overrides }));
+    const { status, stdout, stderr } = runCli(['list'], { env });
+    assert.equal(status, 1, stderr);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})\n`);
+    assert.equal(readFileSync(filePath, 'utf8'), original);
+  }
+});
+
+test('다음 거래 번호가 없으면 가장 큰 거래 번호의 다음 번호를 돌려준다', (t) => {
+  const filePath = path.join(tempDir(t), 'data.json');
+  const transactions = [transaction({ id: 5 }), transaction({ id: 2 })];
+  const original = writeJson(filePath, currentData({ transactions, nextId: undefined }));
+  assert.equal(readData(filePath).nextId, 6);
+  assert.equal(readFileSync(filePath, 'utf8'), original);
 });
 
 test('이체와 태그 없는 옛 거래를 읽고 파일은 유지한다', (t) => {

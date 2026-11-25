@@ -29,7 +29,7 @@ export function ruleDate(day, month) {
   return `${month}-${dayText}`;
 }
 
-export function applyRecurring(data, month, filePath) {
+export function applyRecurring(data, month) {
   const rules = data.recurring
     .filter(({ start, end }) => start <= month && (end === null || month <= end))
     .sort((a, b) => a.id - b.id);
@@ -47,7 +47,7 @@ export function applyRecurring(data, month, filePath) {
     }
 
     const date = ruleDate(rule.day, month);
-    const transaction = buildTransaction(entryData, { ...rule, date }, filePath);
+    const transaction = buildTransaction(entryData, { ...rule, date });
     added.push({ ...transaction, recurringId: rule.id, recurringMonth: month });
     entryData.nextId += 1;
   }

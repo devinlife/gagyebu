@@ -28,7 +28,7 @@ export function run(argv) {
   validateDataOption(options, USAGE);
 
   const { filePath, data } = loadData(options, USAGE);
-  const transaction = buildTransaction(data, fields, filePath);
+  const transaction = buildTransaction(data, fields);
   appendTransaction(data, transaction);
   writeData(filePath, data);
 

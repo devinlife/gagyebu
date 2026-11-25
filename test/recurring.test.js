@@ -244,7 +244,7 @@ test('미리보기는 새 거래와 중복 건수를 보여 주고 데이터와 
 test('다음 거래 번호가 정수가 아니면 반복 거래를 저장하지 않는다', (t) => {
   const { filePath, historyPath, run, write } = fixture(t);
   const original = write({ recurring: [rule()], nextRecurringId: 2, nextId: true });
-  assertDataError(run('apply'), `데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
+  assertDataError(run('apply'), `데이터 파일을 읽을 수 없습니다: ${filePath} (nextId가 올바르지 않습니다)`);
   assert.equal(readFileSync(filePath, 'utf8'), original);
   assert.equal(existsSync(historyPath), false);
 });

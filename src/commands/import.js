@@ -47,7 +47,7 @@ export function run(argv) {
   }
   const rows = readCsvRows(parseCsv(text));
   const { data, filePath } = loadData(options, USAGE);
-  const { added, duplicates, errors } = importTransactions(data, rows, filePath);
+  const { added, duplicates, errors } = importTransactions(data, rows);
 
   if (errors.length > 0) {
     console.error(`오류: ${errors.length}개 행이 잘못되어 아무것도 더하지 않았습니다`);

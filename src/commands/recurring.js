@@ -78,7 +78,7 @@ function apply(args, options, usage) {
   }
   const month = options.month === undefined ? currentMonth() : parseMonth(options.month, usage);
   const { filePath, data } = loadData(options, usage);
-  const { added, existing } = applyRecurring(data, month, filePath);
+  const { added, existing } = applyRecurring(data, month);
   const dryRun = options['dry-run'];
   if (!dryRun && added.length > 0) {
     writeData(filePath, {

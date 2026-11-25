@@ -117,7 +117,7 @@ async function postTransaction(request, { options, token, port }, send, sendErro
   try {
     const fields = parseTransactionFields({ ...raw, tags: tags === undefined ? [] : [tags] });
     loaded = loadData(options);
-    transaction = buildTransaction(loaded.data, fields, loaded.filePath);
+    transaction = buildTransaction(loaded.data, fields);
   } catch (error) {
     if (!(error instanceof UsageError || error instanceof DataError) || error.field === undefined) {
       throw error;

@@ -35,7 +35,7 @@ export function run(argv) {
   validateDataOption(options, USAGE);
 
   const { filePath, data } = loadData(options, USAGE);
-  const transaction = buildTransfer(data, { date, amount, from, to, memo }, filePath, USAGE);
+  const transaction = buildTransfer(data, { date, amount, from, to, memo }, USAGE);
   appendTransaction(data, transaction);
   writeData(filePath, data);
 

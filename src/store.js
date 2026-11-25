@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync, fchmodSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DataError } from './errors.js';
@@ -52,20 +54,24 @@ export function readData(filePath) {
 }
 
 export function writeData(filePath, data) {
+  const json = JSON.stringify(data, null, 2);
+  if (json === undefined) {
+    throw new DataError(`데이터 파일을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`);
+  }
+
   let temporaryPath;
   try {
-    const json = JSON.stringify(data, null, 2);
-    if (json === undefined) {
-      throw new DataError('JSON으로 변환할 수 없습니다');
-    }
-
+    const existing = lstatSync(filePath, { throwIfNoEntry: false });
     const directory = path.dirname(filePath);
     mkdirSync(directory, { recursive: true });
     const candidate = path.join(directory, `.gagyebu-${randomUUID()}.tmp`);
-    const fd = openSync(candidate, 'wx');
+    const fd = openSync(candidate, 'wx', 0o600);
     temporaryPath = candidate;
     try {
       writeFileSync(fd, `${json}\n`, 'utf8');
+      if (existing?.isFile()) {
+        fchmodSync(fd, existing.mode & 0o777);
+      }
     } finally {
       closeSync(fd);
     }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync,
+  chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync,
+  writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -114,6 +115,31 @@ test('JSON으로 변환할 수 없으면 기존 데이터 파일을 보존한다
     constructor: DataError,
     message: `데이터 파일을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`,
   });
+  assert.deepEqual(readData(filePath), data);
+  assert.deepEqual(readdirSync(directory), ['data.json']);
+});
+
+test('새 데이터 파일은 소유자만 접근할 수 있고 덮어쓸 때 기존 권한을 보존한다',
+  { skip: process.platform === 'win32' }, (t) => {
+    const filePath = path.join(temporaryDirectory(t), 'data.json');
+    const data = { version: CURRENT_VERSION, nextId: 1, transactions: [] };
+    writeData(filePath, data);
+    assert.equal(statSync(filePath).mode & 0o077, 0);
+
+    for (const mode of [0o640, 0o600]) {
+      chmodSync(filePath, mode);
+      writeData(filePath, data);
+      assert.equal(statSync(filePath).mode & 0o777, mode);
+    }
+  });
+
+test('예상하지 못한 직렬화 오류는 원래 오류로 전파하고 기존 데이터를 보존한다', (t) => {
+  const directory = temporaryDirectory(t);
+  const filePath = path.join(directory, 'data.json');
+  const data = { version: CURRENT_VERSION, nextId: 1, transactions: [] };
+  writeData(filePath, data);
+
+  assert.throws(() => writeData(filePath, { version: CURRENT_VERSION, amount: 1n }), TypeError);
   assert.deepEqual(readData(filePath), data);
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });

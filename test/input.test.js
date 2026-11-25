@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
-import { parseAmount, parseChartOptions, parseDate, parseMonth, parseType, parseYear, today } from '../src/input.js';
+import { parseAmount, parseChartOptions, parseDate, parseMonth, parsePeriod, parseType, parseYear, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
@@ -147,4 +147,24 @@ test('차트 없이 폭을 지정하거나 차트와 JSON을 함께 쓰면 거�
   ]) {
     assert.throws(() => parseChartOptions(options, usage), { constructor: UsageError, message, usage });
   }
+});
+
+test('닫힌 기간은 빠진 날짜를 종료일의 달 1일과 오늘로 채운다', (t) => {
+  const previousToday = process.env.GAGYEBU_TODAY;
+  t.after(() => {
+    if (previousToday === undefined) {
+      delete process.env.GAGYEBU_TODAY;
+    } else {
+      process.env.GAGYEBU_TODAY = previousToday;
+    }
+  });
+  process.env.GAGYEBU_TODAY = env.GAGYEBU_TODAY;
+  const closed = { closed: true };
+  assert.deepEqual(parsePeriod({}, usage, closed), { from: '2026-03-01', to: '2026-03-01' });
+  assert.deepEqual(parsePeriod({ to: '어제' }, usage, closed), { from: '2026-02-01', to: '2026-02-28' });
+  assert.deepEqual(parsePeriod({ from: '2/10' }, usage, closed), { from: '2026-02-10', to: '2026-03-01' });
+  assert.throws(() => parsePeriod({ from: '2026-03-02' }, usage, closed), {
+    constructor: UsageError, message: '--from이 --to보다 늦습니다: 2026-03-02 > 2026-03-01', usage,
+  });
+  assert.deepEqual(parsePeriod({ from: '2026-03-02' }, usage), { from: '2026-03-02', to: undefined });
 });

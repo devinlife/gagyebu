@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError } from '../src/errors.js';
-import { budgetUsage, removeBudget, setBudget, summarizeMonth, summarizeYear } from '../src/report.js';
+import { budgetUsage, removeBudget, setBudget, summarizeMonth, summarizeSpending, summarizeYear } from '../src/report.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import { transaction } from './helpers.js';
 
@@ -101,5 +101,85 @@ test('공용 예산 삭제는 등록된 예산을 뺀 새 객체를 돌려준다
   assert.equal(budgets.식비, 2000);
   assert.throws(() => removeBudget(budgets, '생활'), {
     constructor: DataError, message: '예산이 없는 분류입니다: 생활',
+  });
+});
+
+test('기간 일평균 지출은 양 끝을 포함한 일수로 나누고 원 단위로 반올림한다', () => {
+  for (const [date, to, amount, days, dailyAverage] of [
+    ['2026-11-23', '2026-11-25', 10000, 3, 3333],
+    ['0096-02-29', '0096-03-01', 5, 2, 3],
+  ]) {
+    const result = summarizeSpending([transaction({ id: 1, date, amount })], date, to);
+    assert.equal(result.days, days);
+    assert.equal(result.dailyAverage, dailyAverage);
+  }
+});
+
+test('가장 큰 지출 3건은 금액이 같으면 날짜와 번호 순으로 고른다', () => {
+  const transactions = [
+    transaction({ id: 4, date: '2026-11-24' }),
+    transaction({ id: 3, date: '2026-11-23' }),
+    transaction({ id: 2, date: '2026-11-24' }),
+    transaction({ id: 1, date: '2026-11-23' }),
+  ];
+  const result = summarizeSpending(transactions, '2026-11-23', '2026-11-24');
+  assert.deepEqual(result.top, [
+    { id: 1, date: '2026-11-23', amount: 1000, category: '식비', memo: '' },
+    { id: 3, date: '2026-11-23', amount: 1000, category: '식비', memo: '' },
+    { id: 2, date: '2026-11-24', amount: 1000, category: '식비', memo: '' },
+  ]);
+});
+
+test('요일별 지출을 월요일부터 일요일까지 집계한다', () => {
+  const transactions = Array.from({ length: 7 }, (_, index) => transaction({
+    id: index + 1, date: `2026-11-${23 + index}`, amount: index + 1,
+  }));
+  const result = summarizeSpending(transactions, '2026-11-23', '2026-11-29');
+  assert.deepEqual(result.weekdays, ['월', '화', '수', '목', '금', '토', '일'].map((weekday, index) => ({
+    weekday, amount: index + 1, count: 1,
+  })));
+  assert.equal(result.daysWithoutExpense, 0);
+});
+
+test('지출 없는 날은 같은 날짜의 지출이 여러 건이어도 한 번만 뺀다', () => {
+  const transactions = [23, 23, 25, 29].map((day, index) => transaction({
+    id: index + 1, date: `2026-11-${day}`,
+  }));
+  const result = summarizeSpending(transactions, '2026-11-23', '2026-11-29');
+  assert.equal(result.daysWithoutExpense, 4);
+  assert.deepEqual(result.weekdays[0], { weekday: '월', amount: 2000, count: 2 });
+});
+
+test('기간 지출만 세고 전체 지출 합계 대비 비율로 분류 다섯 개를 표시한다', () => {
+  const date = '2026-11-23';
+  const transactions = ['가', '나', '다', '라', '마', '바'].map((category, index) => transaction({
+    id: index + 1, date, category, amount: [1, 2, 2, 4, 5, 6][index],
+  }));
+  transactions.push(
+    transaction({ id: 7, date, type: 'transfer' }),
+    transaction({ id: 8, date, type: 'income' }),
+    transaction({ id: 9, date: '2026-11-22' }),
+    transaction({ id: 10, date: '2026-11-24' }),
+  );
+  const result = summarizeSpending(transactions, date, date);
+  assert.equal(result.count, 6);
+  assert.equal(result.total, 20);
+  assert.deepEqual(result.weekdays[0], { weekday: '월', amount: 20, count: 6 });
+  assert.deepEqual(result.top.map(({ id }) => id), [6, 5, 4]);
+  assert.deepEqual(result.categories, [
+    { category: '바', amount: 6, ratio: 0.3, count: 1 },
+    { category: '마', amount: 5, ratio: 0.25, count: 1 },
+    { category: '라', amount: 4, ratio: 0.2, count: 1 },
+    { category: '나', amount: 2, ratio: 0.1, count: 1 },
+    { category: '다', amount: 2, ratio: 0.1, count: 1 },
+  ]);
+});
+
+test('지출이 없는 기간도 일수와 일곱 요일을 돌려준다', () => {
+  assert.deepEqual(summarizeSpending([], '2026-11-23', '2026-11-29'), {
+    from: '2026-11-23', to: '2026-11-29', days: 7, count: 0, total: 0, dailyAverage: 0,
+    top: [],
+    weekdays: ['월', '화', '수', '목', '금', '토', '일'].map((weekday) => ({ weekday, amount: 0, count: 0 })),
+    daysWithoutExpense: 7, categories: [],
   });
 });

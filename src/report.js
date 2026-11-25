@@ -1,5 +1,6 @@
 import { requireCategoryIndex } from './category.js';
 import { DataError } from './errors.js';
+import { filterTransactions } from './transaction.js';
 import { EXPENSE, TYPES } from './types.js';
 
 export function groupByCategory(transactions) {
@@ -74,6 +75,39 @@ export function summarizeYear(transactions, year) {
 
   const averageExpense = activeMonths === 0 ? 0 : Math.round(total.expense / activeMonths);
   return { year, months, total, averageExpense };
+}
+
+const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+function utcMidnight(date) {
+  return new Date(`${date}T00:00:00Z`);
+}
+
+export function summarizeSpending(transactions, from, to) {
+  const expenses = filterTransactions(transactions, { from, to, type: EXPENSE });
+  const days = (utcMidnight(to) - utcMidnight(from)) / millisecondsPerDay + 1;
+  const weekdays = ['월', '화', '수', '목', '금', '토', '일'].map((weekday) => ({
+    weekday, amount: 0, count: 0,
+  }));
+  const expenseDates = new Set();
+  let total = 0;
+
+  for (const { date, amount } of expenses) {
+    const weekday = weekdays[(utcMidnight(date).getUTCDay() + 6) % 7];
+    weekday.amount += amount;
+    weekday.count += 1;
+    expenseDates.add(date);
+    total += amount;
+  }
+
+  const categories = categoryBreakdown(groupByCategory(expenses), total).slice(0, 5);
+  const top = expenses.sort((a, b) => b.amount - a.amount).slice(0, 3)
+    .map(({ id, date, amount, category, memo }) => ({ id, date, amount, category, memo }));
+
+  return {
+    from, to, days, count: expenses.length, total, dailyAverage: Math.round(total / days),
+    top, weekdays, daysWithoutExpense: days - expenseDates.size, categories,
+  };
 }
 
 export function budgetUsage(transactions, budgets, month) {

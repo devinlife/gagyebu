@@ -64,9 +64,13 @@ export function parseDate(text, usage, subject = '날짜는', env = process.env)
   throw new UsageError(`${subject} YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${text}`, usage);
 }
 
-export function parsePeriod(options, usage) {
-  const from = options.from === undefined ? undefined : parseDate(options.from, usage, '--from은');
-  const to = options.to === undefined ? undefined : parseDate(options.to, usage, '--to는');
+export function parsePeriod(options, usage, { closed = false } = {}) {
+  let from = options.from === undefined ? undefined : parseDate(options.from, usage, '--from은');
+  let to = options.to === undefined ? undefined : parseDate(options.to, usage, '--to는');
+  if (closed) {
+    to ??= today();
+    from ??= `${to.slice(0, 7)}-01`;
+  }
   if (from !== undefined && to !== undefined && from > to) {
     throw new UsageError(`--from이 --to보다 늦습니다: ${from} > ${to}`, usage);
   }

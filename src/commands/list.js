@@ -1,4 +1,4 @@
-import { isValidDate } from '../dates.js';
+import { isValidDate } from '../input.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
 import { parseOptions } from '../options.js';

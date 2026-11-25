@@ -1,4 +1,4 @@
-import { isValidDate } from '../dates.js';
+import { isValidDate, today } from '../input.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatWon } from '../format.js';
 import { parseOptions } from '../options.js';
@@ -7,14 +7,6 @@ import { readData, resolveDataPath, writeData } from '../store.js';
 export const summary = '거래 하나를 더합니다.';
 
 const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
-
-function localToday() {
-  const now = new Date();
-  const year = String(now.getFullYear()).padStart(4, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return [year, month, day].join('-');
-}
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
@@ -41,7 +33,7 @@ export function run(argv) {
     throw new UsageError(`금액은 양의 정수여야 합니다: ${input}`, USAGE);
   }
 
-  const { type = 'expense', category = '기타', date = localToday(), memo = '' } = options;
+  const { type = 'expense', category = '기타', date = today({}), memo = '' } = options;
   if (type !== 'expense' && type !== 'income') {
     throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, USAGE);
   }

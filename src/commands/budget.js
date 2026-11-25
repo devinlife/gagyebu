@@ -1,7 +1,7 @@
 import { parseName } from '../category.js';
-import { UsageError, unexpectedArgument } from '../errors.js';
+import { unexpectedArgument } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
-import { currentMonth, parseAmount } from '../input.js';
+import { currentMonth, parseAmountArgument } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { budgetUsage, removeBudget, setBudget } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
@@ -57,13 +57,7 @@ export function run(argv) {
 
   if (command === 'set') {
     const name = parseName(args.slice(0, 1), usage);
-    if (args.length === 1) {
-      throw new UsageError('금액이 없습니다', usage);
-    }
-    if (args.length > 2) {
-      throw unexpectedArgument(args[2], usage);
-    }
-    const amount = parseAmount(args[1], usage);
+    const amount = parseAmountArgument(args.slice(1), usage);
     const { filePath, data } = loadData(options, usage);
     const budgets = setBudget(data, name, amount);
     writeData(filePath, { ...data, budgets });

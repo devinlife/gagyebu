@@ -1,6 +1,6 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
-import { currentMonth, parseAmount, parseEntryOptions, parseId, parseMonth } from '../input.js';
+import { currentMonth, parseAmountArgument, parseDay, parseEntryOptions, parseIdArgument, parseMonth } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { addRule, applyRecurring, removeRule } from '../recurring.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
@@ -19,29 +19,12 @@ const USAGES = {
   apply: '사용법: gagyebu recurring apply [--month YYYY-MM] [--dry-run] [--data <경로>]',
 };
 
-function parseDay(text, usage) {
-  if (text === undefined) {
-    throw new UsageError('--day가 없습니다', usage);
-  }
-  const day = Number(text);
-  if (!/^[0-9]+$/.test(text) || day < 1 || day > 31) {
-    throw new UsageError(`--day는 1에서 31 사이의 정수여야 합니다: ${text}`, usage);
-  }
-  return day;
-}
-
 function rulePeriod({ start, end }) {
   return `${start}~${end ?? ''}`;
 }
 
 function add(args, options, usage) {
-  if (args.length === 0) {
-    throw new UsageError('금액이 없습니다', usage);
-  }
-  if (args.length > 1) {
-    throw unexpectedArgument(args[1], usage);
-  }
-  const amount = parseAmount(args[0], usage);
+  const amount = parseAmountArgument(args, usage);
   const entry = parseEntryOptions(options, usage);
   const day = parseDay(options.day, usage);
   const start = options.start === undefined ? currentMonth() : parseMonth(options.start, usage, 'start');
@@ -82,13 +65,7 @@ function list(args, options, usage) {
 }
 
 function remove(args, options, usage) {
-  if (args.length === 0) {
-    throw new UsageError('번호가 없습니다', usage);
-  }
-  if (args.length > 1) {
-    throw unexpectedArgument(args[1], usage);
-  }
-  const id = parseId(args[0], usage);
+  const id = parseIdArgument(args, usage);
   const { filePath, data } = loadData(options, usage);
   const { removed, recurring } = removeRule(data.recurring, id);
   writeData(filePath, { ...data, recurring });

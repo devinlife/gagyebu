@@ -1,5 +1,5 @@
-import { UsageError, unexpectedArgument } from '../errors.js';
-import { parseAmount, parseCategory, parseDate, parseId, parseNonemptyOption, parseTags, parseType } from '../input.js';
+import { UsageError } from '../errors.js';
+import { parseAmount, parseCategory, parseDate, parseIdArgument, parseNonemptyOption, parseTags, parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { applyChanges, describeTransaction, findTransactionIndex } from '../transaction.js';
@@ -23,14 +23,7 @@ export function run(argv) {
     console.log(USAGE);
     return 0;
   }
-  if (args.length === 0) {
-    throw new UsageError('번호가 없습니다', USAGE);
-  }
-  if (args.length > 1) {
-    throw unexpectedArgument(args[1], USAGE);
-  }
-
-  const id = parseId(args[0], USAGE);
+  const id = parseIdArgument(args, USAGE);
 
   const changes = {};
   const { amount, type, category, account, to, date, memo } = options;

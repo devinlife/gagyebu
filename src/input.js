@@ -1,6 +1,6 @@
-import { DEFAULT_ACCOUNT } from "./account.js";
-import { DEFAULT_CATEGORY } from "./category.js";
-import { DataError, UsageError } from './errors.js';
+import { DEFAULT_ACCOUNT } from './account.js';
+import { DEFAULT_CATEGORY } from './category.js';
+import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { formatLocalDateTime } from './format.js';
 import { EXPENSE, TYPE_LABELS, TYPES } from './types.js';
 
@@ -112,6 +112,17 @@ export function parseYear(text, usage) {
   return Number(text);
 }
 
+export function parseDay(text, usage) {
+  if (text === undefined) {
+    throw new UsageError('--day가 없습니다', usage);
+  }
+  const day = Number(text);
+  if (!/^[0-9]+$/.test(text) || day < 1 || day > 31) {
+    throw new UsageError(`--day는 1에서 31 사이의 정수여야 합니다: ${text}`, usage);
+  }
+  return day;
+}
+
 export function parsePort(text, usage) {
   const port = Number(text);
   if (!/^[0-9]+$/.test(text) || port > 65535) {
@@ -197,6 +208,20 @@ export function parseAmount(text, usage) {
   throw new UsageError(`금액은 양의 정수여야 합니다: ${text}`, usage);
 }
 
+function requireSingleArgument(args, missing, usage) {
+  if (args.length === 0) {
+    throw new UsageError(missing, usage);
+  }
+  if (args.length > 1) {
+    throw unexpectedArgument(args[1], usage);
+  }
+  return args[0];
+}
+
+export function parseAmountArgument(args, usage) {
+  return parseAmount(requireSingleArgument(args, '금액이 없습니다', usage), usage);
+}
+
 export function parseOpening(text, usage) {
   if (text === '0') {
     return 0;
@@ -218,6 +243,10 @@ export function parseId(text, usage) {
     throw new UsageError(`번호는 양의 정수여야 합니다: ${text}`, usage);
   }
   return id;
+}
+
+export function parseIdArgument(args, usage) {
+  return parseId(requireSingleArgument(args, '번호가 없습니다', usage), usage);
 }
 
 export function parseTags(values = [], usage) {

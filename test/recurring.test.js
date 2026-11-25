@@ -55,6 +55,22 @@ test('반복 규칙의 금액과 거래 옵션을 저장하고 시작 달을 이
   assert.deepEqual(saved.transactions, []);
 });
 
+test('기본 계좌와 다른 계좌에 시작과 끝이 같은 달인 규칙을 저장하고 그 달에만 적용한다', (t) => {
+  const { filePath, run, write } = fixture(t);
+  write({ accounts: [{ name: '현금', opening: 0 }, { name: '통장', opening: 0 }] });
+  assert.equal(output(run('add', '12000', '--day', '31', '--category', '식비',
+    '--account', '통장', '--start', '2026-03', '--end', '2026-03')),
+    '반복 규칙을 더했습니다: #1 매달 31일 지출 12,000원 식비 (2026-03~2026-03)\n');
+  assert.deepEqual(readJson(filePath).recurring, [rule({ account: '통장', start: '2026-03', end: '2026-03' })]);
+
+  assert.equal(output(run('apply')), '0건을 만들었습니다(이미 있음 0건).\n');
+  assert.match(output(run('apply', '--month', '2026-03')), /1건을 만들었습니다\(이미 있음 0건\)\.$/m);
+  assert.equal(output(run('apply', '--month', '2026-04')), '0건을 만들었습니다(이미 있음 0건).\n');
+  assert.deepEqual(readJson(filePath).transactions, [transaction({
+    id: 1, date: '2026-03-31', amount: 12000, account: '통장', recurringId: 1, recurringMonth: '2026-03',
+  })]);
+});
+
 test('반복 규칙과 공용 거래 옵션에서 잘못된 값을 거절한다', (t) => {
   const { filePath, run, write } = fixture(t);
   const original = write();

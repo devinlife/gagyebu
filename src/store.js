@@ -78,6 +78,10 @@ export function loadData(options, usage) {
   return { filePath, data: readData(filePath) };
 }
 
+function isStringArray(values) {
+  return Array.isArray(values) && values.every((value) => typeof value === 'string');
+}
+
 function validateTransaction(transaction, index, invalid) {
   const position = `거래 ${index + 1}번째`;
   if (transaction === null || typeof transaction !== 'object' || Array.isArray(transaction)) {
@@ -108,7 +112,7 @@ function validateTransaction(transaction, index, invalid) {
   if (type === TRANSFER && (typeof transaction.toAccount !== 'string' || transaction.toAccount === '')) {
     throw invalid(`${label}: toAccount가 문자열이 아닙니다`);
   }
-  if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) {
+  if (!isStringArray(tags)) {
     throw invalid(`${label}: tags가 문자열 배열이 아닙니다`);
   }
   return { ...transaction, tags };
@@ -169,7 +173,7 @@ function isValidRule(rule) {
     && Number.isInteger(day) && day >= 1 && day <= 31
     && TYPES.includes(type) && Number.isSafeInteger(amount) && amount > 0
     && [category, account, memo].every((text) => typeof text === 'string')
-    && Array.isArray(tags) && tags.every((tag) => typeof tag === 'string')
+    && isStringArray(tags)
     && typeof start === 'string' && monthPattern.test(start)
     && (end === null || (typeof end === 'string' && monthPattern.test(end) && start <= end));
 }

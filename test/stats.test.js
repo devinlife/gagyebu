@@ -12,11 +12,11 @@ const transactions = [
   transaction({ id: 4, date: '2026-11-26', type: 'income', category: '급여' }),
 ];
 
-function fixture(t) {
+function fixture(t, entries = transactions) {
   const directory = tempDir(t);
   const env = testEnv(directory, { GAGYEBU_TODAY: '2026-11-26' });
   writeJson(env.GAGYEBU_DATA, {
-    version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 5, transactions,
+    version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: entries.length + 1, transactions: entries,
   });
   return env;
 }
@@ -73,6 +73,31 @@ test('stats --json은 편의 날짜와 --data를 받아 지출 통계 객체를 
     daysWithoutExpense: 295,
     categories: [{ category: '식비', amount: 12000, ratio: 1, count: 1 }],
   });
+});
+
+test('stats는 뉴욕의 서머타임 전환을 지나도 기간 일수와 요일을 날짜대로 집계한다', (t) => {
+  const env = fixture(t, [
+    transaction({ id: 1, date: '2026-03-07', amount: 1000 }),
+    transaction({ id: 2, date: '2026-03-08', amount: 2000 }),
+    transaction({ id: 3, date: '2026-03-09', amount: 3000 }),
+  ]);
+  const { status, stdout, stderr } = runCli(
+    ['stats', '--from', '2026-03-07', '--to', '2026-03-09', '--json'],
+    { env: { ...env, TZ: 'America/New_York' } },
+  );
+  assert.equal(status, 0);
+  assert.equal(stderr, '');
+  const { days, weekdays } = JSON.parse(stdout);
+  assert.equal(days, 3);
+  assert.deepEqual(weekdays, [
+    { weekday: '월', amount: 3000, count: 1 },
+    { weekday: '화', amount: 0, count: 0 },
+    { weekday: '수', amount: 0, count: 0 },
+    { weekday: '목', amount: 0, count: 0 },
+    { weekday: '금', amount: 0, count: 0 },
+    { weekday: '토', amount: 1000, count: 1 },
+    { weekday: '일', amount: 2000, count: 1 },
+  ]);
 });
 
 test('stats는 빈 기간과 이체만 있는 기간에 안내 한 줄을 출력한다', (t) => {

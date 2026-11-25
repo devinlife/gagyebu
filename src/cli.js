@@ -1,4 +1,5 @@
 import pkg from '../package.json' with { type: 'json' };
+import { parseOptions } from './options.js';
 
 const commands = {
   help: await import('./commands/help.js'),
@@ -7,6 +8,13 @@ const commands = {
 export function run(argv) {
   const [name, ...args] = argv;
   if (name === '--version') {
+    const { args: operands, error } = parseOptions(args, {});
+    if (error || operands.length) {
+      console.error(`오류: ${error ?? `예상하지 않은 인자 ${operands[0]}`}`);
+      console.error('사용법: gagyebu --version');
+      return 2;
+    }
+
     console.log(pkg.version);
     return 0;
   }

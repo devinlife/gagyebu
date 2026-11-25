@@ -3,9 +3,9 @@ import { parseOptions } from '../options.js';
 export const summary = '사용법과 명령 목록을 보여 준다.';
 
 export function run(argv, { commands }) {
-  const { error } = parseOptions(argv, { flags: ['help'] });
-  if (error) {
-    console.error(`오류: ${error}`);
+  const { args, error } = parseOptions(argv, { flags: ['help'] });
+  if (error || args.length) {
+    console.error(`오류: ${error ?? `예상하지 않은 인자 ${args[0]}`}`);
     console.error('사용법: gagyebu help');
     return 2;
   }

@@ -24,8 +24,7 @@ test('빈 가계부에 거래를 기록하고 집계, CSV 왕복, 되돌리기�
     { date: '2026-03-10', category: '주거', amount: 500000 },
   ]);
 
-  // 가져오기는 이체 행을 거부하므로 이체 날짜를 CSV 내보내기 범위 밖에 둔다.
-  run(['transfer', '10만', '--from', '통장', '--to', '현금', '--date', '2026-03-01'], env);
+  run(['transfer', '10만', '--from', '통장', '--to', '현금', '--date', '2026-03-01', '--memo', '생활비'], env);
   run(['add', '1만2천', '--category', '식비', '--memo', '점심'], env);
   run(['add', '3000', '--date', '어제', '--category', '교통'], env);
   run(['add', '300만', '--type', 'income', '--category', '급여', '--account', '통장'], env);
@@ -54,7 +53,7 @@ test('빈 가계부에 거래를 기록하고 집계, CSV 왕복, 되돌리기�
   assert.equal(balance.total, 3485000);
 
   const csv = path.join(dir, 'x.csv');
-  assert.match(run(['export', '--from', '2026-03-02', '--out', csv], env), /^4건을 내보냈습니다/);
+  assert.match(run(['export', '--out', csv], env), /^5건을 내보냈습니다/);
   const importEnv = testEnv(dir, {
     GAGYEBU_DATA: path.join(dir, 'b.json'),
     GAGYEBU_TODAY: env.GAGYEBU_TODAY,
@@ -65,13 +64,20 @@ test('빈 가계부에 거래를 기록하고 집계, CSV 왕복, 되돌리기�
   run(['import', csv], importEnv);
   assert.deepEqual(json(['summary', '--json'], importEnv), summary);
 
+  const original = json(['list', '--json'], env);
+  const imported = json(['list', '--json'], importEnv);
+  function transferDetails(entries) {
+    const { date, amount, account, toAccount, memo } = entries.find(({ type }) => type === 'transfer');
+    return { date, amount, account, toAccount, memo };
+  }
+  assert.deepEqual(transferDetails(imported), transferDetails(original));
+
   run(['undo'], importEnv);
   assert.deepEqual(json(['list', '--json'], importEnv), []);
   const undone = json(['summary', '--json'], importEnv);
   assert.equal(undone.income, 0);
   assert.equal(undone.expense, 0);
 
-  const original = json(['list', '--json'], env);
   assert.equal(original.length, 5);
   assert.equal(original.find(({ category }) => category === '교통')?.date, '2026-03-14');
   const lunch = original.find(({ memo }) => memo === '점심');

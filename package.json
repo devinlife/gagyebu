@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
+  "bin": { "gagyebu": "bin/gagyebu.js" },
   "scripts": {
     "test": "node --test"
   }

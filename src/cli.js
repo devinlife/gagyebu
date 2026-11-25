@@ -6,6 +6,7 @@ const commands = {
   help: await import('./commands/help.js'),
   add: await import('./commands/add.js'),
   list: await import('./commands/list.js'),
+  search: await import('./commands/search.js'),
   edit: await import('./commands/edit.js'),
   rm: await import('./commands/rm.js'),
   category: await import('./commands/category.js'),

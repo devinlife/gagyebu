@@ -18,7 +18,7 @@ function runCli(...args) {
 
 test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력한다', () => {
   const outputs = [runCli(), runCli('help'), runCli('--help'), runCli('help', '--help')];
-  const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help      사용법과 명령 목록을 보여 줍니다.\n  add       거래 하나를 더합니다.\n  list      거래 목록을 보여 줍니다.\n  edit      거래의 값 일부를 바꿉니다.\n  rm        거래 하나를 지웁니다.\n  category  분류 목록을 보고 분류를 더하거나 지웁니다.\n  summary   한 달의 수입·지출과 분류별 합계를 보여 줍니다.\n';
+  const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help      사용법과 명령 목록을 보여 줍니다.\n  add       거래 하나를 더합니다.\n  list      거래 목록을 보여 줍니다.\n  search    글이나 태그로 거래를 찾습니다.\n  edit      거래의 값 일부를 바꿉니다.\n  rm        거래 하나를 지웁니다.\n  category  분류 목록을 보고 분류를 더하거나 지웁니다.\n  summary   한 달의 수입·지출과 분류별 합계를 보여 줍니다.\n';
   for (const { status, stdout, stderr } of outputs) {
     assert.equal(status, 0);
     assert.equal(stderr, '');

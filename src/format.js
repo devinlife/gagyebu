@@ -10,6 +10,19 @@ export function formatPercent(amount, total) {
   return `${(Math.round(amount * 1000 / total) / 10).toFixed(1)}%`;
 }
 
+const partialBlocks = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+
+export function renderBars(values, width) {
+  const max = values.reduce((largest, value) => Math.max(largest, value), 0);
+  return values.map((value) => {
+    if (value === 0) {
+      return '';
+    }
+    const eighths = Math.max(1, Math.round(value * width * 8 / max));
+    return '█'.repeat(Math.floor(eighths / 8)) + partialBlocks[eighths % 8];
+  });
+}
+
 const wideCharacter = /[\u1100-\u115F\u2E80-\u303E\u3040-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
 
 export function displayWidth(text) {

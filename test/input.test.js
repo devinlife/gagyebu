@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { UsageError } from '../src/errors.js';
-import { parseAmount, parseDate, parseMonth, parseType, parseYear, today } from '../src/input.js';
+import { parseAmount, parseChartOptions, parseDate, parseMonth, parseType, parseYear, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
@@ -125,5 +125,27 @@ test('구분 파서는 지출과 수입만 받는다', () => {
     assert.throws(() => parseType(type, usage), {
       constructor: UsageError, message: `--type은 expense 또는 income이어야 합니다: ${type}`, usage,
     });
+  }
+});
+
+test('차트 폭은 기본 40이며 10과 120을 포함한 정수만 받는다', () => {
+  assert.equal(parseChartOptions({ json: true }, usage), null);
+  assert.equal(parseChartOptions({ chart: true }, usage), 40);
+  for (const width of ['10', '120']) {
+    assert.equal(parseChartOptions({ chart: true, width }, usage), Number(width));
+  }
+  for (const width of ['9', '121', 'abc', '10.5', '', ' 10', '10\n']) {
+    assert.throws(() => parseChartOptions({ chart: true, width }, usage), {
+      constructor: UsageError, message: `--width는 10에서 120 사이의 정수여야 합니다: ${width}`, usage,
+    });
+  }
+});
+
+test('차트 없이 폭을 지정하거나 차트와 JSON을 함께 쓰면 거부한다', () => {
+  for (const [options, message] of [
+    [{ width: '40' }, '--width는 --chart와 함께 써야 합니다'],
+    [{ chart: true, json: true }, '--chart와 --json은 함께 쓸 수 없습니다'],
+  ]) {
+    assert.throws(() => parseChartOptions(options, usage), { constructor: UsageError, message, usage });
   }
 });

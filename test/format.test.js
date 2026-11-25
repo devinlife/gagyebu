@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { displayWidth, formatTable, formatWon } from '../src/format.js';
+import { displayWidth, formatTable, formatWon, renderBars } from '../src/format.js';
 
 test('금액을 천 단위 쉼표와 원으로 표시한다', () => {
   for (const [amount, expected] of [
@@ -19,10 +19,21 @@ test('금액을 천 단위 쉼표와 원으로 표시한다', () => {
 test('한글과 넓은 글자는 두 칸으로 세고 ASCII는 한 칸으로 센다', () => {
   for (const [text, width] of [
     ['', 0], ['abc', 3], ['식비', 4], ['점심 2인', 8], ['ᄀ', 2], ['ㄱ', 2],
-    ['漢', 2], ['〿', 1], ['１', 2], ['𠀀', 2], ['1,000원', 7],
+    ['漢', 2], ['〿', 1], ['１', 2], ['𠀀', 2], ['1,000원', 7], ['█▏▎▍▌▋▊▉', 8],
   ]) {
     assert.equal(displayWidth(text), width, text);
   }
+});
+
+test('막대는 최댓값을 기준으로 8분의 1칸 단위로 반올림한다', () => {
+  assert.deepEqual(renderBars([8, 3], 10), ['█'.repeat(10), '███▊']);
+  assert.deepEqual(renderBars([187, 188, 10000], 10), ['▏', '▎', '█'.repeat(10)]);
+});
+
+test('0원은 빈 막대로 표시하고 양수는 최소 한 조각을 표시한다', () => {
+  assert.deepEqual(renderBars([0, 1, 10000], 10), ['', '▏', '█'.repeat(10)]);
+  assert.deepEqual(renderBars([0, 0], 40), ['', '']);
+  assert.deepEqual(renderBars([], 40), []);
 });
 
 test('표는 지정한 칸을 오른쪽으로 맞추고 줄 끝의 공백을 없앤다', () => {

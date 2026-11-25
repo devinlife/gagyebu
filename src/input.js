@@ -90,6 +90,27 @@ export function parseYear(text, usage) {
   return Number(text);
 }
 
+export function parseChartOptions({ chart, json, width }, usage) {
+  if (!chart) {
+    if (width !== undefined) {
+      throw new UsageError('--width는 --chart와 함께 써야 합니다', usage);
+    }
+    return null;
+  }
+  if (json) {
+    throw new UsageError('--chart와 --json은 함께 쓸 수 없습니다', usage);
+  }
+  if (width === undefined) {
+    return 40;
+  }
+
+  const number = Number(width);
+  if (!/^[0-9]+$/.test(width) || number < 10 || number > 120) {
+    throw new UsageError(`--width는 10에서 120 사이의 정수여야 합니다: ${width}`, usage);
+  }
+  return number;
+}
+
 export function parseCategory(text, usage) {
   if (text === '') {
     throw new UsageError('--category 값이 비었습니다', usage);

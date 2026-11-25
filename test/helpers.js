@@ -13,6 +13,12 @@ export function runCli(args, { env, input, encoding = 'utf8' } = {}) {
   return result;
 }
 
+export function assertUsageError({ status, stdout, stderr }, message, usage) {
+  assert.equal(status, 2, message);
+  assert.equal(stdout, '', message);
+  assert.equal(stderr, `오류: ${message}\n${usage}\n`, message);
+}
+
 export function tempDir(t, prefix = 'gagyebu-') {
   const directory = mkdtempSync(path.join(os.tmpdir(), prefix));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

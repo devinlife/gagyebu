@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
@@ -23,13 +23,6 @@ function fixture(t, envOverrides = {}) {
   }
 
   return { directory, data, envData, run, read };
-}
-
-function assertUsageError({ status, stdout, stderr }, message) {
-  assert.equal(status, 2, message);
-  assert.equal(stdout, '', message);
-  assert.match(stderr, /^오류: [^\n]+\n[^\n]+\n$/, message);
-  assert.equal(stderr.split('\n')[1], usage, message);
 }
 
 test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선한다', (t) => {
@@ -155,26 +148,49 @@ test('id는 기존 nextId를 쓰고 경로를 생략하면 GAGYEBU_DATA에 저�
 
 test('잘못된 사용법을 거부하고 데이터 파일을 만들지 않는다', (t) => {
   const { directory, data, run } = fixture(t);
+  const invalidAmount = '금액은 양의 정수여야 합니다: ';
+  const invalidDate = '날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ';
 
-  for (const args of [
-    [], ['0'], ['-5'], ['1.5'], ['abc'], ['9007199254740993'], ['1\n'],
-    ['1,20,0'], ['1.5만'], ['0원'], ['1만 '],
-    ['1', '2'], ['1', '--nope'], ['1', '--type', 'transfer'],
-    ['1', '--date', '2026-02-30'], ['1', '--date', '2026-13-01'],
-    ['1', '--date', '2026-02-29'], ['1', '--date', '2026-2-3'],
-    ['1', '--date', '13/1'], ['1', '--date', '내일'],
-    ['1', '--category='], ['1', '--data='], ['1', '--data', ''], ['1', '--help=nope'],
-    ['1', '--date', '2026-02-30\r\n추가 줄'],
+  for (const [args, message] of [
+    [[], '금액이 없습니다'],
+    [['0'], invalidAmount + '0'],
+    [['-5'], invalidAmount + '-5'],
+    [['1.5'], invalidAmount + '1.5'],
+    [['abc'], invalidAmount + 'abc'],
+    [['9007199254740993'], invalidAmount + '9007199254740993'],
+    [['1\n'], invalidAmount + '1\\n'],
+    [['1,20,0'], invalidAmount + '1,20,0'],
+    [['1.5만'], invalidAmount + '1.5만'],
+    [['0원'], invalidAmount + '0원'],
+    [['1만 '], invalidAmount + '1만 '],
+    [['1', '2'], '예상하지 않은 인자입니다: 2'],
+    [['1', '--nope'], '알 수 없는 옵션입니다: --nope'],
+    [['1', '--type', 'transfer'], '--type은 expense 또는 income이어야 합니다: transfer'],
+    [['1', '--date', '2026-02-30'], invalidDate + '2026-02-30'],
+    [['1', '--date', '2026-13-01'], invalidDate + '2026-13-01'],
+    [['1', '--date', '2026-02-29'], invalidDate + '2026-02-29'],
+    [['1', '--date', '2026-2-3'], invalidDate + '2026-2-3'],
+    [['1', '--date', '13/1'], invalidDate + '13/1'],
+    [['1', '--date', '내일'], invalidDate + '내일'],
+    [['1', '--date', '02-30'], invalidDate + '02-30'],
+    [['1', '--date', '2026-02-30\r\n추가 줄'], invalidDate + '2026-02-30\\r\\n추가 줄'],
+    [['1', '--category='], '--category 값이 비었습니다'],
+    [['1', '--data='], '--data 값이 비었습니다'],
+    [['1', '--data', ''], '--data 값이 비었습니다'],
+    [['1', '--help=nope'], '--help는 값을 받지 않습니다'],
   ]) {
-    assertUsageError(run('--data', data, ...args), JSON.stringify(args));
+    assertUsageError(run('--data', data, ...args), message, usage);
   }
-  for (const option of ['type', 'category', 'date', 'memo', 'data']) {
-    assertUsageError(run('1', `--${option}`), `--${option}`);
+  for (const [option, message] of [
+    ['--type', '--type 값이 없습니다'],
+    ['--category', '--category 값이 없습니다'],
+    ['--date', '--date 값이 없습니다'],
+    ['--memo', '--memo 값이 없습니다'],
+    ['--tag', '--tag 값이 없습니다'],
+    ['--data', '--data 값이 없습니다'],
+  ]) {
+    assertUsageError(run('1', option), message, usage);
   }
-  const invalidDate = run('1', '--date', '02-30', '--data', data);
-  assertUsageError(invalidDate);
-  assert.equal(invalidDate.stderr,
-    `오류: 날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 02-30\n${usage}\n`);
   assert.deepEqual(readdirSync(directory), []);
 });
 
@@ -183,7 +199,7 @@ test('사용법 오류를 파일 읽기보다 먼저 보고하고 파일을 보�
   const original = '{깨진 JSON';
   writeFileSync(data, original);
 
-  assertUsageError(run('10', '--data', data, '--nope'));
+  assertUsageError(run('10', '--data', data, '--nope'), '알 수 없는 옵션입니다: --nope', usage);
   assert.equal(readFileSync(data, 'utf8'), original);
 });
 
@@ -235,6 +251,6 @@ test('반복 태그를 정규화해 저장하고 확인 줄에 표시한다', (t
   assert.deepEqual(read().transactions[0].tags, ['회식', '법인']);
 
   const saved = readFileSync(data, 'utf8');
-  assertUsageError(run('1000', '--tag', 'a b', '--data', data));
+  assertUsageError(run('1000', '--tag', 'a b', '--data', data), '태그는 공백 없는 1~20자여야 합니다: a b', usage);
   assert.equal(readFileSync(data, 'utf8'), saved);
 });

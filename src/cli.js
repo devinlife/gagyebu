@@ -11,6 +11,7 @@ const commands = {
   rm: await import('./commands/rm.js'),
   category: await import('./commands/category.js'),
   summary: await import('./commands/summary.js'),
+  export: await import('./commands/export.js'),
   budget: await import('./commands/budget.js'),
 };
 

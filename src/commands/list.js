@@ -18,6 +18,34 @@ export function run(argv) {
   });
 }
 
+export function parsePeriod(options, usage) {
+  const from = options.from === undefined ? undefined : parseDate(options.from);
+  if (from === null) {
+    throw new UsageError(`--from은 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.from}`, usage);
+  }
+  const to = options.to === undefined ? undefined : parseDate(options.to);
+  if (to === null) {
+    throw new UsageError(`--to는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.to}`, usage);
+  }
+  if (from !== undefined && to !== undefined && from > to) {
+    throw new UsageError(`--from이 --to보다 늦습니다: ${from} > ${to}`, usage);
+  }
+  return { from, to };
+}
+
+export function loadTransactions(filePath) {
+  const { transactions } = readData(filePath);
+  if (!Array.isArray(transactions)) {
+    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
+  }
+  return transactions.toSorted((a, b) => {
+    if (a.date === b.date) {
+      return a.id - b.id;
+    }
+    return a.date < b.date ? -1 : 1;
+  });
+}
+
 export function showTransactions(argv, usage, prepareMatch) {
   const { args, options, error } = parseOptions(argv, {
     values: ['from', 'to', 'type', 'category', 'tag', 'data'],
@@ -34,17 +62,7 @@ export function showTransactions(argv, usage, prepareMatch) {
   const match = prepareMatch(args);
 
   const { type, category, data } = options;
-  const from = options.from === undefined ? undefined : parseDate(options.from);
-  if (from === null) {
-    throw new UsageError(`--from은 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.from}`, usage);
-  }
-  const to = options.to === undefined ? undefined : parseDate(options.to);
-  if (to === null) {
-    throw new UsageError(`--to는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.to}`, usage);
-  }
-  if (from !== undefined && to !== undefined && from > to) {
-    throw new UsageError(`--from이 --to보다 늦습니다: ${from} > ${to}`, usage);
-  }
+  const { from, to } = parsePeriod(options, usage);
   if (type !== undefined && type !== 'expense' && type !== 'income') {
     throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, usage);
   }
@@ -56,11 +74,7 @@ export function showTransactions(argv, usage, prepareMatch) {
   }
 
   const tags = parseTags(options.tag, usage);
-  const filePath = resolveDataPath(data);
-  const { transactions } = readData(filePath);
-  if (!Array.isArray(transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
+  const transactions = loadTransactions(resolveDataPath(data));
 
   const list = transactions.filter((transaction) =>
     (from === undefined || from <= transaction.date)
@@ -69,12 +83,6 @@ export function showTransactions(argv, usage, prepareMatch) {
     && (category === undefined || category === transaction.category)
     && tags.every((tag) => Array.isArray(transaction.tags) && transaction.tags.includes(tag))
     && match(transaction));
-  list.sort((a, b) => {
-    if (a.date === b.date) {
-      return a.id - b.id;
-    }
-    return a.date < b.date ? -1 : 1;
-  });
 
   if (options.json) {
     console.log(JSON.stringify(list, null, 2));

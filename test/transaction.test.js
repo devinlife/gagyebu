@@ -5,7 +5,7 @@ import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import {
-  applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals,
+  applyChanges, buildTransaction, buildTransfer, describeTransaction, filterTransactions, importTransactions, listTotals,
   parseEntryOptions, parseTransactionFields, removeTransaction,
 } from '../src/transaction.js';
 import { currentData, transaction } from './helpers.js';
@@ -125,6 +125,13 @@ test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그�
   });
   assert.equal(data.nextId, 7);
   assert.deepEqual(data.transactions, []);
+});
+
+test('이체를 만들 때 보내는 계좌와 받는 계좌가 같으면 사용법 오류를 낸다', () => {
+  const transferUsage = '사용법: gagyebu transfer';
+  assert.throws(() => buildTransfer(currentData({}), { from: '현금', to: '현금' }, '/data.json', transferUsage), {
+    constructor: UsageError, message: '보내는 계좌와 받는 계좌는 달라야 합니다', usage: transferUsage,
+  });
 });
 
 test('가져올 거래를 검증해 기존 거래의 중복을 세고 새 번호를 매긴다', () => {

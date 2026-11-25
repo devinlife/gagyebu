@@ -3,7 +3,7 @@ import { formatWon, withParticle } from '../format.js';
 import { parseAmountArgument, parseDate, parseNonemptyOption, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { appendTransaction, buildTransfer, categoryText, requireDistinctAccounts } from '../transaction.js';
+import { appendTransaction, buildTransfer, categoryText } from '../transaction.js';
 
 export const name = 'transfer';
 export const order = 25;
@@ -31,12 +31,11 @@ export function run(argv) {
     parseNonemptyOption(options[option], option, USAGE);
   }
   const { from, to, memo = '' } = options;
-  requireDistinctAccounts(from, to, USAGE);
   const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
   validateDataOption(options, USAGE);
 
   const { filePath, data } = loadData(options, USAGE);
-  const transaction = buildTransfer(data, { date, amount, from, to, memo }, filePath);
+  const transaction = buildTransfer(data, { date, amount, from, to, memo }, filePath, USAGE);
   appendTransaction(data, transaction);
   writeData(filePath, data);
 

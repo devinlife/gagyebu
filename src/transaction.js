@@ -6,6 +6,7 @@ import { MISSING_AMOUNT, parseAmount, parseCategory, parseDate, parseImportType,
 import { readError } from './store.js';
 import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
+const TRANSFER_HAS_NO_CATEGORY = '이체에는 분류가 없습니다';
 const categoryHint = ' (gagyebu category add로 더하세요)';
 
 export function categoryText({ type, account, toAccount, category }) {
@@ -76,17 +77,18 @@ export function requireEntryReferences(data, { type, category, account }) {
   withField('account', DataError, () => requireAccount(data.accounts, account));
 }
 
-export function requireDistinctAccounts(from, to, usage) {
+function requireDistinctAccounts(from, to, usage) {
   if (from === to) {
     throw new UsageError('보내는 계좌와 받는 계좌는 달라야 합니다', usage);
   }
 }
 
-export function buildTransfer(data, { date, amount, from, to, memo }, filePath) {
+export function buildTransfer(data, { date, amount, from, to, memo, tags = [] }, filePath, usage) {
+  requireDistinctAccounts(from, to, usage);
   const id = requireNextId(data, filePath);
   requireAccount(data.accounts, from);
   requireAccount(data.accounts, to);
-  return { id, date, type: TRANSFER, amount, category: '', account: from, toAccount: to, memo, tags: [] };
+  return { id, date, type: TRANSFER, amount, category: '', account: from, toAccount: to, memo, tags };
 }
 
 function requireNextId({ nextId: id }, filePath) {
@@ -156,7 +158,7 @@ export function applyChanges(data, id, changes, usage) {
       throw new UsageError('이체의 구분은 바꿀 수 없습니다', usage);
     }
     if (changes.category !== undefined) {
-      throw new UsageError('이체에는 분류가 없습니다', usage);
+      throw new UsageError(TRANSFER_HAS_NO_CATEGORY, usage);
     }
   } else {
     if (changes.toAccount !== undefined) {

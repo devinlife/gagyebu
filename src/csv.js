@@ -1,9 +1,10 @@
 import { DataError } from './errors.js';
+import { TRANSFER } from './types.js';
 
-const HEADER = 'id,date,type,amount,category,account,memo,tags';
+const HEADER = 'id,date,type,amount,category,account,memo,tags,to_account';
 const formulaText = /^'*[=+\-@]/;
 const requiredColumns = ['date', 'amount', 'type'];
-const textColumns = ['category', 'account', 'memo'];
+const textColumns = ['category', 'account', 'memo', 'to_account'];
 
 function protectText(value) {
   const text = String(value ?? '');
@@ -19,11 +20,11 @@ function escapeCell(value) {
 }
 
 export function toCsv(transactions) {
-  const rows = transactions.map(({ id, date, type, amount, category, account, memo, tags }) => {
+  const rows = transactions.map(({ id, date, type, amount, category, account, memo, tags, toAccount }) => {
     const tagText = Array.isArray(tags) ? tags.map(protectText).join(';') : '';
     const cells = [
       String(id), date ?? '', type ?? '', String(amount),
-      protectText(category), protectText(account), protectText(memo), tagText,
+      protectText(category), protectText(account), protectText(memo), tagText, type === TRANSFER ? protectText(toAccount) : '',
     ];
     return cells.map(escapeCell).join(',');
   });

@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import { parseCsv, readCsvRows, toCsv } from '../src/csv.js';
 import { DataError } from '../src/errors.js';
 
-const header = 'id,date,type,amount,category,account,memo,tags\r\n';
+const header = 'id,date,type,amount,category,account,memo,tags,to_account\r\n';
 const transaction = {
   id: 1, date: '2026-02-03', type: 'transfer', amount: 5000,
-  category: '식비', account: '현금', memo: '저녁', tags: ['회식', '법인'],
+  category: '식비', account: '현금', memo: '저녁', toAccount: '통장', tags: ['회식', '법인'],
 };
 
 test('거래가 없으면 CSV 머리 줄만 출력한다', () => {
@@ -14,12 +14,12 @@ test('거래가 없으면 CSV 머리 줄만 출력한다', () => {
 });
 
 test('거래 순서와 구분을 유지하고 태그를 세미콜론으로 잇는다', () => {
-  const legacy = { id: 2, date: '2026-02-02', type: 'expense', amount: 30, category: '교통' };
+  const legacy = { id: 2, date: '2026-02-02', type: 'expense', amount: 30, category: '교통', toAccount: '무시' };
   const nonArrayTags = { ...legacy, id: 3, tags: '회식' };
   assert.equal(toCsv([transaction, legacy, nonArrayTags]), header
-    + '1,2026-02-03,transfer,5000,식비,현금,저녁,회식;법인\r\n'
-    + '2,2026-02-02,expense,30,교통,,,\r\n'
-    + '3,2026-02-02,expense,30,교통,,,\r\n');
+    + '1,2026-02-03,transfer,5000,식비,현금,저녁,회식;법인,통장\r\n'
+    + '2,2026-02-02,expense,30,교통,,,,\r\n'
+    + '3,2026-02-02,expense,30,교통,,,,\r\n');
 });
 
 test('쉼표와 따옴표 및 줄바꿈이 있는 CSV 칸을 감싼다', () => {
@@ -27,17 +27,17 @@ test('쉼표와 따옴표 및 줄바꿈이 있는 CSV 칸을 감싼다', () => {
     ...transaction, category: 'a,b', account: '그는 "좋다"', memo: '첫째\n둘째\r\n셋째\r넷째',
   };
   assert.equal(toCsv([entry]), header
-    + '1,2026-02-03,transfer,5000,"a,b","그는 ""좋다""","첫째\n둘째\r\n셋째\r넷째",회식;법인\r\n');
+    + '1,2026-02-03,transfer,5000,"a,b","그는 ""좋다""","첫째\n둘째\r\n셋째\r넷째",회식;법인,통장\r\n');
 });
 
 test('글 칸과 각 태그의 수식을 막은 뒤 CSV 따옴표를 처리한다', () => {
   const entries = [
-    { ...transaction, amount: -5000, category: '+1', account: '@현금', memo: '=SUM(A1)', tags: ['회식', '@x'] },
+    { ...transaction, amount: -5000, category: '+1', account: '@현금', memo: '=SUM(A1)', tags: ['회식', '@x'], toAccount: '@은행' },
     { ...transaction, memo: '-3', tags: ['=a,b', 'a=b'] },
   ];
   assert.equal(toCsv(entries), header
-    + "1,2026-02-03,transfer,-5000,'+1,'@현금,'=SUM(A1),회식;'@x\r\n"
-    + "1,2026-02-03,transfer,5000,식비,현금,'-3,\"'=a,b;a=b\"\r\n");
+    + "1,2026-02-03,transfer,-5000,'+1,'@현금,'=SUM(A1),회식;'@x,'@은행\r\n"
+    + "1,2026-02-03,transfer,5000,식비,현금,'-3,\"'=a,b;a=b\",통장\r\n");
 });
 
 test('BOM과 빈 줄을 처리하고 여러 줄에 걸친 레코드의 시작 줄을 센다', () => {
@@ -68,9 +68,9 @@ test('CSV 따옴표 형식이 잘못되면 레코드 시작 줄로 오류를 표
 test('수식 막기 표시를 떼고 원래 있던 작은따옴표를 보존한다', () => {
   const { date, amount, type } = transaction;
   const fields = { date, amount: String(amount), type, category: '=SUM', account: "'=x", memo: "'abc",
-    tags: ["''@회사", '-a', "'abc"] };
-  const csv = toCsv([{ ...transaction, ...fields }]);
-  assert.ok(csv.includes(",'=SUM,''=x,'abc,'''@회사;'-a;'abc\r\n"));
+    tags: ["''@회사", '-a', "'abc"], to_account: '@은행, "지점"' };
+  const csv = toCsv([{ ...transaction, ...fields, toAccount: fields.to_account }]);
+  assert.ok(csv.includes(",'=SUM,''=x,'abc,'''@회사;'-a;'abc,\"'@은행, \"\"지점\"\"\"\r\n"));
   assert.deepEqual(readCsvRows(parseCsv(csv)), [{ line: 2, fields }]);
 });
 

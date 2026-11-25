@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { assertUsageError, binPath, runCli, tempDir, testEnv } from './helpers.js';
 
 const usage = '사용법: gagyebu export [--out <파일>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--force] [--data <경로>]';
-const header = 'id,date,type,amount,category,account,memo,tags\r\n';
+const header = 'id,date,type,amount,category,account,memo,tags,to_account\r\n';
 const earlier = {
   id: 12, date: '2026-02-02', type: 'expense', amount: 1200,
   category: '식비', account: '현금', memo: '그는 "좋다",\n라고 했다',
@@ -21,10 +21,10 @@ const sameDayIncome = {
   category: '급여', account: '현금', memo: '', tags: [],
 };
 const later = { ...sameDayIncome, id: 3, date: '2026-02-04' };
-const earlierRow = '12,2026-02-02,expense,1200,식비,현금,"그는 ""좋다"",\n라고 했다",\r\n';
-const sameDayRows = "2,2026-02-03,expense,50,식비,현금,'=SUM(A1),점심;'@회사\r\n"
-  + '10,2026-02-03,income,5000,급여,현금,,\r\n';
-const laterRow = '3,2026-02-04,income,5000,급여,현금,,\r\n';
+const earlierRow = '12,2026-02-02,expense,1200,식비,현금,"그는 ""좋다"",\n라고 했다",,\r\n';
+const sameDayRows = "2,2026-02-03,expense,50,식비,현금,'=SUM(A1),점심;'@회사,\r\n"
+  + '10,2026-02-03,income,5000,급여,현금,,,\r\n';
+const laterRow = '3,2026-02-04,income,5000,급여,현금,,,\r\n';
 
 function fixture(t, encoding = null) {
   const directory = tempDir(t, 'gagyebu-export-');

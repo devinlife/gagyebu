@@ -16,6 +16,10 @@ export function formatMonthName(month) {
   return `${Number(month.slice(5))}월`;
 }
 
+export function formatYearMonth(month) {
+  return `${month.slice(0, 4)}년 ${formatMonthName(month)}`;
+}
+
 export function formatPercent(amount, total) {
   return `${(Math.round(amount * 1000 / total) / 10).toFixed(1)}%`;
 }

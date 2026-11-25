@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { displayWidth, formatLocalDateTime, formatTable, formatWon, renderBars, withParticle } from '../src/format.js';
+import { displayWidth, formatLocalDateTime, formatTable, formatWon, formatYearMonth, renderBars, withParticle } from '../src/format.js';
+
+test('연월 제목은 연도와 월을 한글로 표시한다', () => {
+  assert.equal(formatYearMonth('2026-02'), '2026년 2월');
+});
 
 test('마지막 글자의 받침에 맞춰 조사를 붙인다', () => {
   for (const [word, pair, expected] of [

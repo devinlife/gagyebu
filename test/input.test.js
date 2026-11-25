@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
-import { parseAmount, parseChartOptions, parseDate, parseMonth, parseOpening, parsePeriod, parsePort, parseType, parseYear, today } from '../src/input.js';
+import { monthEnd, parseAmount, parseChartOptions, parseDate, parseMonth, parseOpening, parsePeriod, parsePort, parseType, parseYear, shiftMonth, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
@@ -116,6 +116,19 @@ test('월 파서는 YYYY-MM 형식의 달만 받는다', () => {
       constructor: UsageError, message: `--month는 YYYY-MM 형식의 달이어야 합니다: ${month}`, usage,
     });
   }
+});
+
+test('달 이동은 연도 경계와 지원하는 연도 범위를 반영한다', () => {
+  assert.equal(shiftMonth('2026-12', 1), '2027-01');
+  assert.equal(shiftMonth('2026-01', -1), '2025-12');
+  assert.equal(shiftMonth('0000-01', -1), null);
+  assert.equal(shiftMonth('9999-12', 1), null);
+});
+
+test('말일 계산은 윤년과 12월을 반영한다', () => {
+  assert.equal(monthEnd('2026-02'), '2026-02-28');
+  assert.equal(monthEnd('2028-02'), '2028-02-29');
+  assert.equal(monthEnd('2026-12'), '2026-12-31');
 });
 
 test('연도 파서는 YYYY 형식만 받아 숫자로 돌려준다', () => {

@@ -89,6 +89,24 @@ export function parseMonth(text, usage) {
   return text;
 }
 
+export function shiftMonth(month, delta) {
+  const [year, number] = month.split('-').map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year, number - 1 + delta, 1);
+  const shiftedYear = date.getUTCFullYear();
+  if (shiftedYear < 0 || shiftedYear > 9999) {
+    return null;
+  }
+  return date.toISOString().slice(0, 7);
+}
+
+export function monthEnd(month) {
+  const [year, number] = month.split('-').map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year, number, 0);
+  return date.toISOString().slice(0, 10);
+}
+
 export function parseYear(text, usage) {
   if (!/^\d{4}$/.test(text)) {
     throw new UsageError(`--year는 YYYY 형식의 연도여야 합니다: ${text}`, usage);

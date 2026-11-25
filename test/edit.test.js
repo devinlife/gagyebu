@@ -21,7 +21,7 @@ function fixture(t) {
     transactions: [
       {
         id: 1, date: '2026-02-27', type: 'income', amount: 40000, category: '용돈',
-        account: '현금', memo: '', tags: [],
+        account: '현금', memo: '2월분', tags: [],
       },
       {
         id: 2, date: '2026-03-01', type: 'expense', amount: 6000, category: '식비',
@@ -58,6 +58,21 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
     transactions: [original.transactions[0], { ...original.transactions[1], amount: 12000, memo: '점심' }],
   });
   assert.deepEqual(readdirSync(directory), ['override.json']);
+});
+
+test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한다', (t) => {
+  const { data, original, run, read } = fixture(t);
+  writeFileSync(data, JSON.stringify(original));
+
+  const { status, stdout, stderr } = run('1', '--category', '생활비');
+
+  assert.equal(status, 0);
+  assert.equal(stderr, '');
+  assert.equal(stdout, '수정했습니다: #1 2026-02-27 수입 40,000원 생활비 2월분\n');
+  assert.deepEqual(read(), {
+    ...original,
+    transactions: [{ ...original.transactions[0], category: '생활비' }, original.transactions[1]],
+  });
 });
 
 test('금액과 날짜를 정규화하고 빈 메모로 기존 메모를 지운다', (t) => {

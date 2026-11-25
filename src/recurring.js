@@ -1,5 +1,6 @@
 import { DataError } from './errors.js';
 import { withParticle } from './format.js';
+import { monthEnd } from './input.js';
 import { buildTransaction, requireEntryReferences } from './transaction.js';
 
 export function addRule(data, rule) {
@@ -23,10 +24,8 @@ export function removeRule(recurring, id) {
 }
 
 export function ruleDate(day, month) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  const date = new Date(0);
-  date.setUTCFullYear(year, monthNumber, 0);
-  const dayText = String(Math.min(day, date.getUTCDate())).padStart(2, '0');
+  const lastDay = Number(monthEnd(month).slice(8));
+  const dayText = String(Math.min(day, lastDay)).padStart(2, '0');
   return `${month}-${dayText}`;
 }
 

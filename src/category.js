@@ -1,6 +1,8 @@
 import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { EXPENSE, TYPES } from './types.js';
 
+export const DEFAULT_CATEGORY = '기타';
+
 export function parseName(args, usage) {
   if (args.length === 0) {
     throw new UsageError('분류 이름이 없습니다', usage);

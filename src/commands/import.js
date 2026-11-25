@@ -33,11 +33,17 @@ export function run(argv) {
   }
   validateDataOption(options, USAGE);
 
-  let text;
+  let bytes;
   try {
-    text = readFileSync(inputFile, 'utf8');
+    bytes = readFileSync(inputFile);
   } catch (error) {
     throw new DataError(`파일을 읽을 수 없습니다: ${inputFile} (${error.code})`);
+  }
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    throw new DataError(`UTF-8 파일이 아닙니다: ${inputFile}`);
   }
   const rows = readCsvRows(parseCsv(text));
   const { data, filePath } = loadData(options, USAGE);

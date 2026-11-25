@@ -4,6 +4,7 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DEFAULT_CATEGORY } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { withParticle } from './format.js';
 import { isValidDate } from './input.js';
@@ -11,8 +12,8 @@ import { RECORD_TYPES, TYPES } from './types.js';
 
 export const CURRENT_VERSION = 2;
 export const DEFAULT_CATEGORIES = {
-  expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', '기타'],
-  income: ['급여', '용돈', '기타'],
+  expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', DEFAULT_CATEGORY],
+  income: ['급여', '용돈', DEFAULT_CATEGORY],
 };
 
 export function resolveDataPath(dataOption, env = process.env, home = os.homedir()) {

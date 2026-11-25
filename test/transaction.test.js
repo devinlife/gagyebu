@@ -99,6 +99,31 @@ test('가져올 거래를 검증해 기존 거래의 중복을 세고 새 번호
   assert.deepEqual(data.transactions, [existing]);
 });
 
+test('중복 판정의 다섯 필드 중 하나라도 다르면 거래를 더한다', () => {
+  const existing = transaction({ id: 1, category: '기타' });
+  const data = { nextId: 2, categories: DEFAULT_CATEGORIES, transactions: [existing] };
+  const fields = { date: '2026-02-10', type: 'expense', amount: '1000', category: '기타', memo: '' };
+  const changes = [
+    { date: '2026-02-11' },
+    { type: 'income' },
+    { amount: '2000' },
+    { category: '식비' },
+    { memo: '점심' },
+  ];
+  const rows = changes.map((change, index) => ({ line: index + 3, fields: { ...fields, ...change } }));
+  assert.deepEqual(importTransactions(data, [{ line: 2, fields }, ...rows], '/data.json'), {
+    added: [
+      { ...existing, id: 2, date: '2026-02-11' },
+      { ...existing, id: 3, type: 'income' },
+      { ...existing, id: 4, amount: 2000 },
+      { ...existing, id: 5, category: '식비' },
+      { ...existing, id: 6, memo: '점심' },
+    ],
+    duplicates: 1,
+    errors: [],
+  });
+});
+
 test('가져올 각 행의 첫 오류를 모으고 중복도 검증한다', () => {
   const data = { nextId: 2, categories: DEFAULT_CATEGORIES, transactions: [transaction({ id: 1 })] };
   const fields = { date: '2026-02-10', type: 'expense', amount: '1000', category: '식비' };

@@ -1,3 +1,4 @@
+import { DEFAULT_CATEGORY } from '../category.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseAmount, parseCategory, parseDate, parseTags, parseType, today } from '../input.js';
 import { parseOptions } from '../options.js';
@@ -36,7 +37,7 @@ export function run(argv) {
 
   const { memo = '' } = options;
   const type = parseType(options.type ?? EXPENSE, USAGE);
-  const category = parseCategory(options.category ?? '기타', USAGE);
+  const category = parseCategory(options.category ?? DEFAULT_CATEGORY, USAGE);
   const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
   validateDataOption(options, USAGE);
 

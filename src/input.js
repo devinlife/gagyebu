@@ -1,5 +1,5 @@
 import { DataError, UsageError } from './errors.js';
-import { TYPES } from './types.js';
+import { TYPE_LABELS, TYPES } from './types.js';
 
 export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -124,6 +124,14 @@ export function parseType(text, usage) {
     throw new UsageError(`--type은 ${TYPES.join(' 또는 ')}이어야 합니다: ${text}`, usage);
   }
   return text;
+}
+
+export function parseImportType(text) {
+  const type = TYPES.find((value) => value === text || TYPE_LABELS[value] === text);
+  if (type === undefined) {
+    throw new UsageError(`type은 expense·income·지출·수입 중 하나여야 합니다: ${text}`);
+  }
+  return type;
 }
 
 export function parseAmount(text, usage) {

@@ -1,9 +1,9 @@
-import { requireCategoryIndex } from './category.js';
+import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { formatWon, withParticle } from './format.js';
-import { parseAmount, parseDate, parseTags } from './input.js';
+import { parseAmount, parseDate, parseImportType, parseTags } from './input.js';
 import { readError } from './store.js';
-import { EXPENSE, INCOME, TYPE_LABELS, TYPES } from './types.js';
+import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
 
 const categoryHint = ' (gagyebu category add로 더하세요)';
 
@@ -37,11 +37,8 @@ export function importTransactions(data, rows, filePath) {
     try {
       const date = parseDate(fields.date, undefined, 'date는');
       const amount = parseAmount(fields.amount);
-      const type = TYPES.find((value) => value === fields.type || TYPE_LABELS[value] === fields.type);
-      if (type === undefined) {
-        throw new UsageError(`type은 expense·income·지출·수입 중 하나여야 합니다: ${fields.type}`);
-      }
-      const category = fields.category || '기타';
+      const type = parseImportType(fields.type);
+      const category = fields.category || DEFAULT_CATEGORY;
       const account = fields.account || undefined;
       const memo = fields.memo ?? '';
       const tags = parseTags(fields.tags);

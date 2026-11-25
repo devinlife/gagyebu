@@ -112,6 +112,19 @@ test('파일 읽기, CSV 형식과 필수 칸 오류는 한 줄을 표시하고 
   assert.equal(readFileSync(dataPath, 'utf8'), original);
 });
 
+test('CP949로 인코딩된 메모가 있으면 가져오기를 거절하고 데이터를 보존한다', (t) => {
+  const { csv, dataPath, run } = fixture(t);
+  const original = writeDataFixture(dataPath);
+  writeFileSync(csv, Buffer.concat([
+    Buffer.from(header + ',memo\n' + validRow + ','),
+    Buffer.from([0xc7, 0xd1]), // CP949의 '한'
+    Buffer.from('\n'),
+  ]));
+
+  assertResult(run(csv), 1, '', '오류: UTF-8 파일이 아닙니다: ' + csv + '\n');
+  assert.equal(readFileSync(dataPath, 'utf8'), original);
+});
+
 test('사용법 오류는 종료 코드 2와 사용법을 표시한다', (t) => {
   const { csv, dataPath, run } = fixture(t);
   for (const [args, message] of [

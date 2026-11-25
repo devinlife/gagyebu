@@ -1,6 +1,6 @@
 import { UsageError } from '../errors.js';
-import { formatMonthName, formatPercent, formatTable, formatWon } from '../format.js';
-import { parseMonth, today } from '../input.js';
+import { formatMonthName, formatPercent, formatTable, formatWon, renderBars } from '../format.js';
+import { parseChartOptions, parseMonth, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData } from '../store.js';
 import { summarizeMonth } from '../report.js';
@@ -10,7 +10,7 @@ export const name = 'summary';
 export const order = 80;
 export const summary = '한 달의 수입·지출과 분류별 합계를 보여 줍니다.';
 
-const USAGE = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
+const USAGE = '사용법: gagyebu summary [--month YYYY-MM] [--json | --chart [--width <10~120>]] [--data <경로>]';
 
 function categoryTable(heading, entries, total, showBudget = false) {
   const rows = [[heading, '금액', '비율', '건수']];
@@ -33,8 +33,8 @@ function categoryTable(heading, entries, total, showBudget = false) {
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['month', 'data'],
-    flags: ['json', 'help'],
+    values: ['month', 'data', 'width'],
+    flags: ['json', 'help', 'chart'],
   });
   if (error) {
     throw new UsageError(error, USAGE);
@@ -47,6 +47,7 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
   }
 
+  const chartWidth = parseChartOptions(options, USAGE);
   const month = parseMonth(options.month ?? today().slice(0, 7), USAGE);
   const { data: { budgets, transactions } } = loadData(options, USAGE);
 
@@ -65,7 +66,15 @@ export function run(argv) {
 
   const lines = [title, `${TYPE_LABELS[INCOME]} ${formatWon(income)}`, `${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}`, `차액 ${formatWon(net)}`];
   if (expenseByCategory.length > 0) {
-    lines.push('', categoryTable(`${TYPE_LABELS[EXPENSE]} 분류`, expenseByCategory, expense, true));
+    if (chartWidth === null) {
+      lines.push('', categoryTable(`${TYPE_LABELS[EXPENSE]} 분류`, expenseByCategory, expense, true));
+    } else {
+      const bars = renderBars(expenseByCategory.map(({ amount }) => amount), chartWidth);
+      const rows = expenseByCategory.map(({ category, amount }, index) => [
+        category, bars[index], formatWon(amount), formatPercent(amount, expense),
+      ]);
+      lines.push('', formatTable(rows, { right: [2, 3] }));
+    }
     const overBudget = expenseByCategory.filter(({ over }) => over > 0).map(({ category }) => category);
     if (overBudget.length > 0) {
       lines.push(`예산 초과: ${overBudget.join(', ')}`);

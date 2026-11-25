@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { displayWidth } from '../src/format.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
 import { runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
-const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
+const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json | --chart [--width <10~120>]] [--data <경로>]';
 
 function fixture(t, today = '2026-02-10') {
   const directory = tempDir(t, 'gagyebu-summary-');
@@ -22,7 +23,7 @@ function fixture(t, today = '2026-02-10') {
     return writeJson(data, { ...schema, nextId: transactions.length + 1, transactions: transactions.map((entry, index) => transaction({ id: index + 1, ...entry })) });
   }
 
-  return { directory, data, run, write };
+  return { directory, data, env, run, write };
 }
 
 function output({ status, stdout, stderr }) {
@@ -115,6 +116,33 @@ test('같은 금액은 분류 이름 순으로 정렬하고 표에서만 비율�
   }
 });
 
+test('지출 차트는 한글과 영문 분류의 막대를 맞추고 금액과 비율을 출력한다', (t) => {
+  const { env, run, write } = fixture(t);
+  write(february.map((entry) => entry.category === '교통' ? { ...entry, category: 'Cafe' } : entry), { 식비: 35000 });
+  delete env.NO_COLOR;
+  const chart = output(run('--chart'));
+  assert.equal(chart, [
+    '2026년 2월',
+    '수입 3,000,000원',
+    '지출 52,500원',
+    '차액 2,947,500원',
+    '',
+    `식비  ${'█'.repeat(40)}  40,000원  76.2%`,
+    `Cafe  ${'█'.repeat(12)}▌${' '.repeat(29)}12,500원  23.8%`,
+    '예산 초과: 식비',
+    '',
+    '수입 분류         금액    비율  건수',
+    '급여       3,000,000원  100.0%     1',
+    '',
+  ].join('\n'));
+  const chartRows = chart.split('\n').slice(5, 7);
+  assert.deepEqual(chartRows.map((line) => displayWidth(line.slice(0, line.indexOf('█')))), [6, 6]);
+  assert.equal(output(run('--chart', '--width', '20')).split('\n')[5], `식비  ${'█'.repeat(20)}  40,000원  76.2%`);
+  env.NO_COLOR = '1';
+  assert.equal(output(run('--chart')), chart);
+  assert.doesNotMatch(chart, /\x1b/);
+});
+
 test('지출 예산과 초과액을 표와 JSON에 표시하고 반올림 전 금액으로 초과를 판정한다', (t) => {
   const { data, run, write } = fixture(t);
   const original = write([
@@ -202,6 +230,12 @@ test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한�
       ['--month', month], `--month는 YYYY-MM 형식의 달이어야 합니다: ${month}`,
     ]),
     [['--month'], '--month 값이 없습니다'],
+    [['--chart', '--width'], '--width 값이 없습니다'],
+    [['--chart', '--json'], '--chart와 --json은 함께 쓸 수 없습니다'],
+    [['--width', '20'], '--width는 --chart와 함께 써야 합니다'],
+    ...['9', '121', '10.5'].map((width) => [
+      ['--chart', '--width', width], `--width는 10에서 120 사이의 정수여야 합니다: ${width}`,
+    ]),
     [['--data'], '--data 값이 없습니다'],
     [['--nope'], '알 수 없는 옵션 --nope'],
     [['extra'], '예상하지 않은 인자 extra'],

@@ -1,5 +1,6 @@
 import { currentCount, restoreBackup } from '../backup.js';
 import { DataError, UsageError, unexpectedArgument } from '../errors.js';
+import { UNREADABLE } from '../format.js';
 import { parseOptions } from '../options.js';
 import { dataPath, readBackup } from '../store.js';
 
@@ -34,7 +35,7 @@ export function run(argv) {
   const backupCount = backup.transactions.length;
   if (!options.yes) {
     const count = currentCount(filePath);
-    const current = count === null ? '읽을 수 없음' : `거래 ${count}건`;
+    const current = count === null ? UNREADABLE : `거래 ${count}건`;
     throw new DataError(`지금 데이터(${current})를 백업(거래 ${backupCount}건)으로 바꾸려면 --yes를 붙이세요.`);
   }
 

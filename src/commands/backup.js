@@ -1,9 +1,9 @@
 import { backupDirectory, createBackup, listBackups } from '../backup.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
-import { formatTable } from '../format.js';
+import { formatTable, UNREADABLE } from '../format.js';
 import { parseNonemptyOption } from '../input.js';
 import { parseOptions, validateListJson } from '../options.js';
-import { resolveDataPath, validateDataOption } from '../store.js';
+import { dataPath } from '../store.js';
 
 export const name = 'backup';
 export const order = 106;
@@ -28,14 +28,12 @@ export function run(argv) {
   }
   validateListJson(options, USAGE);
   parseNonemptyOption(options.dir, 'dir', USAGE);
-  validateDataOption(options, USAGE);
-
-  const dataPath = resolveDataPath(options.data);
-  const directory = backupDirectory(dataPath, options.dir);
+  const filePath = dataPath(options, USAGE);
+  const directory = backupDirectory(filePath, options.dir);
   if (options.list) {
     printBackups(listBackups(directory), options.json);
   } else {
-    const { path, count } = createBackup(dataPath, directory);
+    const { path, count } = createBackup(filePath, directory);
     console.log(`백업했습니다: ${path} (거래 ${count}건)`);
   }
   return 0;
@@ -49,7 +47,7 @@ function printBackups(backups, json) {
     console.log('백업이 없습니다.');
   } else {
     const rows = backups.map(({ name, size, count }) => [
-      name, `${size.toLocaleString('en-US')}B`, count === null ? '읽을 수 없음' : `${count}건`,
+      name, `${size.toLocaleString('en-US')}B`, count === null ? UNREADABLE : `${count}건`,
     ]);
     console.log(formatTable([['이름', '크기', '거래'], ...rows], { right: [1, 2] }));
   }

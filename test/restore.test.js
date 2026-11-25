@@ -107,7 +107,7 @@ test('데이터 경로가 폴더이면 복원 중 폴더를 옮기지 않는다'
   const { status, stdout, stderr } = runCli(['restore', backupPath, '--yes'], { env });
   assert.equal(status, 1);
   assert.equal(stdout, '');
-  assert.equal(stderr, `오류: 깨진 데이터 파일을 옮길 수 없습니다: ${dataPath} (EISDIR)\n`);
+  assert.ok(stderr.startsWith(`오류: 깨진 데이터 파일을 보존할 수 없습니다: ${dataPath} (`), stderr);
   assert.equal(readFileSync(backupPath, 'utf8'), backup);
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });

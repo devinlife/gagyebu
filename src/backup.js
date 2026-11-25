@@ -1,4 +1,4 @@
-import { constants, copyFileSync, lstatSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
+import { constants, copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { DataError } from './errors.js';
 import { formatFileStamp } from './format.js';
@@ -29,24 +29,16 @@ export function createBackup(dataPath, directory, now = new Date()) {
     throw new DataError(`백업 폴더를 만들 수 없습니다: ${directory} (${error.code ?? error.message})`);
   }
 
-  for (let number = 1; ; number += 1) {
-    const suffix = number === 1 ? '' : `-${number}`;
-    const target = path.join(directory, `gagyebu-${stamp}${suffix}.json`);
-    try {
-      copyFileSync(dataPath, target, constants.COPYFILE_EXCL);
-      return { path: target, count };
-    } catch (error) {
-      if (error.code !== 'EEXIST') {
-        throw new DataError(`백업 파일을 쓸 수 없습니다: ${target} (${error.code ?? error.message})`);
-      }
-    }
-  }
+  const base = path.join(directory, `gagyebu-${stamp}`);
+  const target = copyToUnusedPath(dataPath, base, '.json', (target) => `백업 파일을 쓸 수 없습니다: ${target}`);
+  return { path: target, count };
 }
 
 export function restoreBackup(filePath, backup, now = new Date()) {
   let brokenPath = null;
   if (currentCount(filePath) === null) {
-    brokenPath = moveBrokenData(filePath, now);
+    const base = `${filePath}.broken-${formatFileStamp(now)}`;
+    brokenPath = copyToUnusedPath(filePath, base, '', () => `깨진 데이터 파일을 보존할 수 없습니다: ${filePath}`);
     writeData(filePath, backup, null);
   } else {
     writeData(filePath, backup);
@@ -54,24 +46,18 @@ export function restoreBackup(filePath, backup, now = new Date()) {
   return { brokenPath };
 }
 
-function moveBrokenData(filePath, now) {
-  const base = `${filePath}.broken-${formatFileStamp(now)}`;
-  const moveError = (reason) => new DataError(`깨진 데이터 파일을 옮길 수 없습니다: ${filePath} (${reason})`);
-  try {
-    if (lstatSync(filePath).isDirectory()) {
-      throw moveError('EISDIR');
+function copyToUnusedPath(source, base, extension, errorMessage) {
+  for (let number = 1; ; number += 1) {
+    const suffix = number === 1 ? '' : `-${number}`;
+    const target = `${base}${suffix}${extension}`;
+    try {
+      copyFileSync(source, target, constants.COPYFILE_EXCL);
+      return target;
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw new DataError(`${errorMessage(target)} (${error.code ?? error.message})`);
+      }
     }
-    let target = base;
-    for (let number = 2; lstatSync(target, { throwIfNoEntry: false }); number += 1) {
-      target = `${base}-${number}`;
-    }
-    renameSync(filePath, target);
-    return target;
-  } catch (error) {
-    if (error instanceof DataError) {
-      throw error;
-    }
-    throw moveError(error.code ?? error.message);
   }
 }
 

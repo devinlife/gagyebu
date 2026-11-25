@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import fs, { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import path from 'node:path';
 import { test } from 'node:test';
 import { backupDirectory, createBackup, restoreBackup } from '../src/backup.js';
+import { DataError } from '../src/errors.js';
 import { assertUsageError, currentData, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu backup [--list] [--json] [--dir <폴더>] [--data <경로>]';
@@ -45,6 +47,37 @@ test('같은 초에 남겨 둔 깨진 파일을 덮어쓰지 않는다', (t) => 
 
   assert.equal(readFileSync(base, 'utf8'), '{첫 원본');
   assert.equal(readFileSync(`${base}-2`, 'utf8'), '{둘째 원본');
+});
+
+test('복원 중 쓰기가 실패해도 깨진 원본이 데이터 경로에 남는다', (t) => {
+  const dataPath = path.join(tempDir(t), 'data.json');
+  const now = new Date(2026, 10, 26, 9, 5, 7);
+  const backup = currentData();
+  const original = Buffer.from('{깨진 원본');
+  writeFileSync(dataPath, original);
+
+  const open = fs.openSync;
+  const mock = t.mock.method(fs, 'openSync', (filePath, ...args) => {
+    if (path.basename(filePath).startsWith('.gagyebu-')) {
+      throw Object.assign(new Error('디스크 공간 부족'), { code: 'ENOSPC' });
+    }
+    return open(filePath, ...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => restoreBackup(dataPath, backup, now), (error) => {
+      assert.ok(error instanceof DataError);
+      assert.equal(error.message, `데이터 파일을 쓸 수 없습니다: ${dataPath} (ENOSPC)`);
+      return true;
+    });
+  } finally {
+    mock.mock.restore();
+    syncBuiltinESMExports();
+  }
+
+  assert.deepEqual(readFileSync(dataPath), original);
+  assert.deepEqual(readFileSync(`${dataPath}.broken-20261126-090507`), original);
+  assert.equal(existsSync(`${dataPath}.history.json`), false);
 });
 
 test('백업 명령은 기본 폴더 또는 지정 폴더에 쓰고 데이터와 이력을 보존한다', (t) => {

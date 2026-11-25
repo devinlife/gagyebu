@@ -1,6 +1,7 @@
 import { TRANSFER, TYPE_LABELS } from './types.js';
 
 export const NO_TRANSACTIONS = '거래가 없습니다.';
+export const UNREADABLE = '읽을 수 없음';
 
 export function formatLocalDateTime(date) {
   const year = String(date.getFullYear()).padStart(4, '0');

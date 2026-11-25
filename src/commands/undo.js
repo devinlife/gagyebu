@@ -1,7 +1,7 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatLocalDateTime, formatTable } from '../format.js';
 import { parseOptions, validateListJson } from '../options.js';
-import { popHistory, readHistory, resolveDataPath, restoreData, validateDataOption } from '../store.js';
+import { dataPath, popHistory, readHistory, restoreData } from '../store.js';
 
 export const name = 'undo';
 export const order = 105;
@@ -30,9 +30,7 @@ export function run(argv) {
     throw unexpectedArgument(args[0], USAGE);
   }
   validateListJson(options, USAGE);
-  validateDataOption(options, USAGE);
-
-  const filePath = resolveDataPath(options.data);
+  const filePath = dataPath(options, USAGE);
   const entries = readHistory(filePath);
   if (options.json) {
     const listing = entries.toReversed().map(({ at, command }) => ({ at, command }));

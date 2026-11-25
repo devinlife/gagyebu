@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
@@ -24,8 +25,9 @@ function fixture(t, today = '2026-02-10') {
     return result;
   }
 
-  function write(transactions) {
-    const original = JSON.stringify({ version: 1, nextId: transactions.length + 1, transactions });
+  function write(transactions, budgets) {
+    const schema = budgets === undefined ? { version: 1 } : { version: 2, categories: DEFAULT_CATEGORIES, budgets };
+    const original = JSON.stringify({ ...schema, nextId: transactions.length + 1, transactions });
     writeFileSync(data, original);
     return original;
   }
@@ -63,8 +65,8 @@ test('지정한 달의 수입과 지출 및 분류별 집계를 JSON으로 출�
     expense: 52500,
     net: 2947500,
     expenseByCategory: [
-      { category: '식비', amount: 40000, ratio: 40000 / 52500, count: 3 },
-      { category: '교통', amount: 12500, ratio: 12500 / 52500, count: 1 },
+      { category: '식비', amount: 40000, ratio: 40000 / 52500, count: 3, budget: null, over: 0 },
+      { category: '교통', amount: 12500, ratio: 12500 / 52500, count: 1, budget: null, over: 0 },
     ],
     incomeByCategory: [{ category: '급여', amount: 3000000, ratio: 1, count: 1 }],
   });
@@ -108,7 +110,7 @@ test('같은 금액은 분류 이름 순으로 정렬하고 표에서만 비율�
   ]);
   const json = JSON.parse(output(run('--json')));
   assert.deepEqual(json.expenseByCategory, ['교통', '문화', '식비'].map((category) => ({
-    category, amount: 1, ratio: 1 / 3, count: 1,
+    category, amount: 1, ratio: 1 / 3, count: 1, budget: null, over: 0,
   })));
 
   for (const [smaller, larger, expected] of [
@@ -122,6 +124,52 @@ test('같은 금액은 분류 이름 순으로 정렬하고 표에서만 비율�
     const rows = output(run()).trimEnd().split('\n').slice(6);
     assert.deepEqual(rows.map((line) => line.split(/\s+/)[2]), expected);
   }
+});
+
+test('지출 예산과 초과액을 표와 JSON에 표시하고 반올림 전 금액으로 초과를 판정한다', (t) => {
+  const { data, run, write } = fixture(t);
+  const original = write([
+    ...february,
+    { date: '2026-02-10', type: 'expense', category: '문화', amount: 20000 },
+    { date: '2026-02-10', type: 'expense', category: '의료', amount: 10001 },
+    { date: '2026-02-10', type: 'expense', category: '생활', amount: 3000 },
+  ], { 식비: 35000, 문화: 20000, 교통: 25000, 의료: 10000, 통신: 10000 });
+
+  assert.equal(output(run()), [
+    '2026년 2월',
+    '수입 3,000,000원',
+    '지출 85,501원',
+    '차액 2,914,499원',
+    '',
+    '지출 분류      금액   비율  건수',
+    '식비       40,000원  46.8%     3  예산 35,000원 (114.3%) 초과 5,000원',
+    '문화       20,000원  23.4%     1  예산 20,000원 (100.0%)',
+    '교통       12,500원  14.6%     1  예산 25,000원 (50.0%)',
+    '의료       10,001원  11.7%     1  예산 10,000원 (100.0%) 초과 1원',
+    '생활        3,000원   3.5%     1',
+    '예산 초과: 식비, 의료',
+    '',
+    '수입 분류         금액    비율  건수',
+    '급여       3,000,000원  100.0%     1',
+    '',
+  ].join('\n'));
+  assert.deepEqual(JSON.parse(output(run('--json'))), {
+    month: '2026-02', income: 3000000, expense: 85501, net: 2914499,
+    expenseByCategory: [
+      { category: '식비', amount: 40000, ratio: 40000 / 85501, count: 3, budget: 35000, over: 5000 },
+      { category: '문화', amount: 20000, ratio: 20000 / 85501, count: 1, budget: 20000, over: 0 },
+      { category: '교통', amount: 12500, ratio: 12500 / 85501, count: 1, budget: 25000, over: 0 },
+      { category: '의료', amount: 10001, ratio: 10001 / 85501, count: 1, budget: 10000, over: 1 },
+      { category: '생활', amount: 3000, ratio: 3000 / 85501, count: 1, budget: null, over: 0 },
+    ],
+    incomeByCategory: [{ category: '급여', amount: 3000000, ratio: 1, count: 1 }],
+  });
+  assert.equal(readFileSync(data, 'utf8'), original);
+
+  write(february, { 식비: 40000, 교통: 25000 });
+  const withinBudget = output(run());
+  assert.match(withinBudget, /예산 40,000원 \(100\.0%\)/);
+  assert.doesNotMatch(withinBudget, /초과/);
 });
 
 test('거래가 있는 구분의 표만 출력하고 음수 차액에 쉼표를 넣는다', (t) => {

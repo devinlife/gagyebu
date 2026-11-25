@@ -1,5 +1,5 @@
 import { DataError, UsageError } from '../errors.js';
-import { formatTable, formatWon } from '../format.js';
+import { formatPercent, formatTable, formatWon } from '../format.js';
 import { today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath } from '../store.js';
@@ -16,11 +16,21 @@ function categoryBreakdown(categories, total) {
     .map(({ category, amount, count }) => ({ category, amount, ratio: amount / total, count }));
 }
 
-function categoryTable(heading, entries, total) {
+function categoryTable(heading, entries, total, showBudget = false) {
   const rows = [[heading, '금액', '비율', '건수']];
-  for (const { category, amount, count } of entries) {
-    const percent = (Math.round(amount * 1000 / total) / 10).toFixed(1);
-    rows.push([category, formatWon(amount), `${percent}%`, String(count)]);
+  if (showBudget) {
+    rows[0].push('');
+  }
+  for (const { category, amount, count, budget, over } of entries) {
+    const row = [category, formatWon(amount), formatPercent(amount, total), String(count)];
+    if (showBudget) {
+      let budgetText = budget === null ? '' : `예산 ${formatWon(budget)} (${formatPercent(amount, budget)})`;
+      if (over > 0) {
+        budgetText += ` 초과 ${formatWon(over)}`;
+      }
+      row.push(budgetText);
+    }
+    rows.push(row);
   }
   return formatTable(rows, { right: [1, 2, 3] });
 }
@@ -50,7 +60,7 @@ export function run(argv) {
   }
 
   const filePath = resolveDataPath(data);
-  const { transactions } = readData(filePath);
+  const { budgets, transactions } = readData(filePath);
   if (!Array.isArray(transactions)) {
     throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
   }
@@ -71,7 +81,12 @@ export function run(argv) {
 
   const { income, expense } = totals;
   const net = income - expense;
-  const expenseByCategory = categoryBreakdown(categories.expense, expense);
+  const expenseByCategory = categoryBreakdown(categories.expense, expense).map((entry) => {
+    const { category, amount } = entry;
+    const budget = Object.hasOwn(budgets, category) ? budgets[category] : null;
+    const over = budget !== null && amount > budget ? amount - budget : 0;
+    return { ...entry, budget, over };
+  });
   const incomeByCategory = categoryBreakdown(categories.income, income);
   if (options.json) {
     const result = { month, income, expense, net, expenseByCategory, incomeByCategory };
@@ -87,7 +102,11 @@ export function run(argv) {
 
   const lines = [title, `수입 ${formatWon(income)}`, `지출 ${formatWon(expense)}`, `차액 ${formatWon(net)}`];
   if (expenseByCategory.length > 0) {
-    lines.push('', categoryTable('지출 분류', expenseByCategory, expense));
+    lines.push('', categoryTable('지출 분류', expenseByCategory, expense, true));
+    const overBudget = expenseByCategory.filter(({ over }) => over > 0).map(({ category }) => category);
+    if (overBudget.length > 0) {
+      lines.push(`예산 초과: ${overBudget.join(', ')}`);
+    }
   }
   if (incomeByCategory.length > 0) {
     lines.push('', categoryTable('수입 분류', incomeByCategory, income));

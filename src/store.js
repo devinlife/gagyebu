@@ -4,9 +4,11 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DataError } from './errors.js';
+import { DataError, UsageError } from './errors.js';
+import { isValidDate } from './input.js';
 
 export const CURRENT_VERSION = 2;
+const RECORD_TYPES = ['expense', 'income', 'transfer'];
 export const DEFAULT_CATEGORIES = {
   expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', '기타'],
   income: ['급여', '용돈', '기타'],
@@ -23,8 +25,22 @@ export function resolveDataPath(dataOption, env = process.env, home = os.homedir
   return path.resolve(candidate);
 }
 
-function readError(filePath, reason) {
+export function readError(filePath, reason) {
   return new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})`);
+}
+
+function describeInvalidValue(value) {
+  if (value === null || typeof value !== 'object') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    if (!(error instanceof RangeError)) {
+      throw error;
+    }
+    return Array.isArray(value) ? '[배열]' : '[객체]';
+  }
 }
 
 function migrateVersionOne(data) {
@@ -38,7 +54,54 @@ function migrateVersionOne(data) {
       }
     }
   }
-  return { ...data, version: CURRENT_VERSION, categories };
+  return { ...data, categories };
+}
+
+export const MIGRATIONS = { 1: migrateVersionOne };
+
+export function validateDataOption(options, usage) {
+  if (options.data === '') {
+    throw new UsageError('--data 값이 비었습니다', usage);
+  }
+}
+
+export function loadData(options, usage) {
+  validateDataOption(options, usage);
+  const filePath = resolveDataPath(options.data);
+  return { filePath, data: readData(filePath) };
+}
+
+function validateTransaction(transaction, index, filePath) {
+  const position = `거래 ${index + 1}번째`;
+  if (transaction === null || typeof transaction !== 'object' || Array.isArray(transaction)) {
+    throw readError(filePath, `${position}: 객체가 아닙니다`);
+  }
+
+  const { id, date, type, amount, tags = [] } = transaction;
+  if (!Number.isInteger(id) || id < 1) {
+    throw readError(filePath, `${position}: id가 양의 정수가 아닙니다`);
+  }
+
+  const label = `거래 #${id}`;
+  if (!isValidDate(date)) {
+    throw readError(filePath, `${label}: date가 있는 날이 아닙니다`);
+  }
+  if (!RECORD_TYPES.includes(type)) {
+    const value = describeInvalidValue(type);
+    throw readError(filePath, `${label}: type을 알 수 없습니다: ${value}`);
+  }
+  if (!Number.isInteger(amount) || amount < 1) {
+    throw readError(filePath, `${label}: amount가 양의 정수가 아닙니다`);
+  }
+  for (const field of ['category', 'account', 'memo']) {
+    if (typeof transaction[field] !== 'string') {
+      throw readError(filePath, `${label}: ${field}가 문자열이 아닙니다`);
+    }
+  }
+  if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) {
+    throw readError(filePath, `${label}: tags가 문자열 배열이 아닙니다`);
+  }
+  return { ...transaction, tags };
 }
 
 export function readData(filePath) {
@@ -67,14 +130,14 @@ export function readData(filePath) {
 
   const version = data?.version;
   if (!Number.isInteger(version) || version < 1) {
-    const value = typeof version === 'object' ? JSON.stringify(version) : String(version);
+    const value = describeInvalidValue(version);
     throw readError(filePath, `version이 올바르지 않습니다: ${value}`);
   }
   if (version > CURRENT_VERSION) {
     throw readError(filePath, `지원하지 않는 version입니다: ${version}`);
   }
-  if (version === 1) {
-    data = migrateVersionOne(data);
+  for (let v = version; v < CURRENT_VERSION; v += 1) {
+    data = { ...MIGRATIONS[v](data), version: v + 1 };
   }
   const { categories } = data;
   if (!['expense', 'income'].every((type) =>
@@ -88,7 +151,12 @@ export function readData(filePath) {
     throw readError(filePath, 'budgets가 올바르지 않습니다');
   }
 
-  return { ...data, budgets };
+  if (!Array.isArray(data.transactions)) {
+    throw readError(filePath, 'transactions가 올바르지 않습니다');
+  }
+  const transactions = data.transactions.map((transaction, index) => validateTransaction(transaction, index, filePath));
+
+  return { ...data, budgets, transactions };
 }
 
 export function writeData(filePath, data) {

@@ -3,7 +3,7 @@ import { DataError, UsageError } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { parseAmount, today } from '../input.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath, writeData } from '../store.js';
+import { loadData, validateDataOption, writeData } from '../store.js';
 
 export const summary = '분류별 월 예산을 정하고 사용률을 보여 줍니다.';
 
@@ -14,13 +14,7 @@ const USAGES = {
   rm: '사용법: gagyebu budget rm <분류> [--data <경로>]',
 };
 
-function listBudgets(filePath, { json }) {
-  const month = today().slice(0, 7);
-  const { budgets, transactions } = readData(filePath);
-  if (!Array.isArray(transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
-
+function listBudgets({ budgets, transactions }, month, { json }) {
   const spending = new Map();
   for (const { date, type, category, amount } of transactions) {
     if (type === 'expense' && date.slice(0, 7) === month) {
@@ -77,16 +71,15 @@ export function run(argv) {
     console.log(usage);
     return 0;
   }
-  if (options.data === '') {
-    throw new UsageError('--data 값이 비었습니다', usage);
-  }
+  validateDataOption(options, usage);
 
-  const filePath = resolveDataPath(options.data);
   if (command === 'list') {
     if (args.length > 0) {
       throw new UsageError(`예상하지 않은 인자 ${args[0]}`, usage);
     }
-    listBudgets(filePath, options);
+    const month = today().slice(0, 7);
+    const { data } = loadData(options, usage);
+    listBudgets(data, month, options);
     return 0;
   }
 
@@ -102,7 +95,7 @@ export function run(argv) {
     if (amount === null) {
       throw new UsageError(`금액은 양의 정수여야 합니다: ${args[1]}`, usage);
     }
-    const data = readData(filePath);
+    const { filePath, data } = loadData(options, usage);
     if (findCategoryIndex(data.categories, 'expense', name) === -1) {
       throw new DataError(`없는 분류입니다: ${name}`);
     }
@@ -113,7 +106,7 @@ export function run(argv) {
   }
 
   const name = parseName(args, usage);
-  const data = readData(filePath);
+  const { filePath, data } = loadData(options, usage);
   if (!Object.hasOwn(data.budgets, name)) {
     throw new DataError(`예산이 없는 분류입니다: ${name}`);
   }

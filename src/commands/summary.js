@@ -1,8 +1,8 @@
-import { DataError, UsageError } from '../errors.js';
+import { UsageError } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { today } from '../input.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath } from '../store.js';
+import { loadData } from '../store.js';
 
 export const summary = '한 달의 수입·지출과 분류별 합계를 보여 줍니다.';
 
@@ -51,19 +51,11 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
   }
 
-  const { month = today().slice(0, 7), data } = options;
+  const { month = today().slice(0, 7) } = options;
   if (!monthPattern.test(month)) {
     throw new UsageError(`--month는 YYYY-MM 형식의 달이어야 합니다: ${month}`, USAGE);
   }
-  if (data === '') {
-    throw new UsageError('--data 값이 비었습니다', USAGE);
-  }
-
-  const filePath = resolveDataPath(data);
-  const { budgets, transactions } = readData(filePath);
-  if (!Array.isArray(transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
+  const { data: { budgets, transactions } } = loadData(options, USAGE);
 
   const totals = { expense: 0, income: 0 };
   const categories = { expense: new Map(), income: new Map() };

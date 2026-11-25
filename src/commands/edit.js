@@ -2,7 +2,7 @@ import { findCategoryIndex } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { parseAmount, parseDate } from '../input.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath, writeData } from '../store.js';
+import { loadData, validateDataOption, writeData } from '../store.js';
 import { describeTransaction, parseId, parseTags } from '../transaction.js';
 
 export const summary = '거래의 값 일부를 바꿉니다.';
@@ -69,18 +69,12 @@ export function run(argv) {
   if (options.tag !== undefined || options['clear-tags']) {
     changes.tags = parseTags(options.tag, USAGE);
   }
-  if (options.data === '') {
-    throw new UsageError('--data 값이 비었습니다', USAGE);
-  }
+  validateDataOption(options, USAGE);
   if (Object.keys(changes).length === 0) {
     throw new UsageError('바꿀 값이 없습니다', USAGE);
   }
 
-  const filePath = resolveDataPath(options.data);
-  const data = readData(filePath);
-  if (!Array.isArray(data.transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
+  const { filePath, data } = loadData(options, USAGE);
 
   const transaction = data.transactions.find((entry) => entry.id === id);
   if (!transaction) {

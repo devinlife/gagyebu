@@ -1,6 +1,6 @@
 import { DataError, UsageError } from '../errors.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath, writeData } from '../store.js';
+import { loadData, writeData } from '../store.js';
 import { describeTransaction, parseId } from '../transaction.js';
 
 export const summary = '거래 하나를 지웁니다.';
@@ -30,15 +30,7 @@ export function run(argv) {
   if (id === null) {
     throw new UsageError(`번호는 양의 정수여야 합니다: ${args[0]}`, USAGE);
   }
-  if (options.data === '') {
-    throw new UsageError('--data 값이 비었습니다', USAGE);
-  }
-
-  const filePath = resolveDataPath(options.data);
-  const data = readData(filePath);
-  if (!Array.isArray(data.transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
+  const { filePath, data } = loadData(options, USAGE);
 
   const index = data.transactions.findIndex((entry) => entry.id === id);
   if (index === -1) {

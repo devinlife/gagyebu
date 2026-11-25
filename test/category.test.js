@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';
 const usages = {
@@ -83,10 +83,10 @@ test('지출 분류에 예산이 있으면 예산을 지운 뒤에만 분류를 
 test('분류의 거래 수를 구분별로 세고 버전 1 파일은 그대로 둔다', (t) => {
   const { data, run } = fixture(t);
   const transactions = [
-    { id: 1, type: 'expense', category: '기타' },
-    { id: 2, type: 'expense', category: '기타' },
-    { id: 3, type: 'income', category: '기타' },
-    { id: 4, type: 'expense', category: '커피' },
+    transaction({ id: 1, type: 'expense', category: '기타' }),
+    transaction({ id: 2, type: 'expense', category: '기타' }),
+    transaction({ id: 3, type: 'income', category: '기타' }),
+    transaction({ id: 4, type: 'expense', category: '커피' }),
   ];
   const original = JSON.stringify({ version: 1, nextId: 5, transactions });
   writeFileSync(data, original);
@@ -150,8 +150,8 @@ test('이름 길이는 공백을 뺀 코드 포인트 수로 센다', (t) => {
 test('쓰는 거래가 있거나 없는 분류를 지우려 하면 파일을 보존한다', (t) => {
   const { data, run } = fixture(t);
   const transactions = [
-    { id: 1, type: 'expense', category: '식비' },
-    { id: 2, type: 'expense', category: '식비' },
+    transaction({ id: 1, type: 'expense', category: '식비' }),
+    transaction({ id: 2, type: 'expense', category: '식비' }),
   ];
   const original = JSON.stringify({ version: 1, nextId: 3, transactions });
   writeFileSync(data, original);
@@ -164,7 +164,7 @@ test('쓰는 거래가 있거나 없는 분류를 지우려 하면 파일을 보
 
 test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막지 않는다', (t) => {
   const { data, run, runCli, read } = fixture(t);
-  const transactions = [{ id: 1, type: 'income', category: '기타' }];
+  const transactions = [transaction({ id: 1, type: 'income', category: '기타' })];
   writeJson(data, { version: 1, nextId: 2, transactions });
 
   assertOutput(run('rm', '  기타  '), '분류를 지웠습니다: 지출 기타\n');

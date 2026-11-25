@@ -2,7 +2,7 @@ import { findCategoryIndex } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { parseAmount, parseDate, today } from '../input.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath, writeData } from '../store.js';
+import { loadData, readError, validateDataOption, writeData } from '../store.js';
 import { describeTransaction, parseTags } from '../transaction.js';
 
 export const summary = '거래 하나를 더합니다.';
@@ -46,16 +46,13 @@ export function run(argv) {
   if (date === null) {
     throw new UsageError(`날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.date}`, USAGE);
   }
-  if (options.data === '') {
-    throw new UsageError('--data 값이 비었습니다', USAGE);
-  }
+  validateDataOption(options, USAGE);
 
   const tags = parseTags(options.tag, USAGE);
-  const filePath = resolveDataPath(options.data);
-  const data = readData(filePath);
+  const { filePath, data } = loadData(options, USAGE);
   const { nextId: id, transactions } = data;
-  if (!Number.isSafeInteger(id) || id < 1 || !Array.isArray(transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
   }
   if (findCategoryIndex(data.categories, type, category) === -1) {
     throw new DataError(`없는 분류입니다: ${category} (gagyebu category add로 더하세요)`);

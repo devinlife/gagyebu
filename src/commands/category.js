@@ -2,7 +2,7 @@ import { findCategoryIndex, parseName } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatTable } from '../format.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath, writeData } from '../store.js';
+import { loadData, writeData } from '../store.js';
 
 export const summary = '분류 목록을 보고 분류를 더하거나 지웁니다.';
 
@@ -82,15 +82,7 @@ export function run(argv) {
   if (options.type !== undefined && !Object.hasOwn(LABELS, options.type)) {
     throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${options.type}`, usage);
   }
-  if (options.data === '') {
-    throw new UsageError('--data 값이 비었습니다', usage);
-  }
-
-  const filePath = resolveDataPath(options.data);
-  const data = readData(filePath);
-  if (!Array.isArray(data.transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
+  const { filePath, data } = loadData(options, usage);
   if (isList) {
     listCategories(data, options);
     return 0;

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
 
@@ -19,7 +19,7 @@ function fixture(t, today = '2026-02-10') {
 
   function write(transactions, budgets) {
     const schema = budgets === undefined ? { version: 1 } : { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, budgets };
-    return writeJson(data, { ...schema, nextId: transactions.length + 1, transactions });
+    return writeJson(data, { ...schema, nextId: transactions.length + 1, transactions: transactions.map((entry, index) => transaction({ id: index + 1, ...entry })) });
   }
 
   return { directory, data, run, write };
@@ -36,7 +36,6 @@ const february = [
   { date: '2026-02-01', type: 'expense', category: '식비', amount: 10000 },
   { date: '2026-02-07', type: 'expense', category: '교통', amount: 12500 },
   { date: '2026-02-10', type: 'income', category: '급여', amount: 3000000 },
-  { date: '2026-02-10', type: 'expense', category: '통신', amount: 0 },
   { date: '2026-01-31', type: 'income', category: '급여', amount: 1000000 },
   { date: '2026-02-20', type: 'expense', category: '식비', amount: 10000 },
   { date: '2026-02-28', type: 'expense', category: '식비', amount: 20000 },
@@ -249,4 +248,14 @@ test('summary --help는 사용법 한 줄을 출력한다', (t) => {
   writeFileSync(data, '{깨진 JSON');
   assert.equal(output(run('--help')), `${usage}\n`);
   assert.equal(output(run('--help', 'extra', '--month', '2026-13')), `${usage}\n`);
+});
+
+test('금액이 0인 거래는 분류 집계 전에 데이터 오류를 보고한다', (t) => {
+  const { data, run, write } = fixture(t);
+  const original = write([{ date: '2026-02-10', type: 'expense', category: '통신', amount: 0 }]);
+  const { status, stdout, stderr } = run('--month', '2026-02');
+  assert.equal(status, 1);
+  assert.equal(stdout, '');
+  assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${data} (거래 #1: amount가 양의 정수가 아닙니다)\n`);
+  assert.equal(readFileSync(data, 'utf8'), original);
 });

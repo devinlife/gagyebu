@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu budget set|list|rm [인자] [--옵션 값]';
 const usages = {
@@ -72,7 +72,7 @@ test('이번 달 지출만 합산하고 사용률과 분류 이름 순으로 예
     ['2026-03-05', 'expense', '교통', 6000],
     ['2026-03-06', 'expense', '문화', 12000],
     ['2026-03-07', 'expense', '생활', 5000],
-  ].map(([date, type, category, amount]) => ({ date, type, category, amount }));
+  ].map(([date, type, category, amount], index) => transaction({ id: index + 1, date, type, category, amount }));
   const original = write({ 문화: 24000, 식비: 12000, 교통: 12000, 의료: 5000 }, transactions);
 
   assert.deepEqual(JSON.parse(output(run('list', '--data', data, '--json'))), {

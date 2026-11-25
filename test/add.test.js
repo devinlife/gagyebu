@@ -199,16 +199,16 @@ test('add --help는 사용법을 한 줄로 출력한다', (t) => {
 test('깨진 JSON과 잘못된 데이터 구조를 처리 오류로 보고한다', (t) => {
   const { data, directory, run } = fixture(t);
 
-  for (const original of [
-    '{깨진 JSON',
-    JSON.stringify({ version: 1, nextId: 1, transactions: {} }),
-    JSON.stringify({ version: 1, nextId: 0, transactions: [] }),
+  for (const [original, reason] of [
+    ['{깨진 JSON', 'JSON 형식이 잘못되었습니다'],
+    [JSON.stringify({ version: 1, nextId: 1, transactions: {} }), 'transactions가 올바르지 않습니다'],
+    [JSON.stringify({ version: 1, nextId: 0, transactions: [] }), 'nextId 또는 transactions가 올바르지 않습니다'],
   ]) {
     writeFileSync(data, original);
     const { status, stdout, stderr } = run('1', '--data', data);
     assert.equal(status, 1);
     assert.equal(stdout, '');
-    assert.match(stderr, /^오류: 데이터 파일을 읽을 수 없습니다: [^\n]+\n$/);
+    assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${data} (${reason})\n`);
     assert.equal(readFileSync(data, 'utf8'), original);
     assert.deepEqual(readdirSync(directory), ['data.json']);
   }

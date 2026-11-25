@@ -37,12 +37,12 @@ function output({ status, stdout, stderr }) {
 test('메모, 분류와 태그에서 대소문자를 무시해 부분 일치하는 거래를 찾는다', (t) => {
   const { run } = fixture(t);
   for (const [query, expected] of [
-    ['COUPON', [income, meal]],
+    ['COUPON', [{ ...income, tags: [] }, meal]],
     ['  COUPON  ', []],
     [' 사용', [meal]],
     ['사용 ', []],
-    ['oupo', [income, meal]],
-    ['폰지', [income]],
+    ['oupo', [{ ...income, tags: [] }, meal]],
+    ['폰지', [{ ...income, tags: [] }]],
     ['회식', [meal]],
     ['#회식', [meal]],
     ['#회', [meal]],

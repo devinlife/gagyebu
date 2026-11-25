@@ -2,8 +2,8 @@ import { writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
 import { DataError, UsageError } from '../errors.js';
 import { parseOptions } from '../options.js';
-import { resolveDataPath } from '../store.js';
-import { loadTransactions, parsePeriod } from './list.js';
+import { loadData, validateDataOption } from '../store.js';
+import { sortTransactions, parsePeriod } from './list.js';
 
 export const summary = '거래를 CSV로 내보냅니다.';
 
@@ -24,19 +24,18 @@ export function run(argv) {
   if (args.length > 0) {
     throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
   }
-  const { out, data, force } = options;
+  const { out, force } = options;
   if (out === '') {
     throw new UsageError('--out 값이 비었습니다', USAGE);
   }
-  if (data === '') {
-    throw new UsageError('--data 값이 비었습니다', USAGE);
-  }
+  validateDataOption(options, USAGE);
   if (force && out === undefined) {
     throw new UsageError('--force는 --out과 함께 써야 합니다', USAGE);
   }
 
   const { from, to } = parsePeriod(options, USAGE);
-  const transactions = loadTransactions(resolveDataPath(data)).filter(({ date }) =>
+  const { data } = loadData(options, USAGE);
+  const transactions = sortTransactions(data.transactions).filter(({ date }) =>
     (from === undefined || from <= date) && (to === undefined || date <= to));
   const csv = toCsv(transactions);
   if (out === undefined) {

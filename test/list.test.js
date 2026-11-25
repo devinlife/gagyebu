@@ -206,9 +206,8 @@ test('각 태그를 정규화하고 모두 가진 거래만 다른 필터와 함
 test('메모 뒤에 태그를 붙이고 옛 거래의 메모 시작 칸을 유지한다', (t) => {
   const { run, write } = fixture(t);
   const { tags, ...legacy } = first;
-  const nonArray = { ...last, tags: '회식' };
   const tagged = { ...sameDayExpense, tags: ['회식', '법인'] };
-  write([legacy, nonArray, tagged]);
+  write([legacy, last, tagged]);
 
   const { status, stdout, stderr } = run();
   assert.equal(status, 0, stderr);

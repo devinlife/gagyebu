@@ -34,3 +34,10 @@ export function testEnv(directory, overrides) {
   delete env.GAGYEBU_TODAY;
   return Object.assign(env, overrides);
 }
+
+export function transaction(overrides) {
+  return {
+    date: '2026-02-10', type: 'expense', amount: 1000, category: '식비',
+    account: '현금', memo: '', tags: [], ...overrides,
+  };
+}

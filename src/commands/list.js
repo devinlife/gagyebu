@@ -1,8 +1,8 @@
-import { DataError, UsageError } from '../errors.js';
+import { UsageError } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
 import { parseDate } from '../input.js';
 import { parseOptions } from '../options.js';
-import { readData, resolveDataPath } from '../store.js';
+import { loadData, validateDataOption } from '../store.js';
 import { parseTags } from '../transaction.js';
 
 export const summary = '거래 목록을 보여 줍니다.';
@@ -33,11 +33,7 @@ export function parsePeriod(options, usage) {
   return { from, to };
 }
 
-export function loadTransactions(filePath) {
-  const { transactions } = readData(filePath);
-  if (!Array.isArray(transactions)) {
-    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (transactions가 올바르지 않습니다)`);
-  }
+export function sortTransactions(transactions) {
   return transactions.toSorted((a, b) => {
     if (a.date === b.date) {
       return a.id - b.id;
@@ -61,7 +57,7 @@ export function showTransactions(argv, usage, prepareMatch) {
   }
   const match = prepareMatch(args);
 
-  const { type, category, data } = options;
+  const { type, category } = options;
   const { from, to } = parsePeriod(options, usage);
   if (type !== undefined && type !== 'expense' && type !== 'income') {
     throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, usage);
@@ -69,12 +65,11 @@ export function showTransactions(argv, usage, prepareMatch) {
   if (category === '') {
     throw new UsageError('--category 값이 비었습니다', usage);
   }
-  if (data === '') {
-    throw new UsageError('--data 값이 비었습니다', usage);
-  }
+  validateDataOption(options, usage);
 
   const tags = parseTags(options.tag, usage);
-  const transactions = loadTransactions(resolveDataPath(data));
+  const { data } = loadData(options, usage);
+  const transactions = sortTransactions(data.transactions);
 
   const list = transactions.filter((transaction) =>
     (from === undefined || from <= transaction.date)

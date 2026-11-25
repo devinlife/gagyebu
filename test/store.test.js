@@ -5,9 +5,9 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { DataError } from '../src/errors.js';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES, readData, resolveDataPath, writeData } from '../src/store.js';
-import { tempDir, writeJson } from './helpers.js';
+import { DataError, UsageError } from '../src/errors.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES, loadData, MIGRATIONS, readData, resolveDataPath, writeData } from '../src/store.js';
+import { runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 test('데이터 경로는 옵션, 환경 변수, 기본값 순으로 정한다', (t) => {
   const home = tempDir(t);
@@ -59,14 +59,13 @@ test('데이터 파일이 없으면 폴더나 파일을 만들지 않고 새 초
 test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 처음 나온 순서로 더한다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
   const transactions = [
-    { id: 1, type: 'expense', category: '커피' },
-    { id: 2, type: 'income', category: '월급' },
-    { id: 3, type: 'expense', category: '식비' },
-    { id: 4, type: 'expense', category: '책' },
-    { id: 5, type: 'expense', category: '커피' },
-    { id: 6, type: 'transfer', category: '이체' },
-    { id: 7, type: 'income', category: '' },
-    { id: 8, type: 'expense', category: 3 },
+    transaction({ id: 1, type: 'expense', category: '커피' }),
+    transaction({ id: 2, type: 'income', category: '월급' }),
+    transaction({ id: 3, type: 'expense', category: '식비' }),
+    transaction({ id: 4, type: 'expense', category: '책' }),
+    transaction({ id: 5, type: 'expense', category: '커피' }),
+    transaction({ id: 6, type: 'transfer', category: '이체' }),
+    transaction({ id: 7, type: 'income', category: '' }),
   ];
   const original = JSON.stringify({ version: 1, nextId: 10, transactions });
   writeFileSync(filePath, original);
@@ -82,6 +81,9 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
     budgets: {},
   });
   assert.equal(readFileSync(filePath, 'utf8'), original);
+  const invalidCategory = transaction({ id: 8, category: 3 });
+  const migrated = MIGRATIONS[1]({ transactions: [...transactions, invalidCategory] });
+  assert.deepEqual(migrated.categories, readData(filePath).categories);
 });
 
 test('버전 2의 분류 목록이 잘못되면 데이터 오류를 보고한다', (t) => {
@@ -98,7 +100,7 @@ test('버전 2의 분류 목록이 잘못되면 데이터 오류를 보고한다
 test('버전 2에 예산이 없으면 빈 객체를 쓰고 등록된 예산은 그대로 읽는다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
   for (const budgets of [undefined, { 식비: 12000, 교통: 30000 }]) {
-    const original = JSON.stringify({ version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, budgets });
+    const original = JSON.stringify({ version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, budgets, transactions: [] });
     writeFileSync(filePath, original);
     const data = readData(filePath);
     assert.equal(data.version, CURRENT_VERSION);
@@ -155,7 +157,7 @@ test('하위 폴더에 데이터를 쓰고 덮어써도 올바른 JSON 파일만
   const filePath = path.join(directory, 'data.json');
   for (const data of [
     { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] },
-    { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 2, transactions: [{ id: 1 }] },
+    { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 2, transactions: [transaction({ id: 1 })] },
   ]) {
     writeData(filePath, data);
     assert.deepEqual(readData(filePath), { ...data, budgets: {} });
@@ -216,4 +218,62 @@ test('예상하지 못한 직렬화 오류는 원래 오류로 전파하고 기�
   assert.throws(() => writeData(filePath, { version: CURRENT_VERSION, amount: 1n }), TypeError);
   assert.deepEqual(readData(filePath), { ...data, budgets: {} });
   assert.deepEqual(readdirSync(directory), ['data.json']);
+});
+
+test('거래 필드가 잘못되면 위치와 원인을 한 줄로 보고하고 종료한다', (t) => {
+  const directory = tempDir(t);
+  const filePath = path.join(directory, 'data.json');
+  const valid = transaction({ id: 1 });
+  const invalid = [
+    ...[0, '1', 1.5].map((id) => [{ ...valid, id }, '거래 2번째: id가 양의 정수가 아닙니다']),
+    ...['2026-02-30', undefined, ['2026-02-10']].map((date) =>
+      [{ ...valid, date }, '거래 #1: date가 있는 날이 아닙니다']),
+    [{ ...valid, type: 'refund' }, '거래 #1: type을 알 수 없습니다: refund'],
+    [{ ...valid, type: { toString: null } }, '거래 #1: type을 알 수 없습니다: {"toString":null}'],
+    ...[0, -1, '1000'].map((amount) => [{ ...valid, amount }, '거래 #1: amount가 양의 정수가 아닙니다']),
+    ...['category', 'account', 'memo'].map((field) =>
+      [{ ...valid, [field]: 3 }, `거래 #1: ${field}가 문자열이 아닙니다`]),
+    ...['a', [1]].map((tags) => [{ ...valid, tags }, '거래 #1: tags가 문자열 배열이 아닙니다']),
+    [null, '거래 2번째: 객체가 아닙니다'],
+    [[], '거래 2번째: 객체가 아닙니다'],
+  ];
+  for (const [record, reason] of invalid) {
+    writeJson(filePath, { version: 1, nextId: 3, transactions: [transaction({ id: 2 }), record] });
+    const { status, stdout, stderr } = runCli(['list'], { env: testEnv(directory) });
+    assert.equal(status, 1, reason);
+    assert.equal(stdout, '', reason);
+    assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})\n`);
+  }
+});
+
+test('이체와 태그 없는 옛 거래를 읽고 파일은 유지한다', (t) => {
+  const filePath = path.join(tempDir(t), 'data.json');
+  const transfer = transaction({ id: 1, type: 'transfer', tags: undefined });
+  const original = writeJson(filePath, { version: 1, nextId: 2, transactions: [transfer] });
+  assert.deepEqual(readData(filePath).transactions, [{ ...transfer, tags: [] }]);
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+});
+
+test('현재 버전까지 올리는 각 단계가 있다', () => {
+  for (let version = 1; version < CURRENT_VERSION; version += 1) {
+    assert.equal(typeof MIGRATIONS[version], 'function');
+  }
+});
+
+test('loadData는 빈 데이터 옵션에 명령 사용법을 붙인다', () => {
+  const usage = '사용법: gagyebu list';
+  assert.throws(() => loadData({ data: '' }, usage), {
+    constructor: UsageError, message: '--data 값이 비었습니다', usage,
+  });
+});
+
+test('중첩이 깊은 잘못된 구분도 데이터 오류로 보고한다', (t) => {
+  const filePath = path.join(tempDir(t), 'data.json');
+  const record = JSON.stringify(transaction({ id: 1, type: 'invalid' }));
+  const deeplyNested = '['.repeat(10000) + '0' + ']'.repeat(10000);
+  writeFileSync(filePath, `{"version":1,"transactions":[${record.replace('"invalid"', deeplyNested)}]}`);
+  assert.throws(() => readData(filePath), {
+    constructor: DataError,
+    message: `데이터 파일을 읽을 수 없습니다: ${filePath} (거래 #1: type을 알 수 없습니다: [배열])`,
+  });
 });

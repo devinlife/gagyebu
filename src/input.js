@@ -5,7 +5,7 @@ const numberPattern = '[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+';
 const amountPattern = new RegExp(`^(?:(${numberPattern})만 ?)?(?:([1-9])천 ?)?(${numberPattern})?$`);
 
 export function isValidDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
 

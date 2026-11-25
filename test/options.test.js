@@ -42,3 +42,15 @@ test('값 옵션 뒤에 값이 필요하다', () => {
 test('깃발은 등호로 값을 받지 않는다', () => {
   assert.equal(parseOptions(['--json=true'], spec).error, '--json은 값을 받지 않습니다');
 });
+
+test('반복 옵션은 공백과 등호 형식의 값을 순서대로 모은다', () => {
+  const repeatableSpec = { values: ['tag', 'data'], repeatable: ['tag'] };
+  assert.deepEqual(parseOptions(['--tag', 'a', '--tag=b', '--data=x', '--data=y'], repeatableSpec), {
+    args: [],
+    options: { tag: ['a', 'b'], data: 'y' },
+    error: null,
+  });
+  assert.deepEqual(parseOptions(['--tag=a'], repeatableSpec).options, { tag: ['a'] });
+  assert.deepEqual(parseOptions([], repeatableSpec).options, {});
+  assert.equal(parseOptions(['--tag'], repeatableSpec).error, '--tag 값이 없습니다');
+});

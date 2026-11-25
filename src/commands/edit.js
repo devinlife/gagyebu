@@ -1,9 +1,8 @@
-import { findCategoryIndex } from '../category.js';
-import { DataError, UsageError } from '../errors.js';
-import { parseAmount, parseDate, parseId, parseTags, parseType } from '../input.js';
+import { UsageError } from '../errors.js';
+import { parseAmount, parseCategory, parseDate, parseId, parseTags, parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { describeTransaction } from '../transaction.js';
+import { applyChanges, describeTransaction } from '../transaction.js';
 
 export const summary = '거래의 값 일부를 바꿉니다.';
 
@@ -40,10 +39,7 @@ export function run(argv) {
     changes.type = parseType(type, USAGE);
   }
   if (category !== undefined) {
-    if (category === '') {
-      throw new UsageError('--category 값이 비었습니다', USAGE);
-    }
-    changes.category = category;
+    changes.category = parseCategory(category, USAGE);
   }
   if (date !== undefined) {
     changes.date = parseDate(date, USAGE);
@@ -64,19 +60,9 @@ export function run(argv) {
 
   const { filePath, data } = loadData(options, USAGE);
 
-  const transaction = data.transactions.find((entry) => entry.id === id);
-  if (!transaction) {
-    throw new DataError(`거래 #${id}가 없습니다`);
-  }
-
-  if (type !== undefined || category !== undefined) {
-    const nextCategory = category ?? transaction.category;
-    if (findCategoryIndex(data.categories, type ?? transaction.type, nextCategory) === -1) {
-      throw new DataError(`없는 분류입니다: ${nextCategory} (gagyebu category add로 더하세요)`);
-    }
-  }
-
-  Object.assign(transaction, changes);
+  const transaction = applyChanges(data, id, changes);
+  const index = data.transactions.findIndex((entry) => entry.id === id);
+  data.transactions[index] = transaction;
   writeData(filePath, data);
   console.log(`수정했습니다: ${describeTransaction(transaction)}`);
   return 0;

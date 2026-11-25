@@ -218,3 +218,14 @@ test('메모 뒤에 태그를 붙이고 옛 거래의 메모 시작 칸을 유�
   assert.deepEqual(offsets, Array(cells.length).fill(offsets[0]));
   assert.deepEqual(readJson(run('--json', '--tag', '회식')), [tagged]);
 });
+
+test('이체를 표에 표시하고 수입과 지출 합계에서 뺀다', (t) => {
+  const { run, write } = fixture(t);
+  write([sameDayIncome, first, { ...last, type: 'transfer', amount: 9000 }]);
+
+  const { status, stdout, stderr } = run();
+  assert.equal(status, 0);
+  assert.equal(stderr, '');
+  assert.match(stdout, /이체 +9,000원/);
+  assert.ok(stdout.endsWith('3건, 수입 1,234,567원, 지출 1,200원\n'));
+});

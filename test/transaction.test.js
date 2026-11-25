@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { UsageError } from '../src/errors.js';
+import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
-import { describeTransaction } from '../src/transaction.js';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { applyChanges, buildTransaction, describeTransaction, filterTransactions, listTotals } from '../src/transaction.js';
+import { transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu edit';
 
@@ -37,4 +39,59 @@ test('태그는 공백 없는 1~20자여야 한다', () => {
   for (const tag of ['', 'a,', '#', ' ', 'a b', '😀'.repeat(21)]) {
     assert.throws(() => parseTags([tag]), /태그는 공백 없는 1~20자여야 합니다/);
   }
+});
+
+test('기간, 구분, 분류, 태그와 검색어로 거르고 날짜와 번호 순으로 정렬한다', () => {
+  const first = transaction({ id: 5, date: '2026-02-01', memo: 'Coupon' });
+  const second = transaction({ id: 2, date: '2026-02-28', tags: ['점심', '법인'] });
+  const third = transaction({ id: 3, date: '2026-02-28', tags: ['점심', '법인', '정기'] });
+  const other = transaction({ id: 4, type: 'income', category: 'Coupon', tags: ['점심'] });
+  const outside = transaction({ id: 1, date: '2026-03-01' });
+  const entries = Object.freeze([third, outside, other, first, second].map(Object.freeze));
+
+  assert.deepEqual(filterTransactions(entries, { from: '2026-02-01', to: '2026-02-28' }),
+    [first, other, second, third]);
+  assert.deepEqual(filterTransactions(entries, { type: 'income' }), [other]);
+  assert.deepEqual(filterTransactions(entries, { category: 'Coupon' }), [other]);
+  assert.deepEqual(filterTransactions(entries, { tags: ['법인', '점심'] }), [second, third]);
+  assert.deepEqual(filterTransactions(entries, { query: 'COUPON' }), [first, other]);
+  assert.deepEqual(filterTransactions(entries, { type: 'expense', query: '#정기' }), [third]);
+  assert.deepEqual(entries.map(({ id }) => id), [3, 1, 4, 5, 2]);
+});
+
+test('새 거래의 번호와 계좌를 채우고 데이터는 그대로 둔다', () => {
+  const data = Object.freeze({ nextId: 7, categories: DEFAULT_CATEGORIES, transactions: Object.freeze([]) });
+  const { date, type, amount, category, memo, tags } = transaction({});
+  const fields = { date, type, amount, category, memo, tags };
+  assert.deepEqual(buildTransaction(data, fields), transaction({ id: 7 }));
+  assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }), {
+    constructor: DataError, message: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)',
+  });
+  assert.throws(() => buildTransaction({ ...data, nextId: 0 }, fields, '/data.json'), {
+    constructor: DataError, message: '데이터 파일을 읽을 수 없습니다: /data.json (nextId 또는 transactions가 올바르지 않습니다)',
+  });
+  assert.equal(data.nextId, 7);
+  assert.deepEqual(data.transactions, []);
+});
+
+test('수정할 필드를 새 거래에 적용하고 거래와 분류를 확인한다', () => {
+  const original = Object.freeze(transaction({ id: 1 }));
+  const data = Object.freeze({ categories: DEFAULT_CATEGORIES, transactions: Object.freeze([original]) });
+  const updated = applyChanges(data, 1, { memo: '점심' });
+  assert.deepEqual(updated, { ...original, memo: '점심' });
+  assert.equal(original.memo, '');
+  assert.throws(() => applyChanges(data, 1, { type: 'income' }), {
+    constructor: DataError, message: '없는 분류입니다: 식비 (gagyebu category add로 더하세요)',
+  });
+  assert.throws(() => applyChanges(data, 2, { memo: '점심' }), {
+    constructor: DataError, message: '거래 #2가 없습니다',
+  });
+});
+
+test('목록 합계에서 이체는 건수에만 포함한다', () => {
+  assert.deepEqual(listTotals([
+    transaction({ id: 1, amount: 700 }),
+    transaction({ id: 2, type: 'income', amount: 3000 }),
+    transaction({ id: 3, type: 'transfer', amount: 5000 }),
+  ]), { count: 3, income: 3000, expense: 700 });
 });

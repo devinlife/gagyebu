@@ -22,3 +22,14 @@ export function findCategoryIndex(categories, type, name) {
   }
   return categories[type].indexOf(name);
 }
+
+export function countCategories(transactions, type) {
+  const counts = new Map();
+  for (const transaction of transactions) {
+    if (transaction?.type === type) {
+      const { category } = transaction;
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
+  }
+  return counts;
+}

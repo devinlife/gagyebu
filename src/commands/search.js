@@ -1,5 +1,5 @@
 import { UsageError } from '../errors.js';
-import { showTransactions } from './list.js';
+import { showTransactions } from '../listing.js';
 
 export const summary = '글이나 태그로 거래를 찾습니다.';
 
@@ -14,14 +14,11 @@ export function run(argv) {
       throw new UsageError(`예상하지 않은 인자 ${args[1]}`, USAGE);
     }
 
-    const query = args[0].toLowerCase();
+    const query = args[0];
     if (!query.trim()) {
       throw new UsageError('검색할 글이 비었습니다', USAGE);
     }
 
-    return ({ memo, category, tags }) => {
-      const tagTexts = Array.isArray(tags) ? tags.map((tag) => `#${tag}`) : [];
-      return [memo ?? '', category, ...tagTexts].some((text) => text.toLowerCase().includes(query));
-    };
+    return query;
   });
 }

@@ -1,4 +1,4 @@
-import { findCategoryIndex, parseName } from '../category.js';
+import { countCategories, findCategoryIndex, parseName } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatTable } from '../format.js';
 import { parseType } from '../input.js';
@@ -14,17 +14,6 @@ const USAGES = {
   add: '사용법: gagyebu category add <이름> [--type expense|income] [--data <경로>]',
   rm: '사용법: gagyebu category rm <이름> [--type expense|income] [--data <경로>]',
 };
-
-function countCategories(transactions, type) {
-  const counts = new Map();
-  for (const transaction of transactions) {
-    if (transaction?.type === type) {
-      const { category } = transaction;
-      counts.set(category, (counts.get(category) ?? 0) + 1);
-    }
-  }
-  return counts;
-}
 
 function listCategories({ categories, transactions }, { type, json }) {
   const types = type === undefined ? TYPES : [type];

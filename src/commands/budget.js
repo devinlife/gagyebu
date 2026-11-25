@@ -3,6 +3,7 @@ import { DataError, UsageError } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { parseAmount, today } from '../input.js';
 import { parseOptions } from '../options.js';
+import { budgetUsage } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { EXPENSE } from '../types.js';
 
@@ -16,17 +17,7 @@ const USAGES = {
 };
 
 function listBudgets({ budgets, transactions }, month, { json }) {
-  const spending = new Map();
-  for (const { date, type, category, amount } of transactions) {
-    if (type === EXPENSE && date.slice(0, 7) === month) {
-      spending.set(category, (spending.get(category) ?? 0) + amount);
-    }
-  }
-  const entries = Object.entries(budgets).map(([category, budget]) => {
-    const spent = spending.get(category) ?? 0;
-    return { category, budget, spent, ratio: spent / budget, remaining: budget - spent };
-  });
-  entries.sort((a, b) => b.ratio - a.ratio || (a.category < b.category ? -1 : 1));
+  const entries = budgetUsage(transactions, budgets, month);
 
   if (json) {
     console.log(JSON.stringify({ month, budgets: entries }, null, 2));

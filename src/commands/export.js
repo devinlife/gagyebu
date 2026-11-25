@@ -4,7 +4,7 @@ import { DataError, UsageError } from '../errors.js';
 import { parsePeriod } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
-import { sortTransactions } from './list.js';
+import { filterTransactions } from '../transaction.js';
 
 export const summary = '거래를 CSV로 내보냅니다.';
 
@@ -36,8 +36,7 @@ export function run(argv) {
 
   const { from, to } = parsePeriod(options, USAGE);
   const { data } = loadData(options, USAGE);
-  const transactions = sortTransactions(data.transactions).filter(({ date }) =>
-    (from === undefined || from <= date) && (to === undefined || date <= to));
+  const transactions = filterTransactions(data.transactions, { from, to });
   const csv = toCsv(transactions);
   if (out === undefined) {
     // console.log가 마지막 LF를 복원하고 닫힌 파이프의 쓰기 오류를 처리한다.

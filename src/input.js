@@ -83,6 +83,13 @@ export function parseMonth(text, usage) {
   return text;
 }
 
+export function parseCategory(text, usage) {
+  if (text === '') {
+    throw new UsageError('--category 값이 비었습니다', usage);
+  }
+  return text;
+}
+
 export function parseType(text, usage) {
   if (!TYPES.includes(text)) {
     throw new UsageError(`--type은 ${TYPES.join(' 또는 ')}이어야 합니다: ${text}`, usage);

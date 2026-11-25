@@ -1,9 +1,8 @@
-import { findCategoryIndex } from '../category.js';
-import { DataError, UsageError } from '../errors.js';
-import { parseAmount, parseDate, parseTags, parseType, today } from '../input.js';
+import { UsageError } from '../errors.js';
+import { parseAmount, parseCategory, parseDate, parseTags, parseType, today } from '../input.js';
 import { parseOptions } from '../options.js';
-import { loadData, readError, validateDataOption, writeData } from '../store.js';
-import { describeTransaction } from '../transaction.js';
+import { loadData, validateDataOption, writeData } from '../store.js';
+import { buildTransaction, describeTransaction } from '../transaction.js';
 import { EXPENSE } from '../types.js';
 
 export const summary = '거래 하나를 더합니다.';
@@ -33,25 +32,16 @@ export function run(argv) {
   const [input] = args;
   const amount = parseAmount(input, USAGE);
 
-  const { category = '기타', memo = '' } = options;
+  const { memo = '' } = options;
   const type = parseType(options.type ?? EXPENSE, USAGE);
-  if (category === '') {
-    throw new UsageError('--category 값이 비었습니다', USAGE);
-  }
+  const category = parseCategory(options.category ?? '기타', USAGE);
   const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
   validateDataOption(options, USAGE);
 
   const tags = parseTags(options.tag, USAGE);
   const { filePath, data } = loadData(options, USAGE);
-  const { nextId: id, transactions } = data;
-  if (!Number.isSafeInteger(id) || id < 1) {
-    throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
-  }
-  if (findCategoryIndex(data.categories, type, category) === -1) {
-    throw new DataError(`없는 분류입니다: ${category} (gagyebu category add로 더하세요)`);
-  }
-  const transaction = { id, date, type, amount, category, account: '현금', memo, tags };
-  transactions.push(transaction);
+  const transaction = buildTransaction(data, { date, type, amount, category, memo, tags }, filePath);
+  data.transactions.push(transaction);
   data.nextId += 1;
   writeData(filePath, data);
 

@@ -1,0 +1,214 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
+const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
+
+function fixture(t, today = '2026-02-10') {
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-summary-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+
+  const data = path.join(directory, 'data.json');
+  const env = { ...process.env, GAGYEBU_DATA: path.join(directory, 'env.json'), GAGYEBU_TODAY: today };
+
+  function run(...args) {
+    const result = spawnSync(process.execPath, [binPath, 'summary', '--data', data, ...args], {
+      encoding: 'utf8', env,
+    });
+    assert.ifError(result.error);
+    return result;
+  }
+
+  function write(transactions) {
+    const original = JSON.stringify({ version: 1, nextId: transactions.length + 1, transactions });
+    writeFileSync(data, original);
+    return original;
+  }
+
+  return { directory, data, run, write };
+}
+
+function output({ status, stdout, stderr }) {
+  assert.equal(status, 0, stderr);
+  assert.equal(stderr, '');
+  return stdout;
+}
+
+const february = [
+  { date: '2026-03-01', type: 'expense', category: '식비', amount: 70000 },
+  { date: '2026-02-01', type: 'expense', category: '식비', amount: 10000 },
+  { date: '2026-02-07', type: 'expense', category: '교통', amount: 12500 },
+  { date: '2026-02-10', type: 'income', category: '급여', amount: 3000000 },
+  { date: '2026-02-10', type: 'expense', category: '통신', amount: 0 },
+  { date: '2026-01-31', type: 'income', category: '급여', amount: 1000000 },
+  { date: '2026-02-20', type: 'expense', category: '식비', amount: 10000 },
+  { date: '2026-02-28', type: 'expense', category: '식비', amount: 20000 },
+  { date: '2026-02-28', type: 'transfer', category: '식비', amount: 80000 },
+];
+
+test('지정한 달의 수입과 지출 및 분류별 집계를 JSON으로 출력한다', (t) => {
+  const { data, run, write } = fixture(t);
+  const original = write([...february, {
+    date: '2028-02-29', type: 'income', category: '급여', amount: 10,
+  }]);
+
+  assert.deepEqual(JSON.parse(output(run('--month', '2026-02', '--json'))), {
+    month: '2026-02',
+    income: 3000000,
+    expense: 52500,
+    net: 2947500,
+    expenseByCategory: [
+      { category: '식비', amount: 40000, ratio: 40000 / 52500, count: 3 },
+      { category: '교통', amount: 12500, ratio: 12500 / 52500, count: 1 },
+    ],
+    incomeByCategory: [{ category: '급여', amount: 3000000, ratio: 1, count: 1 }],
+  });
+  assert.equal(JSON.parse(output(run('--month', '2028-02', '--json'))).income, 10);
+  assert.equal(readFileSync(data, 'utf8'), original);
+});
+
+test('기본 달은 오늘을 따르고 요약 표의 한글 폭과 숫자 칸을 맞춘다', (t) => {
+  const { data, run, write } = fixture(t);
+  const original = write(february);
+
+  assert.equal(output(run()), [
+    '2026년 2월',
+    '수입 3,000,000원',
+    '지출 52,500원',
+    '차액 2,947,500원',
+    '',
+    '지출 분류      금액   비율  건수',
+    '식비       40,000원  76.2%     3',
+    '교통       12,500원  23.8%     1',
+    '',
+    '수입 분류         금액    비율  건수',
+    '급여       3,000,000원  100.0%     1',
+    '',
+  ].join('\n'));
+  assert.equal(output(run('--month', '2026-11')), '2026년 11월 거래가 없습니다.\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
+});
+
+test('같은 금액은 분류 이름 순으로 정렬하고 표에서만 비율을 반올림한다', (t) => {
+  const { run, write } = fixture(t);
+  write(['식비', '교통', '문화'].map((category) => ({
+    date: '2026-02-10', type: 'expense', category, amount: 1,
+  })));
+
+  const tableRows = output(run()).trimEnd().split('\n').slice(6);
+  assert.deepEqual(tableRows.map((line) => line.split(/\s+/)), [
+    ['교통', '1원', '33.3%', '1'],
+    ['문화', '1원', '33.3%', '1'],
+    ['식비', '1원', '33.3%', '1'],
+  ]);
+  const json = JSON.parse(output(run('--json')));
+  assert.deepEqual(json.expenseByCategory, ['교통', '문화', '식비'].map((category) => ({
+    category, amount: 1, ratio: 1 / 3, count: 1,
+  })));
+
+  for (const [smaller, larger, expected] of [
+    [1, 15, ['93.8%', '6.3%']],
+    [23, 1977, ['98.9%', '1.2%']],
+  ]) {
+    write([
+      { date: '2026-02-10', type: 'expense', category: '교통', amount: smaller },
+      { date: '2026-02-10', type: 'expense', category: '식비', amount: larger },
+    ]);
+    const rows = output(run()).trimEnd().split('\n').slice(6);
+    assert.deepEqual(rows.map((line) => line.split(/\s+/)[2]), expected);
+  }
+});
+
+test('거래가 있는 구분의 표만 출력하고 음수 차액에 쉼표를 넣는다', (t) => {
+  const { run, write } = fixture(t);
+  write([{ date: '2026-02-10', type: 'expense', category: '식비', amount: 1000 }]);
+  const expense = output(run());
+  assert.match(expense, /^2026년 2월\n수입 0원\n지출 1,000원\n차액 -1,000원\n\n지출 분류/);
+  assert.doesNotMatch(expense, /수입 분류/);
+
+  write([{ date: '2026-02-10', type: 'income', category: '급여', amount: 1000 }]);
+  const income = output(run());
+  assert.match(income, /^2026년 2월\n수입 1,000원\n지출 0원\n차액 1,000원\n\n수입 분류/);
+  assert.doesNotMatch(income, /지출 분류/);
+});
+
+test('집계할 거래가 없는 달은 안내 한 줄 또는 빈 JSON 집계를 출력한다', (t) => {
+  const { directory, run, write } = fixture(t);
+  const empty = {
+    month: '2026-02', income: 0, expense: 0, net: 0, expenseByCategory: [], incomeByCategory: [],
+  };
+  const assertEmpty = () => {
+    assert.equal(output(run()), '2026년 2월 거래가 없습니다.\n');
+    assert.deepEqual(JSON.parse(output(run('--json'))), empty);
+  };
+
+  assertEmpty();
+  assert.deepEqual(readdirSync(directory), []);
+  write([{ date: '2026-03-01', type: 'expense', category: '식비', amount: 1000 }]);
+  assertEmpty();
+  write([{ date: '2026-02-10', type: 'transfer', category: '식비', amount: 1000 }]);
+  assertEmpty();
+});
+
+test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한다', (t) => {
+  const { data, run } = fixture(t);
+  const original = '{깨진 JSON';
+  writeFileSync(data, original);
+
+  for (const [args, message] of [
+    ...['2026-2', '2026-13', '2026-00', '26-02', '2026-02-01', ''].map((month) => [
+      ['--month', month], `--month는 YYYY-MM 형식의 달이어야 합니다: ${month}`,
+    ]),
+    [['--month'], '--month 값이 없습니다'],
+    [['--data'], '--data 값이 없습니다'],
+    [['--nope'], '알 수 없는 옵션 --nope'],
+    [['extra'], '예상하지 않은 인자 extra'],
+    [['--data', ''], '--data 값이 비었습니다'],
+    [['--json=1'], '--json은 값을 받지 않습니다'],
+    [['--help=1'], '--help은 값을 받지 않습니다'],
+    [['--help', '--nope'], '알 수 없는 옵션 --nope'],
+  ]) {
+    const { status, stdout, stderr } = run(...args);
+    const invocation = JSON.stringify(args);
+    assert.equal(status, 2, invocation);
+    assert.equal(stdout, '', invocation);
+    assert.equal(stderr, `오류: ${message}\n${usage}\n`, invocation);
+  }
+  assert.equal(readFileSync(data, 'utf8'), original);
+});
+
+test('명시한 달이 없으면 잘못된 오늘 설정을 사용법 오류로 돌려준다', (t) => {
+  const { data, run } = fixture(t, '2026-02-30');
+  writeFileSync(data, '{깨진 JSON');
+  const { status, stdout, stderr } = run();
+  assert.equal(status, 2);
+  assert.equal(stdout, '');
+  assert.equal(stderr, '오류: GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-02-30\n사용법은 gagyebu help를 보세요.\n');
+});
+
+test('깨진 JSON과 배열이 아닌 거래 목록은 종료 코드 1로 보고한다', (t) => {
+  const { data, run } = fixture(t);
+  for (const [original, reason] of [
+    ['{깨진 JSON', 'JSON 형식이 잘못되었습니다'],
+    [JSON.stringify({ version: 1, nextId: 1, transactions: {} }), 'transactions가 올바르지 않습니다'],
+  ]) {
+    writeFileSync(data, original);
+    const { status, stdout, stderr } = run('--month', '2026-02');
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${data} (${reason})\n`);
+    assert.equal(readFileSync(data, 'utf8'), original);
+  }
+});
+
+test('summary --help는 사용법 한 줄을 출력한다', (t) => {
+  const { data, run } = fixture(t);
+  writeFileSync(data, '{깨진 JSON');
+  assert.equal(output(run('--help')), `${usage}\n`);
+  assert.equal(output(run('--help', 'extra', '--month', '2026-13')), `${usage}\n`);
+});

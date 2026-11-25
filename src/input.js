@@ -1,6 +1,6 @@
 import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { formatLocalDateTime } from './format.js';
-import { TYPE_LABELS, TYPES } from './types.js';
+import { RECORD_TYPES, TYPE_LABELS, TYPES } from './types.js';
 
 export const MISSING_AMOUNT = '금액이 없습니다';
 export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -170,9 +170,9 @@ export function parseType(text, usage) {
 }
 
 export function parseImportType(text) {
-  const type = TYPES.find((value) => value === text || TYPE_LABELS[value] === text);
+  const type = RECORD_TYPES.find((value) => value === text || TYPE_LABELS[value] === text);
   if (type === undefined) {
-    throw new UsageError(`type은 expense·income·지출·수입 중 하나여야 합니다: ${text}`);
+    throw new UsageError(`type은 expense·income·transfer·지출·수입·이체 중 하나여야 합니다: ${text}`);
   }
   return type;
 }

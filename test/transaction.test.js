@@ -200,7 +200,7 @@ test('가져올 각 행의 첫 오류를 모으고 중복도 검증한다', () =
       { line: 2, reason: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)' },
       { line: 4, reason: '금액은 양의 정수여야 합니다: 0' },
       { line: 5, reason: 'date는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-30' },
-      { line: 6, reason: 'type은 expense·income·지출·수입 중 하나여야 합니다: transfer' },
+      { line: 6, reason: '이체에는 to_account 칸이 필요합니다' },
       { line: 7, reason: '태그는 공백 없는 1~20자여야 합니다: a b' },
       { line: 8, reason: '칸 수가 머리 줄과 다릅니다(2개, 머리 줄 4개)' },
     ],

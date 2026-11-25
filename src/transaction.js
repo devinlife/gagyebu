@@ -98,6 +98,38 @@ function requireNextId({ nextId: id }, filePath) {
   return id;
 }
 
+function buildImportEntry(data, fields, filePath) {
+  const date = parseDate(fields.date, undefined, 'date는');
+  const amount = parseAmount(fields.amount);
+  const type = parseImportType(fields.type);
+  const memo = fields.memo ?? '';
+  if (type === TRANSFER) {
+    if (fields.to_account === undefined) {
+      throw new UsageError('이체에는 to_account 칸이 필요합니다');
+    }
+    if (fields.category) {
+      throw new UsageError(TRANSFER_HAS_NO_CATEGORY);
+    }
+    return buildTransfer(data, {
+      date, amount, from: fields.account ?? '', to: fields.to_account, memo, tags: parseTags(fields.tags),
+    }, filePath);
+  }
+  return buildTransaction(data, {
+    date, type, amount, category: fields.category || DEFAULT_CATEGORY,
+    account: fields.account || undefined, memo, tags: parseTags(fields.tags),
+  }, filePath);
+}
+
+function isDuplicate(existing, entry) {
+  if (existing.date !== entry.date || existing.type !== entry.type
+    || existing.amount !== entry.amount || existing.memo !== entry.memo) {
+    return false;
+  }
+  return entry.type === TRANSFER
+    ? existing.account === entry.account && existing.toAccount === entry.toAccount
+    : existing.category === entry.category;
+}
+
 export function importTransactions(data, rows, filePath) {
   const added = [];
   const errors = [];
@@ -110,19 +142,9 @@ export function importTransactions(data, rows, filePath) {
     }
 
     try {
-      const date = parseDate(fields.date, undefined, 'date는');
-      const amount = parseAmount(fields.amount);
-      const type = parseImportType(fields.type);
-      const category = fields.category || DEFAULT_CATEGORY;
-      const account = fields.account || undefined;
-      const memo = fields.memo ?? '';
-      const tags = parseTags(fields.tags);
-      const entry = buildTransaction({ ...data, nextId: data.nextId + added.length },
-        { date, type, amount, category, account, memo, tags }, filePath);
+      const entry = buildImportEntry({ ...data, nextId: data.nextId + added.length }, fields, filePath);
 
-      if (data.transactions.some((existing) =>
-        existing.date === date && existing.type === type && existing.amount === amount
-        && existing.category === category && existing.memo === memo)) {
+      if (data.transactions.some((existing) => isDuplicate(existing, entry))) {
         duplicates += 1;
       } else {
         added.push(entry);

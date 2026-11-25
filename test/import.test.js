@@ -7,6 +7,7 @@ import { assertUsageError, currentData, readJson, runCli, tempDir, testEnv, tran
 const usage = '사용법: gagyebu import <파일> [--dry-run] [--data <경로>]';
 const header = 'date,amount,type';
 const validRow = '2026-02-10,1000,expense';
+const transferHeader = header + ',account,to_account,category,memo';
 
 function fixture(t) {
   const directory = tempDir(t, 'gagyebu-import-');
@@ -31,20 +32,25 @@ test('내보낸 거래의 내용을 복원해 새 번호를 주고 다시 가져
   const sourcePath = path.join(directory, '원본.json');
   const transactions = [
     transaction({ id: 41, memo: '그는 "좋다",\r\n라고 했다\n다시 말했다', tags: ["'@회사", '@회식'] }),
+    transaction({
+      id: 50, type: 'transfer', category: '', toAccount: '@은행', memo: '저축', tags: ['정기'],
+    }),
     transaction({ id: 53, date: '2026-02-11', type: 'income', category: '급여', account: '@은행', memo: '=SUM(A1)' }),
   ];
-  writeDataFixture(sourcePath, transactions, 54);
+  const source = currentData({ nextId: 54, transactions });
+  source.accounts.push({ name: '@은행', opening: 0 });
+  writeJson(sourcePath, source);
   assertResult(runCli(['export', '--out', csv, '--data', sourcePath], { env }), 0,
-    `2건을 내보냈습니다: ${csv}\n`);
+    `3건을 내보냈습니다: ${csv}\n`);
   assertResult(runCli(['account', 'add', '@은행', '--data', dataPath], { env }), 0,
     '계좌를 더했습니다: @은행 (시작 잔액 0원)\n');
-  assertResult(run(csv, '--data', dataPath), 0, '2건을 더했습니다(중복 0건 건너뜀).\n');
+  assertResult(run(csv, '--data', dataPath), 0, '3건을 더했습니다(중복 0건 건너뜀).\n');
   const saved = readJson(dataPath);
-  assert.equal(saved.nextId, 3);
+  assert.equal(saved.nextId, 4);
   assert.deepEqual(saved.transactions, transactions.map((entry, index) => ({ ...entry, id: index + 1 })));
 
   const original = readFileSync(dataPath);
-  assertResult(run(csv), 0, '0건을 더했습니다(중복 2건 건너뜀).\n');
+  assertResult(run(csv), 0, '0건을 더했습니다(중복 3건 건너뜀).\n');
   assert.deepEqual(readFileSync(dataPath), original);
 });
 
@@ -73,7 +79,7 @@ test('오류 행의 물리 줄 번호를 출력하고 기존 데이터 파일을
     + '2026-02-10,1000,"이\r\n체",\r\n');
   const expected = '오류: 2개 행이 잘못되어 아무것도 더하지 않았습니다\n'
     + '5행: 금액은 양의 정수여야 합니다: 0\n'
-    + '7행: type은 expense·income·지출·수입 중 하나여야 합니다: 이\\r\\n체\n';
+    + '7행: type은 expense·income·transfer·지출·수입·이체 중 하나여야 합니다: 이\\r\\n체\n';
   for (const flags of [[], ['--dry-run']]) {
     assertResult(run(csv, ...flags), 1, '', expected);
     assert.equal(readFileSync(dataPath, 'utf8'), original);
@@ -91,6 +97,78 @@ test('등록되지 않은 계좌와 삭제된 기본 계좌는 행 오류로 보
     assertResult(run(csv, ...flags), 1, '', expected);
     assert.equal(readFileSync(dataPath, 'utf8'), original);
   }
+});
+
+test('이체 계좌와 분류 오류를 줄 번호와 함께 모으고 데이터 파일을 보존한다', (t) => {
+  const { csv, dataPath, run } = fixture(t);
+  const data = currentData({});
+  data.accounts.push({ name: '통장', opening: 0 });
+  writeJson(dataPath, data);
+  const original = readFileSync(dataPath);
+  writeFileSync(csv, [
+    transferHeader,
+    '2026-02-10,1000,이체,현금,통장,,',
+    '2026-02-10,1000,transfer,미등록,통장,,',
+    '2026-02-10,1000,transfer,현금,미등록,,',
+    '2026-02-10,1000,transfer,,통장,,',
+    '2026-02-10,1000,transfer,현금,,,',
+    '2026-02-10,1000,transfer,현금,현금,,',
+    '2026-02-10,1000,transfer,현금,통장,식비,',
+    '',
+  ].join('\n'));
+  const expected = '오류: 6개 행이 잘못되어 아무것도 더하지 않았습니다\n'
+    + '3행: 없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)\n'
+    + '4행: 없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)\n'
+    + '5행: 없는 계좌입니다:  (gagyebu account add로 더하세요)\n'
+    + '6행: 없는 계좌입니다:  (gagyebu account add로 더하세요)\n'
+    + '7행: 보내는 계좌와 받는 계좌는 달라야 합니다\n'
+    + '8행: 이체에는 분류가 없습니다\n';
+  for (const flags of [[], ['--dry-run']]) {
+    assertResult(run(csv, ...flags), 1, '', expected);
+    assert.deepEqual(readFileSync(dataPath), original);
+  }
+});
+
+test('이체는 날짜, 금액, 두 계좌와 메모가 모두 같을 때 중복으로 센다', (t) => {
+  const { csv, dataPath, run } = fixture(t);
+  const existing = transaction({ id: 5, type: 'transfer', category: '', toAccount: '통장', memo: '저축' });
+  const data = currentData({ nextId: 8, transactions: [existing] });
+  data.accounts.push({ name: '통장', opening: 0 }, { name: '카드', opening: 0 });
+  writeJson(dataPath, data);
+  const variants = [
+    { date: '2026-02-11' },
+    { amount: 2000 },
+    { account: '카드' },
+    { toAccount: '카드' },
+    { memo: '여행' },
+  ].map((change) => ({ ...existing, ...change }));
+  const rows = [existing, ...variants].map(({ date, amount, account, toAccount, memo }) =>
+    [date, amount, '이체', account, toAccount, '', memo].join(','));
+  writeFileSync(csv, [transferHeader, ...rows, ''].join('\n'));
+  assertResult(run(csv), 0, '5건을 더했습니다(중복 1건 건너뜀).\n');
+  const saved = readJson(dataPath);
+  assert.equal(saved.nextId, 13);
+  assert.deepEqual(saved.transactions, [existing, ...variants.map((entry, index) => ({ ...entry, id: 8 + index }))]);
+});
+
+test('옛 CSV는 이체에 받는 계좌 칸을 요구하고 수입과 지출은 가져온다', (t) => {
+  const { csv, dataPath, run } = fixture(t);
+  writeDataFixture(dataPath);
+  const original = readFileSync(dataPath);
+  const legacyCsv = 'id,date,type,amount,category,account,memo,tags\n'
+    + '41,2026-02-10,expense,1000,식비,현금,,\n'
+    + '42,2026-02-10,income,2000,급여,현금,,\n';
+  writeFileSync(csv, legacyCsv + '43,2026-02-10,transfer,3000,,현금,,\n');
+  assertResult(run(csv), 1, '', '오류: 1개 행이 잘못되어 아무것도 더하지 않았습니다\n'
+    + '4행: 이체에는 to_account 칸이 필요합니다\n');
+  assert.deepEqual(readFileSync(dataPath), original);
+
+  writeFileSync(csv, legacyCsv);
+  assertResult(run(csv), 0, '2건을 더했습니다(중복 0건 건너뜀).\n');
+  assert.deepEqual(readJson(dataPath).transactions, [
+    transaction({ id: 1 }),
+    transaction({ id: 2, type: 'income', amount: 2000, category: '급여' }),
+  ]);
 });
 
 test('오류 행을 20개까지 표시하고 남은 개수를 알린다', (t) => {

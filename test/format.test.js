@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { displayWidth, formatTable, formatWon, renderBars, withParticle } from '../src/format.js';
+import { displayWidth, formatLocalDateTime, formatTable, formatWon, renderBars, withParticle } from '../src/format.js';
 
 test('마지막 글자의 받침에 맞춰 조사를 붙인다', () => {
   for (const [word, pair, expected] of [
@@ -74,4 +74,8 @@ test('한글과 영문이 섞여도 다음 칸의 표시 위치가 같다', () =
   assert.deepEqual(lines.map((line, index) => {
     return displayWidth(line.slice(0, line.indexOf(rows[index][1])));
   }), [8, 8, 8]);
+});
+
+test('로컬 시각을 월부터 초까지 두 자리로 표시한다', () => {
+  assert.equal(formatLocalDateTime(new Date(2026, 0, 2, 3, 4, 5)), '2026-01-02 03:04:05');
 });

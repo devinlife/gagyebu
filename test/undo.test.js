@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { formatLocalDateTime } from '../src/format.js';
 import { readData } from '../src/store.js';
 import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
@@ -27,7 +28,7 @@ test('여러 명령을 새것부터 되돌리고 이력을 하나씩 지운다',
     const { at, command } = entries[index];
     const { status, stdout, stderr } = runCli(['undo'], { env });
     assert.equal(status, 0);
-    assert.equal(stdout, `되돌렸습니다: ${command} (${at})\n`);
+    assert.equal(stdout, `되돌렸습니다: ${command} (${formatLocalDateTime(new Date(at))})\n`);
     assert.equal(stderr, '');
     assert.deepEqual(readJson(filePath), before[index]);
     assert.deepEqual(readJson(historyPath), entries.slice(0, index));
@@ -56,7 +57,7 @@ test('별도 데이터 경로의 이력을 새것부터 표와 JSON으로 보여
   const [heading, ...rows] = table.stdout.trimEnd().split('\n');
   assert.match(heading, /^번호 +시각 +명령$/);
   assert.deepEqual(rows.map((row) => row.trimStart().split(/ {2,}/, 3)),
-    entries.map(({ at, command }, index) => [String(index + 1), at, command]));
+    entries.map(({ at, command }, index) => [String(index + 1), formatLocalDateTime(new Date(at)), command]));
 
   const json = runCli(['undo', '--list', '--json', '--data', filePath], { env });
   assert.equal(json.status, 0);
@@ -64,6 +65,32 @@ test('별도 데이터 경로의 이력을 새것부터 표와 JSON으로 보여
   assert.deepEqual(JSON.parse(json.stdout), entries.map(({ at, command }) => ({ at, command })));
   assert.equal(readFileSync(historyPath, 'utf8'), original);
   assert.equal(existsSync(`${env.GAGYEBU_DATA}.history.json`), false);
+});
+
+test('표와 되돌리기는 로컬 시각을 표시하고 JSON에는 저장된 시각을 유지한다', (t) => {
+  const env = testEnv(tempDir(t), { TZ: 'Asia/Seoul' });
+  const data = readData(env.GAGYEBU_DATA);
+  const entries = [
+    { at: '시각 원문', command: 'add 1000', data },
+    { at: '2026-01-01T00:00:00.000Z', command: 'add 2000', data },
+  ];
+  writeJson(`${env.GAGYEBU_DATA}.history.json`, entries);
+
+  const table = runCli(['undo', '--list'], { env });
+  assert.equal(table.status, 0);
+  assert.match(table.stdout, /2026-01-01 09:00:00 +add 2000/);
+  assert.match(table.stdout, /시각 원문 +add 1000/);
+
+  const json = runCli(['undo', '--list', '--json'], { env });
+  assert.equal(json.status, 0);
+  assert.deepEqual(JSON.parse(json.stdout), entries.toReversed().map(({ at, command }) => ({ at, command })));
+
+  const first = runCli(['undo'], { env });
+  assert.equal(first.status, 0);
+  assert.equal(first.stdout, '되돌렸습니다: add 2000 (2026-01-01 09:00:00)\n');
+  const second = runCli(['undo'], { env });
+  assert.equal(second.status, 0);
+  assert.equal(second.stdout, '되돌렸습니다: add 1000 (시각 원문)\n');
 });
 
 test('이력이 없을 때는 안내 또는 빈 JSON 목록을 출력한다', (t) => {

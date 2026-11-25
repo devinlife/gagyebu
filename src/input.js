@@ -1,4 +1,5 @@
 import { DataError, UsageError } from './errors.js';
+import { formatLocalDateTime } from './format.js';
 import { TYPE_LABELS, TYPES } from './types.js';
 
 export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -29,11 +30,7 @@ export function today(env = process.env) {
     return override;
   }
 
-  const now = new Date();
-  const year = String(now.getFullYear()).padStart(4, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return [year, month, day].join('-');
+  return formatLocalDateTime(new Date()).slice(0, 10);
 }
 
 export function currentMonth() {

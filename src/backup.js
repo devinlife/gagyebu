@@ -1,8 +1,8 @@
-import { constants, copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { constants, copyFileSync, lstatSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { DataError } from './errors.js';
 import { formatFileStamp } from './format.js';
-import { readBackup, readData, readError } from './store.js';
+import { readBackup, readData, readError, writeData } from './store.js';
 
 const backupName = /^gagyebu-(\d{8}-\d{6})(?:-(\d+))?\.json$/;
 
@@ -43,9 +43,45 @@ export function createBackup(dataPath, directory, now = new Date()) {
   }
 }
 
-function countTransactions(filePath) {
+export function restoreBackup(filePath, backup, now = new Date()) {
+  let brokenPath = null;
+  if (currentCount(filePath) === null) {
+    brokenPath = moveBrokenData(filePath, now);
+    writeData(filePath, backup, null);
+  } else {
+    writeData(filePath, backup);
+  }
+  return { brokenPath };
+}
+
+function moveBrokenData(filePath, now) {
+  const base = `${filePath}.broken-${formatFileStamp(now)}`;
+  const moveError = (reason) => new DataError(`깨진 데이터 파일을 옮길 수 없습니다: ${filePath} (${reason})`);
   try {
-    return readBackup(filePath).transactions.length;
+    if (lstatSync(filePath).isDirectory()) {
+      throw moveError('EISDIR');
+    }
+    let target = base;
+    for (let number = 2; lstatSync(target, { throwIfNoEntry: false }); number += 1) {
+      target = `${base}-${number}`;
+    }
+    renameSync(filePath, target);
+    return target;
+  } catch (error) {
+    if (error instanceof DataError) {
+      throw error;
+    }
+    throw moveError(error.code ?? error.message);
+  }
+}
+
+export function currentCount(filePath) {
+  return countTransactions(filePath, readData);
+}
+
+function countTransactions(filePath, read) {
+  try {
+    return read(filePath).transactions.length;
   } catch (error) {
     if (error instanceof DataError) {
       return null;
@@ -87,6 +123,6 @@ export function listBackups(directory) {
     } catch (error) {
       throw directoryReadError(directory, error);
     }
-    return { name, size, count: countTransactions(filePath) };
+    return { name, size, count: countTransactions(filePath, readBackup) };
   });
 }

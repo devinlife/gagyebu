@@ -1,6 +1,7 @@
+import { currentCount, restoreBackup } from '../backup.js';
 import { DataError, UsageError, unexpectedArgument } from '../errors.js';
 import { parseOptions } from '../options.js';
-import { dataPath, readBackup, readData, writeData } from '../store.js';
+import { dataPath, readBackup } from '../store.js';
 
 export const name = 'restore';
 export const order = 107;
@@ -30,13 +31,17 @@ export function run(argv) {
 
   const [backupPath] = args;
   const backup = readBackup(backupPath);
-  const currentCount = readData(filePath).transactions.length;
   const backupCount = backup.transactions.length;
   if (!options.yes) {
-    throw new DataError(`지금 데이터(거래 ${currentCount}건)를 백업(거래 ${backupCount}건)으로 바꾸려면 --yes를 붙이세요.`);
+    const count = currentCount(filePath);
+    const current = count === null ? '읽을 수 없음' : `거래 ${count}건`;
+    throw new DataError(`지금 데이터(${current})를 백업(거래 ${backupCount}건)으로 바꾸려면 --yes를 붙이세요.`);
   }
 
-  writeData(filePath, backup);
+  const { brokenPath } = restoreBackup(filePath, backup);
   console.log(`복원했습니다: ${backupPath} (거래 ${backupCount}건)`);
+  if (brokenPath !== null) {
+    console.log(`깨진 데이터 파일을 남겨 두었습니다: ${brokenPath}`);
+  }
   return 0;
 }

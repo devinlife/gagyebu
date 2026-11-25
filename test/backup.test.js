@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { backupDirectory, createBackup } from '../src/backup.js';
+import { backupDirectory, createBackup, restoreBackup } from '../src/backup.js';
 import { assertUsageError, currentData, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu backup [--list] [--json] [--dir <폴더>] [--data <경로>]';
@@ -30,6 +30,21 @@ test('같은 초의 백업에 일련번호를 붙이고 기존 백업과 원본 
       Buffer.from(originals[index]));
   }
   assert.equal(readFileSync(dataPath, 'utf8'), originals.at(-1));
+});
+
+test('같은 초에 남겨 둔 깨진 파일을 덮어쓰지 않는다', (t) => {
+  const dataPath = path.join(tempDir(t), 'data.json');
+  const now = new Date(2026, 10, 26, 9, 5, 7);
+  const backup = currentData();
+  const base = `${dataPath}.broken-20261126-090507`;
+
+  writeFileSync(dataPath, '{첫 원본');
+  assert.deepEqual(restoreBackup(dataPath, backup, now), { brokenPath: base });
+  writeFileSync(dataPath, '{둘째 원본');
+  assert.deepEqual(restoreBackup(dataPath, backup, now), { brokenPath: `${base}-2` });
+
+  assert.equal(readFileSync(base, 'utf8'), '{첫 원본');
+  assert.equal(readFileSync(`${base}-2`, 'utf8'), '{둘째 원본');
 });
 
 test('백업 명령은 기본 폴더 또는 지정 폴더에 쓰고 데이터와 이력을 보존한다', (t) => {

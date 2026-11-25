@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, readData } from '../src/store.js';
@@ -39,6 +39,77 @@ test('잘못된 백업은 거부하고 현재 데이터와 이력을 보존한�
   assert.equal(result.status, 1);
   assert.equal(readFileSync(dataPath, 'utf8'), original);
   assert.equal(readFileSync(historyPath, 'utf8'), savedHistory);
+});
+
+test('깨진 현재 데이터와 이력을 보존하면서 백업을 복원한다', async (t) => {
+  for (const [label, text, hasHistory] of [
+    ['깨진 JSON', '{깨진', false],
+    ['깨진 레코드', JSON.stringify(currentData({ transactions: [null] })), true],
+    ['높은 버전', JSON.stringify(currentData({ version: CURRENT_VERSION + 1 })), false],
+  ]) {
+    await t.test(label, (t) => {
+      const directory = tempDir(t);
+      const env = testEnv(directory);
+      const dataPath = env.GAGYEBU_DATA;
+      const historyPath = `${dataPath}.history.json`;
+      const backupPath = path.join(directory, 'backup.json');
+      const backup = currentData({ nextId: 2, transactions: [transaction({ id: 1 })] });
+      writeJson(backupPath, backup);
+      const original = Buffer.from(text);
+      writeFileSync(dataPath, original);
+      const history = [{ at: '2026-01-01T00:00:00.000Z', command: 'add 1000', data: currentData() }];
+      const savedHistory = hasHistory ? writeJson(historyPath, history) : null;
+
+      const { status, stdout, stderr } = runCli(['restore', backupPath, '--yes'], { env });
+      assert.equal(status, 0);
+      assert.equal(stderr, '');
+      assert.deepEqual(readJson(dataPath), backup);
+      const files = readdirSync(directory).filter((name) => name.startsWith('data.json.broken-'));
+      assert.equal(files.length, 1);
+      assert.match(files[0], /\.broken-\d{8}-\d{6}$/);
+      const brokenPath = path.join(directory, files[0]);
+      assert.equal(stdout, `복원했습니다: ${backupPath} (거래 1건)\n깨진 데이터 파일을 남겨 두었습니다: ${brokenPath}\n`);
+      assert.deepEqual(readFileSync(brokenPath), original);
+      if (hasHistory) {
+        assert.equal(readFileSync(historyPath, 'utf8'), savedHistory);
+      } else {
+        assert.equal(existsSync(historyPath), false);
+      }
+    });
+  }
+});
+
+test('깨진 현재 데이터에서 --yes 없이 복원하면 읽을 수 없음으로 안내한다', (t) => {
+  const directory = tempDir(t);
+  const env = testEnv(directory);
+  const dataPath = env.GAGYEBU_DATA;
+  const backupPath = path.join(directory, 'backup.json');
+  const backup = writeJson(backupPath, currentData());
+  writeFileSync(dataPath, '{깨진');
+
+  const { status, stdout, stderr } = runCli(['restore', backupPath], { env });
+  assert.equal(status, 1);
+  assert.equal(stdout, '');
+  assert.equal(stderr, '오류: 지금 데이터(읽을 수 없음)를 백업(거래 0건)으로 바꾸려면 --yes를 붙이세요.\n');
+  assert.equal(readFileSync(dataPath, 'utf8'), '{깨진');
+  assert.equal(readFileSync(backupPath, 'utf8'), backup);
+  assert.deepEqual(readdirSync(directory).sort(), ['backup.json', 'data.json']);
+});
+
+test('데이터 경로가 폴더이면 복원 중 폴더를 옮기지 않는다', (t) => {
+  const directory = tempDir(t);
+  const env = testEnv(directory);
+  const dataPath = env.GAGYEBU_DATA;
+  mkdirSync(dataPath);
+  const backupPath = path.join(dataPath, 'backup.json');
+  const backup = writeJson(backupPath, currentData());
+
+  const { status, stdout, stderr } = runCli(['restore', backupPath, '--yes'], { env });
+  assert.equal(status, 1);
+  assert.equal(stdout, '');
+  assert.equal(stderr, `오류: 깨진 데이터 파일을 옮길 수 없습니다: ${dataPath} (EISDIR)\n`);
+  assert.equal(readFileSync(backupPath, 'utf8'), backup);
+  assert.deepEqual(readdirSync(directory), ['data.json']);
 });
 
 test('--yes 없이 복원하면 거래 수를 안내하고 데이터와 이력을 보존한다', (t) => {
@@ -135,6 +206,7 @@ test('데이터 파일이 아직 없으면 0건으로 확인하고 백업을 복
   const result = runCli(['restore', backupPath, '--yes'], { env });
   assert.equal(result.status, 0);
   assert.equal(result.stderr, '');
+  assert.equal(result.stdout, `복원했습니다: ${backupPath} (거래 1건)\n`);
   assert.deepEqual(readData(env.GAGYEBU_DATA), backup);
 });
 

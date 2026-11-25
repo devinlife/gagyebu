@@ -334,7 +334,7 @@ export function popHistory(filePath, entries = readHistory(filePath)) {
 }
 
 export function writeData(filePath, data, command = commandSummary) {
-  if (command !== undefined) {
+  if (command != null) {
     const before = readData(filePath);
     let entries;
     try {

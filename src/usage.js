@@ -1,6 +1,6 @@
 import { EXPENSE, TRANSFER } from './types.js';
 
-export function countUses({ transactions, budgets = {}, recurring = [] }, field, type) {
+export function countUses({ transactions, budgets, recurring }, field, type) {
   const counts = new Map();
   const byAccount = field === 'account';
 

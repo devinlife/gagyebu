@@ -243,7 +243,7 @@ test('공용 분류 목록은 등록 순서와 같은 구분의 거래 건수를
     transaction({ id: 3, category: '기타', type: 'transfer' }),
     transaction({ id: 4, category: '미등록' }),
   ].map(Object.freeze));
-  const data = Object.freeze({ categories, transactions });
+  const data = Object.freeze(currentData({ categories, transactions }));
 
   assert.deepEqual(listCategories(data), {
     expense: [{ name: '기타', count: 1 }, { name: '식비', count: 0 }],

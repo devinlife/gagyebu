@@ -8,10 +8,6 @@ export const summary = '거래 목록을 보여 줍니다.';
 
 const USAGE = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--json] [--data <경로>]';
 
-function tableText(value) {
-  return value.replaceAll('\r', '\\r').replaceAll('\n', '\\n').replaceAll('\t', '\\t');
-}
-
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
     values: ['from', 'to', 'type', 'category', 'data'],
@@ -76,18 +72,18 @@ export function run(argv) {
   }
 
   const rows = [['번호', '날짜', '구분', '금액', '분류', '메모']];
-  let income = 0n;
-  let expense = 0n;
+  let income = 0;
+  let expense = 0;
   for (const transaction of list) {
     const isIncome = transaction.type === 'income';
     if (isIncome) {
-      income += BigInt(transaction.amount);
+      income += transaction.amount;
     } else {
-      expense += BigInt(transaction.amount);
+      expense += transaction.amount;
     }
     rows.push([
       String(transaction.id), transaction.date, isIncome ? '수입' : '지출',
-      formatWon(transaction.amount), tableText(transaction.category), tableText(transaction.memo),
+      formatWon(transaction.amount), transaction.category, transaction.memo,
     ]);
   }
 

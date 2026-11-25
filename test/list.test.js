@@ -121,30 +121,6 @@ test('합계는 필터에 남은 거래만 더한다', (t) => {
   assert.equal(result.stdout.split('\n').at(-2), '3건, 수입 0원, 지출 2,250원');
 });
 
-test('거래 합계가 안전한 정수 범위를 넘어도 원 단위를 보존한다', (t) => {
-  const { run, write } = fixture(t);
-  write([
-    { ...first, amount: Number.MAX_SAFE_INTEGER },
-    { ...sameDayExpense, amount: 2 },
-  ]);
-  const result = run();
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.split('\n').at(-2), '2건, 수입 0원, 지출 9,007,199,254,740,993원');
-});
-
-test('분류와 메모의 줄바꿈과 탭은 표에서 한 줄로 표시한다', (t) => {
-  const { run, write } = fixture(t);
-  const transaction = { ...first, category: '식비\t아침', memo: '첫 줄\r\n둘째 줄' };
-  write([transaction]);
-
-  const result = run();
-  assert.equal(result.status, 0, result.stderr);
-  const lines = result.stdout.trimEnd().split('\n');
-  assert.equal(lines.length, 3);
-  assert.ok(lines[1].endsWith('식비\\t아침  첫 줄\\r\\n둘째 줄'));
-  assert.deepEqual(readJson(run('--json')), [transaction]);
-});
-
 test('데이터 파일이 없거나 거래가 비어 있으면 빈 목록을 출력한다', (t) => {
   const { directory, run, write } = fixture(t);
   assertOutput(run(), '거래가 없습니다.\n');

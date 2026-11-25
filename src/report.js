@@ -2,21 +2,33 @@ import { requireCategoryIndex } from './category.js';
 import { DataError } from './errors.js';
 import { EXPENSE, TYPES } from './types.js';
 
+export function groupByCategory(transactions) {
+  const categories = new Map();
+  for (const { category, amount } of transactions) {
+    const entry = categories.get(category) ?? { category, amount: 0, count: 0 };
+    entry.amount += amount;
+    entry.count += 1;
+    categories.set(category, entry);
+  }
+  return categories;
+}
+
 function monthlyTotals(transactions, month, types) {
   const totals = { expense: 0, income: 0 };
-  const categories = { expense: new Map(), income: new Map() };
-  for (const { date, type, category, amount } of transactions) {
+  const entries = { expense: [], income: [] };
+  for (const transaction of transactions) {
+    const { date, type, amount } = transaction;
     if (!types.includes(type) || date.slice(0, 7) !== month) {
       continue;
     }
     totals[type] += amount;
-    const entries = categories[type];
-    const entry = entries.get(category) ?? { category, amount: 0, count: 0 };
-    entry.amount += amount;
-    entry.count += 1;
-    entries.set(category, entry);
+    entries[type].push(transaction);
   }
 
+  const categories = {
+    expense: groupByCategory(entries.expense),
+    income: groupByCategory(entries.income),
+  };
   return { totals, categories };
 }
 

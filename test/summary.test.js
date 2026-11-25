@@ -1,35 +1,25 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
+import { runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
 
 function fixture(t, today = '2026-02-10') {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-summary-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-summary-');
 
   const data = path.join(directory, 'data.json');
-  const env = { ...process.env, GAGYEBU_DATA: path.join(directory, 'env.json'), GAGYEBU_TODAY: today };
+  const env = testEnv(directory, { GAGYEBU_DATA: path.join(directory, 'env.json'), GAGYEBU_TODAY: today });
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, 'summary', '--data', data, ...args], {
-      encoding: 'utf8', env,
-    });
-    assert.ifError(result.error);
-    return result;
+    return runCli(['summary', '--data', data, ...args], { env });
   }
 
   function write(transactions, budgets) {
-    const schema = budgets === undefined ? { version: 1 } : { version: 2, categories: DEFAULT_CATEGORIES, budgets };
-    const original = JSON.stringify({ ...schema, nextId: transactions.length + 1, transactions });
-    writeFileSync(data, original);
-    return original;
+    const schema = budgets === undefined ? { version: 1 } : { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, budgets };
+    return writeJson(data, { ...schema, nextId: transactions.length + 1, transactions });
   }
 
   return { directory, data, run, write };

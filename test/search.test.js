@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
-import os from 'node:os';
+import { writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
 
 const meal = {
@@ -19,16 +16,13 @@ const income = {
 };
 
 function fixture(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-search-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-search-');
 
   const data = path.join(directory, 'data.json');
-  writeFileSync(data, JSON.stringify({ version: 1, nextId: 3, transactions: [meal, income] }));
+  writeJson(data, { version: 1, nextId: 3, transactions: [meal, income] });
 
   function run(command, ...args) {
-    const result = spawnSync(process.execPath, [binPath, command, '--data', data, ...args], { encoding: 'utf8' });
-    assert.ifError(result.error);
-    return result;
+    return runCli([command, '--data', data, ...args], { env: testEnv(directory) });
   }
 
   return { data, run };

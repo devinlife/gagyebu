@@ -1,33 +1,25 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
+import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
 function fixture(t, envOverrides = {}) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-add-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-add-');
 
   const data = path.join(directory, 'data.json');
   const envData = path.join(directory, 'env.json');
-  const env = { ...process.env, GAGYEBU_DATA: envData };
-  delete env.GAGYEBU_TODAY;
-  Object.assign(env, envOverrides);
+  const env = testEnv(directory, { GAGYEBU_DATA: envData, ...envOverrides });
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, 'add', ...args], { encoding: 'utf8', env });
-    assert.ifError(result.error);
-    return result;
+    return runCli(['add', ...args], { env });
   }
 
   function read(filePath = data) {
-    return JSON.parse(readFileSync(filePath, 'utf8'));
+    return readJson(filePath);
   }
 
   return { directory, data, envData, run, read };
@@ -50,7 +42,7 @@ test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선�
   assert.equal(result.stdout, '추가했습니다: #1 2026-02-28 수입 12,300원 급여 11월분\n');
   assert.deepEqual(readdirSync(directory), ['data.json']);
   assert.deepEqual(read(), {
-    version: 2,
+    version: CURRENT_VERSION,
     budgets: {},
     nextId: 2,
     categories: DEFAULT_CATEGORIES,
@@ -150,7 +142,7 @@ test('같은 파일에 다시 추가하면 기존 거래를 보존하고 id를 �
 
 test('id는 기존 nextId를 쓰고 경로를 생략하면 GAGYEBU_DATA에 저장한다', (t) => {
   const { envData, run, read } = fixture(t);
-  writeFileSync(envData, JSON.stringify({ version: 1, nextId: 10, transactions: [] }));
+  writeJson(envData, { version: 1, nextId: 10, transactions: [] });
   const result = run('012', '--memo=');
 
   assert.equal(result.status, 0);

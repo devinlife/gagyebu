@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { displayWidth } from '../src/format.js';
+import { runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
 
 const sameDayIncome = {
@@ -29,26 +26,17 @@ const last = {
 const transactions = [sameDayIncome, last, first, sameDayExpense];
 
 function fixture(t, envOverrides = {}) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-list-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-list-');
 
   const data = path.join(directory, 'data.json');
-  const env = { ...process.env, GAGYEBU_DATA: path.join(directory, 'env.json') };
-  delete env.GAGYEBU_TODAY;
-  Object.assign(env, envOverrides);
+  const env = testEnv(directory, { GAGYEBU_DATA: path.join(directory, 'env.json'), ...envOverrides });
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, 'list', '--data', data, ...args], {
-      encoding: 'utf8', env,
-    });
-    assert.ifError(result.error);
-    return result;
+    return runCli(['list', '--data', data, ...args], { env });
   }
 
   function write(entries = transactions) {
-    const original = JSON.stringify({ version: 1, nextId: 13, transactions: entries });
-    writeFileSync(data, original);
-    return original;
+    return writeJson(data, { version: 1, nextId: 13, transactions: entries });
   }
 
   return { directory, data, run, write };

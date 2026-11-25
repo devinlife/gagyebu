@@ -1,21 +1,17 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
+import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu rm <번호> [--data <경로>]';
 
 function fixture(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-rm-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-rm-');
 
   const data = path.join(directory, 'data.json');
-  const env = { ...process.env, GAGYEBU_DATA: data, GAGYEBU_TODAY: '2026-03-01' };
+  const env = testEnv(directory, { GAGYEBU_TODAY: '2026-03-01' });
   const original = {
     version: 1,
     nextId: 4,
@@ -36,13 +32,11 @@ function fixture(t) {
   };
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, ...args], { encoding: 'utf8', env });
-    assert.ifError(result.error);
-    return result;
+    return runCli([...args], { env });
   }
 
   function read() {
-    return JSON.parse(readFileSync(data, 'utf8'));
+    return readJson(data);
   }
 
   return { directory, data, original, run, read };
@@ -51,16 +45,16 @@ function fixture(t) {
 test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번호를 보존한다', (t) => {
   const { directory, original, run } = fixture(t);
   const override = path.join(directory, 'override.json');
-  writeFileSync(override, JSON.stringify(original));
+  writeJson(override, original);
 
   const { status, stdout, stderr } = run('rm', '2', '--data', override);
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
   assert.equal(stdout, '삭제했습니다: #2 2026-03-01 지출 6,000원 식비 아침 #외식\n');
-  assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
+  assert.deepEqual(readJson(override), {
     ...original,
-    version: 2,
+    version: CURRENT_VERSION,
     budgets: {},
     categories: DEFAULT_CATEGORIES,
     transactions: [original.transactions[0], original.transactions[2]],
@@ -70,7 +64,7 @@ test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번�
 
 test('가장 큰 번호를 지운 뒤 추가한 거래는 다음 번호를 쓴다', (t) => {
   const { data, original, run, read } = fixture(t);
-  writeFileSync(data, JSON.stringify(original));
+  writeJson(data, original);
 
   const removed = run('rm', '3');
   assert.equal(removed.status, 0, removed.stderr);
@@ -96,7 +90,7 @@ test('없는 번호를 보고하고 데이터 파일을 만들거나 바꾸지 �
   assertMissing();
   assert.deepEqual(readdirSync(directory), []);
 
-  writeFileSync(data, JSON.stringify(original));
+  writeJson(data, original);
   const removed = run('rm', '2');
   assert.equal(removed.status, 0, removed.stderr);
   const saved = readFileSync(data, 'utf8');

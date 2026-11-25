@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
+import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu budget set|list|rm [인자] [--옵션 값]';
 const usages = {
   set: '사용법: gagyebu budget set <분류> <금액> [--data <경로>]',
@@ -16,23 +13,18 @@ const usages = {
 };
 
 function fixture(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-budget-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-budget-');
   const data = path.join(directory, 'data.json');
-  const env = { ...process.env, GAGYEBU_DATA: path.join(directory, 'env.json'), GAGYEBU_TODAY: '2026-03-01' };
+  const env = testEnv(directory, { GAGYEBU_DATA: path.join(directory, 'env.json'), GAGYEBU_TODAY: '2026-03-01' });
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, 'budget', ...args], { encoding: 'utf8', env });
-    assert.ifError(result.error);
-    return result;
+    return runCli(['budget', ...args], { env });
   }
 
   function write(budgets, transactions = []) {
-    const original = JSON.stringify({
-      version: 2, nextId: transactions.length + 1, categories: DEFAULT_CATEGORIES, budgets, transactions,
+    return writeJson(data, {
+      version: CURRENT_VERSION, nextId: transactions.length + 1, categories: DEFAULT_CATEGORIES, budgets, transactions,
     });
-    writeFileSync(data, original);
-    return original;
   }
 
   return { directory, data, run, write };
@@ -53,9 +45,9 @@ function assertError({ status, stdout, stderr }, expectedStatus, expectedText) {
 test('지출 분류의 월 예산을 설정하고 새 금액으로 덮어쓴다', (t) => {
   const { directory, data, run } = fixture(t);
   assert.equal(output(run('set', ' 식비 ', '1만2천', '--data', data)), '설정했습니다: 식비 월 12,000원\n');
-  assert.deepEqual(JSON.parse(readFileSync(data, 'utf8')).budgets, { 식비: 12000 });
+  assert.deepEqual(readJson(data).budgets, { 식비: 12000 });
   assert.equal(output(run('set', '식비', '30,000원', '--data', data)), '설정했습니다: 식비 월 30,000원\n');
-  assert.deepEqual(JSON.parse(readFileSync(data, 'utf8')).budgets, { 식비: 30000 });
+  assert.deepEqual(readJson(data).budgets, { 식비: 30000 });
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });
 

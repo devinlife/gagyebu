@@ -1,23 +1,18 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import pkg from '../package.json' with { type: 'json' };
 
 import { reportError } from '../src/cli.js';
 import { DataError, UsageError } from '../src/errors.js';
+import { binPath, runCli } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
-
-function runCli(...args) {
-  const result = spawnSync(process.execPath, [binPath, ...args], { encoding: 'utf8' });
-  assert.ifError(result.error);
-  return result;
+function run(...args) {
+  return runCli([...args]);
 }
 
 test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력한다', () => {
-  const outputs = [runCli(), runCli('help'), runCli('--help'), runCli('help', '--help')];
+  const outputs = [run(), run('help'), run('--help'), run('help', '--help')];
   const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help      사용법과 명령 목록을 보여 줍니다.\n  add       거래 하나를 더합니다.\n  list      거래 목록을 보여 줍니다.\n  search    글이나 태그로 거래를 찾습니다.\n  edit      거래의 값 일부를 바꿉니다.\n  rm        거래 하나를 지웁니다.\n  category  분류 목록을 보고 분류를 더하거나 지웁니다.\n  summary   한 달의 수입·지출과 분류별 합계를 보여 줍니다.\n  export    거래를 CSV로 내보냅니다.\n  budget    분류별 월 예산을 정하고 사용률을 보여 줍니다.\n';
   for (const { status, stdout, stderr } of outputs) {
     assert.equal(status, 0);
@@ -36,7 +31,7 @@ test('help와 --version은 모르는 옵션과 남는 인자를 거부한다', (
       ['--nope', '알 수 없는 옵션 --nope'],
       ['nope', '예상하지 않은 인자 nope'],
     ]) {
-      const { status, stdout, stderr } = runCli(command, arg);
+      const { status, stdout, stderr } = run(command, arg);
       const invocation = `${command} ${arg}`;
       assert.equal(status, 2, invocation);
       assert.equal(stdout, '', invocation);
@@ -46,14 +41,14 @@ test('help와 --version은 모르는 옵션과 남는 인자를 거부한다', (
 });
 
 test('help 깃발은 등호로 전달한 값을 거부한다', () => {
-  const { status, stdout, stderr } = runCli('help', '--help=nope');
+  const { status, stdout, stderr } = run('help', '--help=nope');
   assert.equal(status, 2);
   assert.equal(stdout, '');
   assert.equal(stderr, '오류: --help은 값을 받지 않습니다\n사용법: gagyebu help\n');
 });
 
 test('--version은 패키지 버전을 출력한다', () => {
-  const { status, stdout, stderr } = runCli('--version');
+  const { status, stdout, stderr } = run('--version');
   assert.equal(status, 0);
   assert.equal(stdout, `${pkg.version}\n`);
   assert.equal(stderr, '');
@@ -67,7 +62,7 @@ test('모르는 명령은 오류와 사용법 안내를 출력한다', () => {
     ['nope', '--foo'],
     ['nope', 'extra'],
   ]) {
-    const { status, stdout, stderr } = runCli(...args);
+    const { status, stdout, stderr } = run(...args);
     assert.equal(status, 2);
     assert.equal(stdout, '');
     assert.equal(stderr, `오류: 알 수 없는 명령 ${args[0]}\n사용법은 gagyebu help를 보세요.\n`);
@@ -110,7 +105,7 @@ test('예상하지 못한 오류는 스택이 있는 오류 객체를 출력한�
 });
 
 test('오류 메시지에 개행이 있어도 한 줄에 출력한다', () => {
-  const { status, stdout, stderr } = runCli('nope\r\nextra');
+  const { status, stdout, stderr } = run('nope\r\nextra');
   assert.equal(status, 2);
   assert.equal(stdout, '');
   assert.equal(stderr, '오류: 알 수 없는 명령 nope\\r\\nextra\n사용법은 gagyebu help를 보세요.\n');

@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { binPath, runCli, tempDir, testEnv } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu export [--out <파일>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--force] [--data <경로>]';
 const header = 'id,date,type,amount,category,account,memo,tags\r\n';
 const earlier = {
@@ -29,16 +27,13 @@ const sameDayRows = "2,2026-02-03,expense,50,식비,현금,'=SUM(A1),점심;'@�
 const laterRow = '3,2026-02-04,income,5000,급여,현금,,\r\n';
 
 function fixture(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-export-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-export-');
   const data = path.join(directory, 'data.json');
   const out = path.join(directory, '거래.csv');
-  const env = { ...process.env, GAGYEBU_DATA: data, GAGYEBU_TODAY: '2026-02-04' };
+  const env = testEnv(directory, { GAGYEBU_TODAY: '2026-02-04' });
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, 'export', ...args], { env });
-    assert.ifError(result.error);
-    return result;
+    return runCli(['export', ...args], { env, encoding: null });
   }
 
   function write(transactions = [sameDayIncome, later, earlier, sameDay]) {

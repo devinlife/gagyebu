@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
+import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';
 const usages = {
   list: '사용법: gagyebu category list [--type expense|income] [--json] [--data <경로>]',
@@ -16,23 +13,20 @@ const usages = {
 };
 
 function fixture(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-category-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-category-');
   const data = path.join(directory, 'data.json');
-  const env = { ...process.env, GAGYEBU_DATA: data, GAGYEBU_TODAY: '2026-03-01' };
+  const env = testEnv(directory, { GAGYEBU_TODAY: '2026-03-01' });
 
-  function runCli(...args) {
-    const result = spawnSync(process.execPath, [binPath, ...args], { encoding: 'utf8', env });
-    assert.ifError(result.error);
-    return result;
+  function runCommand(...args) {
+    return runCli([...args], { env });
   }
 
   return {
     data,
     directory,
-    runCli,
-    run: (...args) => runCli('category', ...args),
-    read: () => JSON.parse(readFileSync(data, 'utf8')),
+    runCli: runCommand,
+    run: (...args) => runCommand('category', ...args),
+    read: () => readJson(data),
   };
 }
 
@@ -72,7 +66,7 @@ test('빈 데이터의 기본 분류를 등록 순서대로 보여 주고 파일
 test('지출 분류에 예산이 있으면 예산을 지운 뒤에만 분류를 지울 수 있다', (t) => {
   const { data, run, runCli, read } = fixture(t);
   const original = JSON.stringify({
-    version: 2, nextId: 1, categories: DEFAULT_CATEGORIES, budgets: { 식비: 12000, 기타: 30000 },
+    version: CURRENT_VERSION, nextId: 1, categories: DEFAULT_CATEGORIES, budgets: { 식비: 12000, 기타: 30000 },
     transactions: [],
   });
   writeFileSync(data, original);
@@ -118,11 +112,11 @@ test('분류의 거래 수를 구분별로 세고 버전 1 파일은 그대로 �
 
 test('분류를 등록 순서 끝에 더하고 거래에 쓸 수 있게 한다', (t) => {
   const { data, run, runCli, read } = fixture(t);
-  writeFileSync(data, JSON.stringify({ version: 1, nextId: 1, transactions: [] }));
+  writeJson(data, { version: 1, nextId: 1, transactions: [] });
 
   assertOutput(run('add', '  커피  '), '분류를 더했습니다: 지출 커피\n');
   assert.deepEqual(read(), {
-    version: 2,
+    version: CURRENT_VERSION,
     budgets: {},
     nextId: 1,
     categories: { ...DEFAULT_CATEGORIES, expense: [...DEFAULT_CATEGORIES.expense, '커피'] },
@@ -171,11 +165,11 @@ test('쓰는 거래가 있거나 없는 분류를 지우려 하면 파일을 보
 test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막지 않는다', (t) => {
   const { data, run, runCli, read } = fixture(t);
   const transactions = [{ id: 1, type: 'income', category: '기타' }];
-  writeFileSync(data, JSON.stringify({ version: 1, nextId: 2, transactions }));
+  writeJson(data, { version: 1, nextId: 2, transactions });
 
   assertOutput(run('rm', '  기타  '), '분류를 지웠습니다: 지출 기타\n');
   assert.deepEqual(read(), {
-    version: 2,
+    version: CURRENT_VERSION,
     budgets: {},
     nextId: 2,
     categories: { ...DEFAULT_CATEGORIES, expense: DEFAULT_CATEGORIES.expense.slice(0, -1) },

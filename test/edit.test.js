@@ -1,21 +1,17 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
+import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
 function fixture(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-edit-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const directory = tempDir(t, 'gagyebu-edit-');
 
   const data = path.join(directory, 'data.json');
-  const env = { ...process.env, GAGYEBU_DATA: data, GAGYEBU_TODAY: '2026-03-01' };
+  const env = testEnv(directory, { GAGYEBU_TODAY: '2026-03-01' });
   const original = {
     version: 1,
     nextId: 3,
@@ -32,13 +28,11 @@ function fixture(t) {
   };
 
   function run(...args) {
-    const result = spawnSync(process.execPath, [binPath, 'edit', ...args], { encoding: 'utf8', env });
-    assert.ifError(result.error);
-    return result;
+    return runCli(['edit', ...args], { env });
   }
 
   function read() {
-    return JSON.parse(readFileSync(data, 'utf8'));
+    return readJson(data);
   }
 
   return { directory, data, original, run, read };
@@ -47,16 +41,16 @@ function fixture(t) {
 test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) => {
   const { directory, original, run } = fixture(t);
   const override = path.join(directory, 'override.json');
-  writeFileSync(override, JSON.stringify(original));
+  writeJson(override, original);
 
   const { status, stdout, stderr } = run('2', '--amount', '1만2천', '--memo', '점심', '--data', override);
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
   assert.equal(stdout, '수정했습니다: #2 2026-03-01 지출 12,000원 식비 점심 #외식\n');
-  assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
+  assert.deepEqual(readJson(override), {
     ...original,
-    version: 2,
+    version: CURRENT_VERSION,
     budgets: {},
     categories: DEFAULT_CATEGORIES,
     transactions: [original.transactions[0], { ...original.transactions[1], amount: 12000, memo: '점심' }],
@@ -66,7 +60,7 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
 
 test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한다', (t) => {
   const { data, original, run, read } = fixture(t);
-  writeFileSync(data, JSON.stringify(original));
+  writeJson(data, original);
 
   const { status, stdout, stderr } = run('1', '--category', '급여');
 
@@ -75,7 +69,7 @@ test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한�
   assert.equal(stdout, '수정했습니다: #1 2026-02-27 수입 40,000원 급여 2월분\n');
   assert.deepEqual(read(), {
     ...original,
-    version: 2,
+    version: CURRENT_VERSION,
     budgets: {},
     categories: DEFAULT_CATEGORIES,
     transactions: [{ ...original.transactions[0], category: '급여' }, original.transactions[1]],
@@ -84,7 +78,7 @@ test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한�
 
 test('금액과 날짜를 정규화하고 빈 메모로 기존 메모를 지운다', (t) => {
   const { data, original, run, read } = fixture(t);
-  writeFileSync(data, JSON.stringify(original));
+  writeJson(data, original);
 
   const { status, stdout, stderr } = run('2',
     '--type', 'income', '--category', '급여', '--date', '어제', '--amount', '5000원', '--memo', '');
@@ -151,10 +145,10 @@ test('구분과 분류를 건드리지 않는 수정은 기존 분류를 검사�
   const { data, original, run, read } = fixture(t);
   const saved = {
     ...original,
-    version: 2,
+    version: CURRENT_VERSION,
     categories: { ...DEFAULT_CATEGORIES, expense: ['기타'] },
   };
-  writeFileSync(data, JSON.stringify(saved));
+  writeJson(data, saved);
 
   const { status, stderr } = run('2', '--memo', '점심');
   assert.equal(status, 0, stderr);
@@ -203,7 +197,7 @@ test('edit --help는 사용법을 한 줄로 출력한다', (t) => {
 
 test('태그를 교체하거나 모두 지우는 옵션만으로 거래를 수정한다', (t) => {
   const { data, original, run, read } = fixture(t);
-  writeFileSync(data, JSON.stringify(original));
+  writeJson(data, original);
 
   assert.equal(run('2', '--tag', ' #회식 ', '--tag=법인,회식').status, 0);
   assert.deepEqual(read().transactions[1], { ...original.transactions[1], tags: ['회식', '법인'] });

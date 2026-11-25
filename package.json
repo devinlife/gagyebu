@@ -6,6 +6,6 @@
   "engines": { "node": ">=24" },
   "bin": { "gagyebu": "bin/gagyebu.js" },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test 'test/*.test.js'"
   }
 }

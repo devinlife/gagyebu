@@ -5,6 +5,9 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import pkg from '../package.json' with { type: 'json' };
 
+import { reportError } from '../src/cli.js';
+import { DataError, UsageError } from '../src/errors.js';
+
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 
 function runCli(...args) {
@@ -75,4 +78,40 @@ test('진입점은 gagyebu로 등록되어 있고 실행 권한이 있다', () =
   assert.equal(pkg.bin.gagyebu, 'bin/gagyebu.js');
   assert.equal(readFileSync(binPath, 'utf8').split('\n')[0], '#!/usr/bin/env node');
   assert.ok(statSync(binPath).mode & 0o111);
+});
+
+test('처리 오류는 한 줄을 출력하고 종료 코드 1을 돌려준다', (t) => {
+  const stderr = t.mock.method(console, 'error', () => {});
+  const stdout = t.mock.method(console, 'log', () => {});
+  assert.equal(reportError(new DataError('x')), 1);
+  assert.deepEqual(stderr.mock.calls.map(({ arguments: args }) => args), [['오류: x']]);
+  assert.equal(stdout.mock.callCount(), 0);
+});
+
+test('사용법 오류는 안내를 덧붙이고 종료 코드 2를 돌려준다', (t) => {
+  const stderr = t.mock.method(console, 'error', () => {});
+  const stdout = t.mock.method(console, 'log', () => {});
+  assert.equal(reportError(new UsageError('x', '사용법: gagyebu y')), 2);
+  assert.deepEqual(stderr.mock.calls.map(({ arguments: args }) => args), [
+    ['오류: x'],
+    ['사용법: gagyebu y'],
+  ]);
+  assert.equal(stdout.mock.callCount(), 0);
+});
+
+test('예상하지 못한 오류는 스택이 있는 오류 객체를 출력한다', (t) => {
+  const stderr = t.mock.method(console, 'error', () => {});
+  const stdout = t.mock.method(console, 'log', () => {});
+  const error = new TypeError('boom');
+  assert.equal(reportError(error), 1);
+  assert.equal(stderr.mock.callCount(), 1);
+  assert.equal(stderr.mock.calls[0].arguments[0], error);
+  assert.equal(stdout.mock.callCount(), 0);
+});
+
+test('오류 메시지에 개행이 있어도 한 줄에 출력한다', () => {
+  const { status, stdout, stderr } = runCli('nope\r\nextra');
+  assert.equal(status, 2);
+  assert.equal(stdout, '');
+  assert.equal(stderr, '오류: 알 수 없는 명령 nope\\r\\nextra\n사용법은 gagyebu help를 보세요.\n');
 });

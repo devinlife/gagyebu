@@ -1,6 +1,6 @@
-import { isValidDate } from '../input.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
+import { parseDate } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath } from '../store.js';
 
@@ -24,12 +24,14 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
   }
 
-  const { from, to, type, category, data } = options;
-  if (from !== undefined && !isValidDate(from)) {
-    throw new UsageError(`--from은 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${from}`, USAGE);
+  const { type, category, data } = options;
+  const from = options.from === undefined ? undefined : parseDate(options.from);
+  if (from === null) {
+    throw new UsageError(`--from은 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.from}`, USAGE);
   }
-  if (to !== undefined && !isValidDate(to)) {
-    throw new UsageError(`--to는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${to}`, USAGE);
+  const to = options.to === undefined ? undefined : parseDate(options.to);
+  if (to === null) {
+    throw new UsageError(`--to는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.to}`, USAGE);
   }
   if (from !== undefined && to !== undefined && from > to) {
     throw new UsageError(`--from이 --to보다 늦습니다: ${from} > ${to}`, USAGE);

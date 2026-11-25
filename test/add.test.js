@@ -15,7 +15,9 @@ function fixture(t, envOverrides = {}) {
 
   const data = path.join(directory, 'data.json');
   const envData = path.join(directory, 'env.json');
-  const env = { ...process.env, ...envOverrides, GAGYEBU_DATA: envData };
+  const env = { ...process.env, GAGYEBU_DATA: envData };
+  delete env.GAGYEBU_TODAY;
+  Object.assign(env, envOverrides);
 
   function run(...args) {
     const result = spawnSync(process.execPath, [binPath, 'add', ...args], { encoding: 'utf8', env });
@@ -78,6 +80,43 @@ test('거래 기본값과 로컬 날짜를 저장한다', (t) => {
   }
 });
 
+test('한글 단위 금액과 상대 날짜를 정규화해 출력하고 저장한다', (t) => {
+  const { data, run, read } = fixture(t, { GAGYEBU_TODAY: '2026-03-01' });
+  const { status, stdout, stderr } = run('1만2천', '--date', '어제', '--data', data);
+
+  assert.equal(status, 0);
+  assert.equal(stderr, '');
+  assert.equal(stdout, '추가했습니다: #1 2026-02-28 지출 12,000원 기타\n');
+  assert.deepEqual(read().transactions, [{
+    id: 1, date: '2026-02-28', type: 'expense', amount: 12000, category: '기타',
+    account: '현금', memo: '', tags: [],
+  }]);
+});
+
+test('연도를 생략한 날짜와 설정한 기본 날짜를 저장한다', (t) => {
+  const { data, run, read } = fixture(t, { GAGYEBU_TODAY: '2026-03-01' });
+
+  for (const args of [['12,000원', '--date', '3/5'], ['1만 2000', '--date', '03-05'], ['5천']]) {
+    const result = run(...args, '--data', data);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+  }
+  assert.deepEqual(read().transactions.map(({ date, amount }) => [date, amount]), [
+    ['2026-03-05', 12000], ['2026-03-05', 12000], ['2026-03-01', 5000],
+  ]);
+});
+
+test('설정한 기준일이 잘못되면 공용 사용법을 출력하고 저장하지 않는다', (t) => {
+  const { directory, data, run } = fixture(t, { GAGYEBU_TODAY: '2026-02-30' });
+  const { status, stdout, stderr } = run('1', '--data', data);
+
+  assert.equal(status, 2);
+  assert.equal(stdout, '');
+  assert.equal(stderr, '오류: GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-02-30\n'
+    + '사용법은 gagyebu help를 보세요.\n');
+  assert.deepEqual(readdirSync(directory), []);
+});
+
 test('같은 파일에 다시 추가하면 기존 거래를 보존하고 id를 올린다', (t) => {
   const { data, run, read } = fixture(t);
   assert.equal(run('10', '--data', data).status, 0);
@@ -109,10 +148,12 @@ test('잘못된 사용법을 거부하고 데이터 파일을 만들지 않는�
   const { directory, data, run } = fixture(t);
 
   for (const args of [
-    [], ['0'], ['-5'], ['1.5'], ['abc'], ['1,000'], ['9007199254740993'], ['1\n'],
+    [], ['0'], ['-5'], ['1.5'], ['abc'], ['9007199254740993'], ['1\n'],
+    ['1,20,0'], ['1.5만'], ['0원'], ['1만 '],
     ['1', '2'], ['1', '--nope'], ['1', '--type', 'transfer'],
     ['1', '--date', '2026-02-30'], ['1', '--date', '2026-13-01'],
-    ['1', '--date', '2026-02-29'], ['1', '--date', '2026-2-3'], ['1', '--date', '오늘'],
+    ['1', '--date', '2026-02-29'], ['1', '--date', '2026-2-3'],
+    ['1', '--date', '02-30'], ['1', '--date', '13/1'], ['1', '--date', '내일'],
     ['1', '--category='], ['1', '--data='], ['1', '--data', ''], ['1', '--help=nope'],
     ['1', '--date', '2026-02-30\r\n추가 줄'],
   ]) {

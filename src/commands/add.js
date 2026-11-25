@@ -1,6 +1,6 @@
-import { isValidDate, today } from '../input.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatWon } from '../format.js';
+import { parseAmount, parseDate, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath, writeData } from '../store.js';
 
@@ -28,20 +28,21 @@ export function run(argv) {
   }
 
   const [input] = args;
-  const amount = Number(input);
-  if (!/^[0-9]+$/.test(input) || !Number.isSafeInteger(amount) || amount <= 0) {
+  const amount = parseAmount(input);
+  if (amount === null) {
     throw new UsageError(`금액은 양의 정수여야 합니다: ${input}`, USAGE);
   }
 
-  const { type = 'expense', category = '기타', date = today({}), memo = '' } = options;
+  const { type = 'expense', category = '기타', memo = '' } = options;
   if (type !== 'expense' && type !== 'income') {
     throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, USAGE);
   }
   if (category === '') {
     throw new UsageError('--category 값이 비었습니다', USAGE);
   }
-  if (!isValidDate(date)) {
-    throw new UsageError(`날짜는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${date}`, USAGE);
+  const date = options.date === undefined ? today() : parseDate(options.date);
+  if (date === null) {
+    throw new UsageError(`날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.date}`, USAGE);
   }
   if (options.data === '') {
     throw new UsageError('--data 값이 비었습니다', USAGE);

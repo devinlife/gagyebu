@@ -28,12 +28,14 @@ const last = {
 };
 const transactions = [sameDayIncome, last, first, sameDayExpense];
 
-function fixture(t) {
+function fixture(t, envOverrides = {}) {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-list-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
 
   const data = path.join(directory, 'data.json');
   const env = { ...process.env, GAGYEBU_DATA: path.join(directory, 'env.json') };
+  delete env.GAGYEBU_TODAY;
+  Object.assign(env, envOverrides);
 
   function run(...args) {
     const result = spawnSync(process.execPath, [binPath, 'list', '--data', data, ...args], {
@@ -92,6 +94,18 @@ test('날짜 경계를 포함하고 구분과 분류 필터를 조합한다', (t
   assertOutput(run('--category', '교통비', '--json'), '[]\n');
 });
 
+test('연도를 생략한 날짜와 상대 날짜로 거래를 거른다', (t) => {
+  const { run, write } = fixture(t, { GAGYEBU_TODAY: '2026-02-10' });
+  const previousDay = { ...first, id: 11, date: '2026-02-09' };
+  write([...transactions, previousDay]);
+
+  const exact = readJson(run('--json', '--from', '2026-02-10', '--to', '2026-02-10'));
+  const short = readJson(run('--json', '--from', '02-10', '--to', '2/10'));
+  assert.deepEqual(short.map(({ id }) => id), exact.map(({ id }) => id));
+  const relative = readJson(run('--json', '--from', '어제', '--to', '오늘'));
+  assert.deepEqual(relative.map(({ id }) => id), [11, 2, 10]);
+});
+
 test('표는 한글 폭을 맞추고 번호와 금액을 오른쪽에 놓는다', (t) => {
   const { run, write } = fixture(t);
   write();
@@ -133,16 +147,17 @@ test('데이터 파일이 없거나 거래가 비어 있으면 빈 목록을 출
 });
 
 test('사용법 오류는 데이터 읽기 전에 종료 코드 2와 함께 출력한다', (t) => {
-  const { data, run } = fixture(t);
+  const { data, run } = fixture(t, { GAGYEBU_TODAY: '2026-02-10' });
   const original = '{깨진 JSON';
   writeFileSync(data, original);
 
   for (const [args, message] of [
-    [['--from', '2026-02-30'], '--from은 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-02-30'],
-    [['--to', '2026-1-5'], '--to는 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-1-5'],
-    [['--to', '2026-02-29'], '--to는 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-02-29'],
-    [['--from', '오늘'], '--from은 YYYY-MM-DD 형식의 있는 날이어야 합니다: 오늘'],
+    [['--from', '2026-02-30'], '--from은 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-30'],
+    [['--to', '2026-1-5'], '--to는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-1-5'],
+    [['--to', '2026-02-29'], '--to는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-29'],
+    [['--from', '내일'], '--from은 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 내일'],
     [['--from', '2026-03-01', '--to', '2026-02-01'], '--from이 --to보다 늦습니다: 2026-03-01 > 2026-02-01'],
+    [['--from', '오늘', '--to', '어제'], '--from이 --to보다 늦습니다: 2026-02-10 > 2026-02-09'],
     [['--type', 'transfer'], '--type은 expense 또는 income이어야 합니다: transfer'],
     [['--nope'], '알 수 없는 옵션 --nope'],
     [['x'], '예상하지 않은 인자 x'],

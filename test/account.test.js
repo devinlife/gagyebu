@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addAccount, listAccounts, removeAccount, requireAccount } from '../src/account.js';
+import { accountBalances, addAccount, listAccounts, removeAccount, requireAccount } from '../src/account.js';
 import { DataError } from '../src/errors.js';
 import { currentData, transaction } from './helpers.js';
 
@@ -42,4 +42,20 @@ test('쓰지 않는 계좌를 지우고 없는 계좌와 쓰는 계좌와 마지
   assert.throws(() => removeAccount(currentData(), '현금'), {
     constructor: DataError, message: '마지막 남은 계좌는 지울 수 없습니다: 현금',
   });
+});
+
+test('계좌별 잔액에서 보내는 이체를 빼고 받는 이체를 더한다', () => {
+  const data = currentData({
+    accounts: [cash, card],
+    transactions: [
+      transaction({ account: '카드', amount: 3000 }),
+      transaction({ type: 'transfer', amount: 7000, category: '', toAccount: '카드' }),
+    ],
+  });
+  assert.deepEqual(accountBalances(data, '2026-02-10'), {
+    date: '2026-02-10',
+    accounts: [{ ...cash, balance: -7000 }, { ...card, balance: -46000 }],
+    total: -53000,
+  });
+  assert.deepEqual(data.accounts, [cash, card]);
 });

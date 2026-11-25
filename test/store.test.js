@@ -65,7 +65,7 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
     transaction({ id: 3, type: 'expense', category: '식비' }),
     transaction({ id: 4, type: 'expense', category: '책' }),
     transaction({ id: 5, type: 'expense', category: '커피' }),
-    transaction({ id: 6, type: 'transfer', category: '', toAccount: '카드' }),
+    transaction({ id: 6, type: 'transfer', category: '', toAccount: '통장' }),
     transaction({ id: 7, type: 'income', category: '' }),
   ];
   const original = JSON.stringify({ version: 1, nextId: 10, transactions });
@@ -80,7 +80,7 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
     },
     transactions,
     budgets: {},
-    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }, { name: '통장', opening: 0 }],
   });
   assert.equal(readFileSync(filePath, 'utf8'), original);
   const invalidCategory = transaction({ id: 8, category: 3 });

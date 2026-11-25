@@ -50,9 +50,12 @@ function migrateVersionTwo(data) {
   const names = new Set([DEFAULT_ACCOUNT]);
   if (Array.isArray(data.transactions)) {
     for (const transaction of data.transactions) {
-      const { account } = transaction ?? {};
+      const { account, type, toAccount } = transaction ?? {};
       if (typeof account === 'string' && account !== '') {
         names.add(account);
+      }
+      if (type === TRANSFER && typeof toAccount === 'string' && toAccount !== '') {
+        names.add(toAccount);
       }
     }
   }

@@ -1,6 +1,6 @@
 import { DataError } from './errors.js';
 import { countTransactionsBy } from './transaction-counts.js';
-import { TRANSFER } from './types.js';
+import { EXPENSE, INCOME, TRANSFER } from './types.js';
 
 export const DEFAULT_ACCOUNT = '현금';
 const accountHint = ' (gagyebu account add로 더하세요)';
@@ -49,4 +49,31 @@ export function removeAccount({ accounts, transactions }, name) {
     throw new DataError(`마지막 남은 계좌는 지울 수 없습니다: ${name}`);
   }
   return accounts.toSpliced(index, 1);
+}
+
+export function accountBalances({ accounts, transactions }, date) {
+  const entries = accounts.map(({ name, opening }) => ({ name, opening, balance: opening }));
+  const balances = new Map(entries.map((entry) => [entry.name, entry]));
+  for (const transaction of transactions) {
+    if (transaction.date > date) {
+      continue;
+    }
+    const { type, amount, account, toAccount } = transaction;
+    const source = balances.get(account);
+    if (source !== undefined) {
+      if (type === INCOME) {
+        source.balance += amount;
+      } else if (type === EXPENSE || type === TRANSFER) {
+        source.balance -= amount;
+      }
+    }
+    if (type === TRANSFER) {
+      const target = balances.get(toAccount);
+      if (target !== undefined) {
+        target.balance += amount;
+      }
+    }
+  }
+  const total = entries.reduce((sum, { balance }) => sum + balance, 0);
+  return { date, accounts: entries, total };
 }

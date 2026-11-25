@@ -1,6 +1,6 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatLocalDateTime, formatTable } from '../format.js';
-import { parseOptions } from '../options.js';
+import { parseOptions, validateListJson } from '../options.js';
 import { popHistory, readHistory, resolveDataPath, restoreData, validateDataOption } from '../store.js';
 
 export const name = 'undo';
@@ -29,9 +29,7 @@ export function run(argv) {
   if (args.length > 0) {
     throw unexpectedArgument(args[0], USAGE);
   }
-  if (options.json && !options.list) {
-    throw new UsageError('--json은 --list와 함께 써야 합니다', USAGE);
-  }
+  validateListJson(options, USAGE);
   validateDataOption(options, USAGE);
 
   const filePath = resolveDataPath(options.data);

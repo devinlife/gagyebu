@@ -47,6 +47,12 @@ export function parseOptions(argv, { values = [], flags = [], repeatable = [] })
   return { args, options: Object.fromEntries(options), error };
 }
 
+export function validateListJson(options, usage) {
+  if (options.json && !options.list) {
+    throw new UsageError('--json은 --list와 함께 써야 합니다', usage);
+  }
+}
+
 export function parseSubcommand(argv, { label, usage, usages, values = {} }) {
   const [command, ...operands] = argv;
   if (command === '--help') {

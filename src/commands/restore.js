@@ -1,6 +1,6 @@
 import { DataError, UsageError, unexpectedArgument } from '../errors.js';
 import { parseOptions } from '../options.js';
-import { readBackup, readData, resolveDataPath, validateDataOption, writeData } from '../store.js';
+import { dataPath, readBackup, readData, writeData } from '../store.js';
 
 export const name = 'restore';
 export const order = 107;
@@ -26,11 +26,10 @@ export function run(argv) {
   if (args.length > 1) {
     throw unexpectedArgument(args[1], USAGE);
   }
-  validateDataOption(options, USAGE);
+  const filePath = dataPath(options, USAGE);
 
   const [backupPath] = args;
   const backup = readBackup(backupPath);
-  const filePath = resolveDataPath(options.data);
   const currentCount = readData(filePath).transactions.length;
   const backupCount = backup.transactions.length;
   if (!options.yes) {

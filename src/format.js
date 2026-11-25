@@ -10,6 +10,10 @@ export function formatLocalDateTime(date) {
   return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
+export function formatFileStamp(date) {
+  return formatLocalDateTime(date).replace(/[-:]/g, '').replace(' ', '-');
+}
+
 export function formatWon(amount) {
   return `${amount.toLocaleString('en-US')}원`;
 }

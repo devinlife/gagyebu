@@ -1,7 +1,7 @@
 import { constants, copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { DataError } from './errors.js';
-import { formatLocalDateTime } from './format.js';
+import { formatFileStamp } from './format.js';
 import { readBackup, readData, readError } from './store.js';
 
 const backupName = /^gagyebu-(\d{8}-\d{6})(?:-(\d+))?\.json$/;
@@ -21,7 +21,7 @@ export function createBackup(dataPath, directory, now = new Date()) {
     throw new DataError('백업할 데이터 파일이 없습니다');
   }
   const count = readData(dataPath).transactions.length;
-  const stamp = formatLocalDateTime(now).replace(/[-:]/g, '').replace(' ', '-');
+  const stamp = formatFileStamp(now);
 
   try {
     mkdirSync(directory, { recursive: true });

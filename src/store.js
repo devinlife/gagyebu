@@ -72,9 +72,13 @@ export function validateDataOption(options, usage) {
   parseNonemptyOption(options.data, 'data', usage);
 }
 
-export function loadData(options, usage) {
+export function dataPath(options, usage) {
   validateDataOption(options, usage);
-  const filePath = resolveDataPath(options.data);
+  return resolveDataPath(options.data);
+}
+
+export function loadData(options, usage) {
+  const filePath = dataPath(options, usage);
   return { filePath, data: readData(filePath) };
 }
 

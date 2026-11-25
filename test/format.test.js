@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { displayWidth, formatLocalDateTime, formatTable, formatWon, formatYearMonth, renderBars, withParticle } from '../src/format.js';
+import { displayWidth, formatFileStamp, formatLocalDateTime, formatTable, formatWon, formatYearMonth, renderBars, withParticle } from '../src/format.js';
 
 test('연월 제목은 연도와 월을 한글로 표시한다', () => {
   assert.equal(formatYearMonth('2026-02'), '2026년 2월');
@@ -82,4 +82,8 @@ test('한글과 영문이 섞여도 다음 칸의 표시 위치가 같다', () =
 
 test('로컬 시각을 월부터 초까지 두 자리로 표시한다', () => {
   assert.equal(formatLocalDateTime(new Date(2026, 0, 2, 3, 4, 5)), '2026-01-02 03:04:05');
+});
+
+test('파일 이름용 로컬 시각을 날짜와 시각으로 표시한다', () => {
+  assert.equal(formatFileStamp(new Date(2026, 0, 2, 3, 4, 5)), '20260102-030405');
 });

@@ -1,3 +1,5 @@
+import { withParticle } from './format.js';
+
 export function parseOptions(argv, { values = [], flags = [], repeatable = [] }) {
   const args = [];
   const options = new Map();
@@ -31,7 +33,7 @@ export function parseOptions(argv, { values = [], flags = [], repeatable = [] })
       }
     } else if (flags.includes(name)) {
       if (equals !== -1) {
-        error = `--${name}은 값을 받지 않습니다`;
+        error = `${withParticle(`--${name}`, '은/는')} 값을 받지 않습니다`;
         break;
       }
       options.set(name, true);

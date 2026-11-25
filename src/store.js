@@ -5,6 +5,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { DataError, UsageError } from './errors.js';
+import { withParticle } from './format.js';
 import { isValidDate } from './input.js';
 import { RECORD_TYPES, TYPES } from './types.js';
 
@@ -81,7 +82,7 @@ function validateTransaction(transaction, index, filePath) {
   }
   for (const field of ['category', 'account', 'memo']) {
     if (typeof transaction[field] !== 'string') {
-      throw readError(filePath, `${label}: ${field}가 문자열이 아닙니다`);
+      throw readError(filePath, `${label}: ${withParticle(field, '이/가')} 문자열이 아닙니다`);
     }
   }
   if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) {

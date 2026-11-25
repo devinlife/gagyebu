@@ -23,6 +23,26 @@ export function renderBars(values, width) {
   });
 }
 
+export function withParticle(word, pair) {
+  const last = word.slice(-1).toLowerCase();
+  const code = last.charCodeAt(0);
+  const [withFinal, withoutFinal] = pair.split('/');
+  let hasFinal;
+  let hasRieul;
+
+  if (code >= 0xAC00 && code <= 0xD7A3) {
+    const final = (code - 0xAC00) % 28;
+    hasFinal = final !== 0;
+    hasRieul = final === 8;
+  } else {
+    // ponytail: 영문 끝 철자로 짐작하므로 out(아웃), type(타입)에는 맞지 않습니다.
+    hasRieul = /[l178]/.test(last);
+    hasFinal = hasRieul || /[mn036]/.test(last) || /ng$/i.test(word);
+  }
+
+  return word + (hasFinal && !(pair === '으로/로' && hasRieul) ? withFinal : withoutFinal);
+}
+
 const wideCharacter = /[\u1100-\u115F\u2E80-\u303E\u3040-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
 
 export function displayWidth(text) {

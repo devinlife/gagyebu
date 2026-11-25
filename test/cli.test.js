@@ -70,7 +70,7 @@ test('help 깃발은 등호로 전달한 값을 거부한다', () => {
   const { status, stdout, stderr } = run('help', '--help=nope');
   assert.equal(status, 2);
   assert.equal(stdout, '');
-  assert.equal(stderr, '오류: --help은 값을 받지 않습니다\n사용법: gagyebu help\n');
+  assert.equal(stderr, '오류: --help는 값을 받지 않습니다\n사용법: gagyebu help\n');
 });
 
 test('--version은 패키지 버전을 출력한다', () => {

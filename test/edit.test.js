@@ -213,7 +213,7 @@ test('태그 교체와 지우기를 함께 쓰거나 지우기에 값을 주면 
 
   for (const [args, message] of [
     [['--tag', '회식', '--clear-tags'], '--tag와 --clear-tags는 함께 쓸 수 없습니다'],
-    [['--clear-tags=x'], '--clear-tags은 값을 받지 않습니다'],
+    [['--clear-tags=x'], '--clear-tags는 값을 받지 않습니다'],
   ]) {
     const { status, stdout, stderr } = run('2', ...args);
     assert.equal(status, 2);

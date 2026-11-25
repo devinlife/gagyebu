@@ -241,7 +241,7 @@ test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한�
     [['extra'], '예상하지 않은 인자 extra'],
     [['--data', ''], '--data 값이 비었습니다'],
     [['--json=1'], '--json은 값을 받지 않습니다'],
-    [['--help=1'], '--help은 값을 받지 않습니다'],
+    [['--help=1'], '--help는 값을 받지 않습니다'],
     [['--help', '--nope'], '알 수 없는 옵션 --nope'],
   ]) {
     const { status, stdout, stderr } = run(...args);

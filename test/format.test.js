@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { displayWidth, formatTable, formatWon, renderBars } from '../src/format.js';
+import { displayWidth, formatTable, formatWon, renderBars, withParticle } from '../src/format.js';
+
+test('마지막 글자의 받침에 맞춰 조사를 붙인다', () => {
+  for (const [word, pair, expected] of [
+    ['월급', '은/는', '월급은'], ['월급', '이/가', '월급이'],
+    ['월급', '을/를', '월급을'], ['월급', '으로/로', '월급으로'],
+    ['기타', '은/는', '기타는'], ['기타', '이/가', '기타가'],
+    ['기타', '을/를', '기타를'], ['기타', '으로/로', '기타로'],
+    ['서울', '으로/로', '서울로'], ['서울', '은/는', '서울은'],
+    ['--help', '은/는', '--help는'], ['--json', '은/는', '--json은'],
+    ['--clear-tags', '은/는', '--clear-tags는'], ['--force', '은/는', '--force는'],
+    ['--from', '은/는', '--from은'], ['--to', '은/는', '--to는'],
+    ['--tool', '으로/로', '--tool로'], ['SONG', '은/는', 'SONG은'],
+    ['1', '이/가', '1이'], ['1', '으로/로', '1로'], ['2', '이/가', '2가'],
+    ['2', '으로/로', '2로'], ['3', '이/가', '3이'], ['3', '으로/로', '3으로'],
+    ['10', '이/가', '10이'], ['?', '은/는', '?는'],
+  ]) {
+    assert.equal(withParticle(word, pair), expected);
+  }
+});
 
 test('금액을 천 단위 쉼표와 원으로 표시한다', () => {
   for (const [amount, expected] of [

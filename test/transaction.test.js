@@ -105,6 +105,6 @@ test('거래 삭제는 첫 일치 거래와 나머지를 돌려주고 입력을 
   assert.deepEqual(removeTransaction(transactions, 2), { removed, transactions: [other, sameId] });
   assert.deepEqual(transactions, [other, removed, sameId]);
   assert.throws(() => removeTransaction(transactions, 3), {
-    constructor: DataError, message: '거래 #3가 없습니다',
+    constructor: DataError, message: '거래 #3이 없습니다',
   });
 });

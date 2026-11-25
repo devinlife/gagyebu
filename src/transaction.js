@@ -1,6 +1,6 @@
 import { requireCategoryIndex } from './category.js';
 import { DataError } from './errors.js';
-import { formatWon } from './format.js';
+import { formatWon, withParticle } from './format.js';
 import { readError } from './store.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
 
@@ -25,7 +25,7 @@ export function buildTransaction(data, { date, type, amount, category, memo, tag
 export function findTransactionIndex(transactions, id) {
   const index = transactions.findIndex((entry) => entry.id === id);
   if (index === -1) {
-    throw new DataError(`거래 #${id}가 없습니다`);
+    throw new DataError(`거래 #${withParticle(String(id), '이/가')} 없습니다`);
   }
   return index;
 }

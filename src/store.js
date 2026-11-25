@@ -5,9 +5,9 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { DEFAULT_CATEGORY } from './category.js';
-import { DataError, UsageError } from './errors.js';
+import { DataError } from './errors.js';
 import { withParticle } from './format.js';
-import { isValidDate } from './input.js';
+import { isValidDate, parseNonemptyOption } from './input.js';
 import { RECORD_TYPES, TYPES } from './types.js';
 
 export const CURRENT_VERSION = 2;
@@ -48,9 +48,7 @@ function migrateVersionOne(data) {
 export const MIGRATIONS = { 1: migrateVersionOne };
 
 export function validateDataOption(options, usage) {
-  if (options.data === '') {
-    throw new UsageError('--data 값이 비었습니다', usage);
-  }
+  parseNonemptyOption(options.data, 'data', usage);
 }
 
 export function loadData(options, usage) {

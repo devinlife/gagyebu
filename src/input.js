@@ -36,6 +36,14 @@ export function today(env = process.env) {
   return [year, month, day].join('-');
 }
 
+export function currentMonth() {
+  return today().slice(0, 7);
+}
+
+export function currentYear(env) {
+  return today(env).slice(0, 4);
+}
+
 export function parseDate(text, usage, subject = '날짜는', env = process.env) {
   if (isValidDate(text)) {
     return text;
@@ -53,7 +61,7 @@ export function parseDate(text, usage, subject = '날짜는', env = process.env)
     const match = /^(\d{2})-(\d{2})$/.exec(text) ?? /^(\d{1,2})\/(\d{1,2})$/.exec(text);
     if (match) {
       const [, month, day] = match;
-      const year = today(env).slice(0, 4);
+      const year = currentYear(env);
       const date = [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
       if (isValidDate(date)) {
         return date;

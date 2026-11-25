@@ -1,6 +1,6 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatMonthName, formatPercent, formatTable, formatWon, renderBars } from '../format.js';
-import { parseChartOptions, parseMonth, today } from '../input.js';
+import { currentMonth, parseChartOptions, parseMonth } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData } from '../store.js';
 import { summarizeMonth } from '../report.js';
@@ -48,7 +48,7 @@ export function run(argv) {
   }
 
   const chartWidth = parseChartOptions(options, USAGE);
-  const month = parseMonth(options.month ?? today().slice(0, 7), USAGE);
+  const month = parseMonth(options.month ?? currentMonth(), USAGE);
   const { data: { budgets, transactions } } = loadData(options, USAGE);
 
   const result = summarizeMonth(transactions, budgets, month);

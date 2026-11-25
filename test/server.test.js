@@ -114,11 +114,16 @@ test('잘못된 쿼리는 400과 오류 문구를 돌려준다', async (t) => {
     const { body } = await request(`${path}?unknown=x`, 400);
     assert.deepEqual(body, { error: '알 수 없는 매개변수입니다: unknown' });
   }
+  const { body } = await request('/api/transactions??type=expense', 400);
+  assert.deepEqual(body, { error: '알 수 없는 매개변수입니다: ?type' });
 });
 
 test('없는 경로, 허용하지 않는 메서드, 데이터 파일 오류에 상태와 오류 문구를 보낸다', async (t) => {
   const { cli, data, request } = await fixture(t);
-  for (const [path, method] of [['/', 'GET'], ['/api/nope', 'GET'], ['/api/nope', 'POST']]) {
+  for (const [path, method] of [
+    ['/', 'GET'], ['//', 'GET'], ['//x/api/summary', 'GET'], ['//api/summary', 'GET'],
+    ['/api/nope', 'GET'], ['/api/nope', 'POST'],
+  ]) {
     const { body } = await request(path, 404, method);
     assert.deepEqual(body, { error: `없는 경로입니다: ${path}` });
   }

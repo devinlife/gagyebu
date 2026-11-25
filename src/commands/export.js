@@ -1,7 +1,7 @@
 import { statSync, writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
 import { DataError, UsageError, unexpectedArgument } from '../errors.js';
-import { parsePeriod } from '../input.js';
+import { parseNonemptyOption, parsePeriod } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
 import { filterTransactions } from '../transaction.js';
@@ -28,9 +28,7 @@ export function run(argv) {
     throw unexpectedArgument(args[0], USAGE);
   }
   const { out, force } = options;
-  if (out === '') {
-    throw new UsageError('--out 값이 비었습니다', USAGE);
-  }
+  parseNonemptyOption(out, 'out', USAGE);
   validateDataOption(options, USAGE);
   if (force && out === undefined) {
     throw new UsageError('--force는 --out과 함께 써야 합니다', USAGE);

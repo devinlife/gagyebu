@@ -1,7 +1,7 @@
 import { parseName } from '../category.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
-import { parseAmount, today } from '../input.js';
+import { currentMonth, parseAmount } from '../input.js';
 import { parseOptions } from '../options.js';
 import { budgetUsage, removeBudget, setBudget } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
@@ -70,7 +70,7 @@ export function run(argv) {
     if (args.length > 0) {
       throw unexpectedArgument(args[0], usage);
     }
-    const month = today().slice(0, 7);
+    const month = currentMonth();
     const { data } = loadData(options, usage);
     listBudgets(data, month, options);
     return 0;

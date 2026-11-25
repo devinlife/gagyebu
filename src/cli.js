@@ -7,6 +7,7 @@ const commands = {
   add: await import('./commands/add.js'),
   list: await import('./commands/list.js'),
   edit: await import('./commands/edit.js'),
+  rm: await import('./commands/rm.js'),
 };
 
 export function reportError(error) {

@@ -237,12 +237,12 @@ test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한�
       ['--chart', '--width', width], `--width는 10에서 120 사이의 정수여야 합니다: ${width}`,
     ]),
     [['--data'], '--data 값이 없습니다'],
-    [['--nope'], '알 수 없는 옵션 --nope'],
-    [['extra'], '예상하지 않은 인자 extra'],
+    [['--nope'], '알 수 없는 옵션입니다: --nope'],
+    [['extra'], '예상하지 않은 인자입니다: extra'],
     [['--data', ''], '--data 값이 비었습니다'],
     [['--json=1'], '--json은 값을 받지 않습니다'],
     [['--help=1'], '--help는 값을 받지 않습니다'],
-    [['--help', '--nope'], '알 수 없는 옵션 --nope'],
+    [['--help', '--nope'], '알 수 없는 옵션입니다: --nope'],
   ]) {
     const { status, stdout, stderr } = run(...args);
     const invocation = JSON.stringify(args);

@@ -119,8 +119,8 @@ test('사용법 오류가 있으면 파일을 만들지 않고 오류와 사용�
   const { directory, out, run } = fixture(t);
   const invalidDate = 'YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-30';
   for (const [args, message] of [
-    [['--out', out, '--nope'], '알 수 없는 옵션 --nope'],
-    [['--out', out, 'extra'], '예상하지 않은 인자 extra'],
+    [['--out', out, '--nope'], '알 수 없는 옵션입니다: --nope'],
+    [['--out', out, 'extra'], '예상하지 않은 인자입니다: extra'],
     [['--out', ''], '--out 값이 비었습니다'],
     [['--out', out, '--data', ''], '--data 값이 비었습니다'],
     [['--force'], '--force는 --out과 함께 써야 합니다'],

@@ -162,8 +162,8 @@ test('연간 보고 사용법 오류는 데이터 파일을 읽기 전에 종료
   writeFileSync(data, '{깨진 JSON');
   for (const [args, message] of [
     [['--year', '26'], '--year는 YYYY 형식의 연도여야 합니다: 26'],
-    [['--month', '2026-01'], '알 수 없는 옵션 --month'],
-    [['extra'], '예상하지 않은 인자 extra'],
+    [['--month', '2026-01'], '알 수 없는 옵션입니다: --month'],
+    [['extra'], '예상하지 않은 인자입니다: extra'],
     [['--year'], '--year 값이 없습니다'],
     [['--data'], '--data 값이 없습니다'],
     [['--chart', '--width'], '--width 값이 없습니다'],

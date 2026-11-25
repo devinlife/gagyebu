@@ -1,4 +1,4 @@
-import { UsageError } from '../errors.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseAmount, parseCategory, parseDate, parseId, parseTags, parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
@@ -27,7 +27,7 @@ export function run(argv) {
     throw new UsageError('번호가 없습니다', USAGE);
   }
   if (args.length > 1) {
-    throw new UsageError(`예상하지 않은 인자 ${args[1]}`, USAGE);
+    throw unexpectedArgument(args[1], USAGE);
   }
 
   const id = parseId(args[0], USAGE);

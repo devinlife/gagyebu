@@ -1,4 +1,4 @@
-import { UsageError } from '../errors.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseListingArgs, printTransactions } from '../listing.js';
 import { loadData } from '../store.js';
 import { filterTransactions } from '../transaction.js';
@@ -12,7 +12,7 @@ const USAGE = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--
 export function run(argv) {
   const { options, filters } = parseListingArgs(argv, USAGE, (args) => {
     if (args.length > 0) {
-      throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
+      throw unexpectedArgument(args[0], USAGE);
     }
   });
   if (options.help) {

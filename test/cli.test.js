@@ -54,8 +54,8 @@ test('help와 --version은 모르는 옵션과 남는 인자를 거부한다', (
     ['--version', 'gagyebu --version'],
   ]) {
     for (const [arg, message] of [
-      ['--nope', '알 수 없는 옵션 --nope'],
-      ['nope', '예상하지 않은 인자 nope'],
+      ['--nope', '알 수 없는 옵션입니다: --nope'],
+      ['nope', '예상하지 않은 인자입니다: nope'],
     ]) {
       const { status, stdout, stderr } = run(command, arg);
       const invocation = `${command} ${arg}`;
@@ -91,7 +91,7 @@ test('모르는 명령은 오류와 사용법 안내를 출력한다', () => {
     const { status, stdout, stderr } = run(...args);
     assert.equal(status, 2);
     assert.equal(stdout, '');
-    assert.equal(stderr, `오류: 알 수 없는 명령 ${args[0]}\n사용법은 gagyebu help를 보세요.\n`);
+    assert.equal(stderr, `오류: 알 수 없는 명령입니다: ${args[0]}\n사용법은 gagyebu help를 보세요.\n`);
   }
 });
 
@@ -134,5 +134,5 @@ test('오류 메시지에 개행이 있어도 한 줄에 출력한다', () => {
   const { status, stdout, stderr } = run('nope\r\nextra');
   assert.equal(status, 2);
   assert.equal(stdout, '');
-  assert.equal(stderr, '오류: 알 수 없는 명령 nope\\r\\nextra\n사용법은 gagyebu help를 보세요.\n');
+  assert.equal(stderr, '오류: 알 수 없는 명령입니다: nope\\r\\nextra\n사용법은 gagyebu help를 보세요.\n');
 });

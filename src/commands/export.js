@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
-import { DataError, UsageError } from '../errors.js';
+import { DataError, UsageError, unexpectedArgument } from '../errors.js';
 import { parsePeriod } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
@@ -25,7 +25,7 @@ export function run(argv) {
     return 0;
   }
   if (args.length > 0) {
-    throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
+    throw unexpectedArgument(args[0], USAGE);
   }
   const { out, force } = options;
   if (out === '') {

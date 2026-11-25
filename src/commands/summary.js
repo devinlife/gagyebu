@@ -1,4 +1,4 @@
-import { UsageError } from '../errors.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatMonthName, formatPercent, formatTable, formatWon, renderBars } from '../format.js';
 import { parseChartOptions, parseMonth, today } from '../input.js';
 import { parseOptions } from '../options.js';
@@ -44,7 +44,7 @@ export function run(argv) {
     return 0;
   }
   if (args.length > 0) {
-    throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
+    throw unexpectedArgument(args[0], USAGE);
   }
 
   const chartWidth = parseChartOptions(options, USAGE);

@@ -1,5 +1,5 @@
 import { parseName } from '../category.js';
-import { UsageError } from '../errors.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { parseAmount, today } from '../input.js';
 import { parseOptions } from '../options.js';
@@ -40,7 +40,7 @@ export function run(argv) {
   if (command === '--help') {
     const { args, error } = parseOptions(operands, {});
     if (error || args.length > 0) {
-      throw new UsageError(error ?? `예상하지 않은 인자 ${args[0]}`, USAGE);
+      throw error ? new UsageError(error, USAGE) : unexpectedArgument(args[0], USAGE);
     }
     console.log(Object.values(USAGES).join('\n'));
     return 0;
@@ -49,7 +49,7 @@ export function run(argv) {
     throw new UsageError('예산 하위 명령이 없습니다', USAGE);
   }
   if (!Object.hasOwn(USAGES, command)) {
-    throw new UsageError(`알 수 없는 예산 하위 명령 ${command}`, USAGE);
+    throw new UsageError(`알 수 없는 예산 하위 명령입니다: ${command}`, USAGE);
   }
 
   const usage = USAGES[command];
@@ -68,7 +68,7 @@ export function run(argv) {
 
   if (command === 'list') {
     if (args.length > 0) {
-      throw new UsageError(`예상하지 않은 인자 ${args[0]}`, usage);
+      throw unexpectedArgument(args[0], usage);
     }
     const month = today().slice(0, 7);
     const { data } = loadData(options, usage);
@@ -82,7 +82,7 @@ export function run(argv) {
       throw new UsageError('금액이 없습니다', usage);
     }
     if (args.length > 2) {
-      throw new UsageError(`예상하지 않은 인자 ${args[2]}`, usage);
+      throw unexpectedArgument(args[2], usage);
     }
     const amount = parseAmount(args[1], usage);
     const { filePath, data } = loadData(options, usage);

@@ -116,18 +116,18 @@ test('예산 명령의 사용법 오류는 종료 코드 2와 해당 사용법�
   const { directory, run } = fixture(t);
   const cases = [
     [[], '예산 하위 명령이 없습니다', usage],
-    [['unknown'], '알 수 없는 예산 하위 명령 unknown', usage],
+    [['unknown'], '알 수 없는 예산 하위 명령입니다: unknown', usage],
     [['set'], '분류 이름이 없습니다', usages.set],
     [['set', '식비'], '금액이 없습니다', usages.set],
-    [['set', '식비', '1000', 'extra'], '예상하지 않은 인자 extra', usages.set],
+    [['set', '식비', '1000', 'extra'], '예상하지 않은 인자입니다: extra', usages.set],
     [['set', '식비', '0'], '금액은 양의 정수여야 합니다: 0', usages.set],
-    [['list', 'extra'], '예상하지 않은 인자 extra', usages.list],
+    [['list', 'extra'], '예상하지 않은 인자입니다: extra', usages.list],
     [['rm'], '분류 이름이 없습니다', usages.rm],
-    [['rm', '식비', 'extra'], '예상하지 않은 인자 extra', usages.rm],
+    [['rm', '식비', 'extra'], '예상하지 않은 인자입니다: extra', usages.rm],
   ];
   for (const [command, args] of [['set', ['식비', '1000']], ['list', []], ['rm', ['식비']]]) {
     cases.push(
-      [[command, ...args, '--nope'], '알 수 없는 옵션 --nope', usages[command]],
+      [[command, ...args, '--nope'], '알 수 없는 옵션입니다: --nope', usages[command]],
       [[command, ...args, '--data'], '--data 값이 없습니다', usages[command]],
       [[command, ...args, '--data', ''], '--data 값이 비었습니다', usages[command]],
     );

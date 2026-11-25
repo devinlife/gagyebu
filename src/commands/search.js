@@ -1,4 +1,4 @@
-import { UsageError } from '../errors.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseListingArgs, printTransactions } from '../listing.js';
 import { loadData } from '../store.js';
 import { filterTransactions } from '../transaction.js';
@@ -15,7 +15,7 @@ export function run(argv) {
       throw new UsageError('검색할 글이 없습니다', USAGE);
     }
     if (args.length > 1) {
-      throw new UsageError(`예상하지 않은 인자 ${args[1]}`, USAGE);
+      throw unexpectedArgument(args[1], USAGE);
     }
 
     const query = args[0];

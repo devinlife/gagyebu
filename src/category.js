@@ -1,4 +1,4 @@
-import { DataError, UsageError } from './errors.js';
+import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { EXPENSE, TYPES } from './types.js';
 
 export function parseName(args, usage) {
@@ -6,7 +6,7 @@ export function parseName(args, usage) {
     throw new UsageError('분류 이름이 없습니다', usage);
   }
   if (args.length > 1) {
-    throw new UsageError(`예상하지 않은 인자 ${args[1]}`, usage);
+    throw unexpectedArgument(args[1], usage);
   }
   const [input] = args;
   const name = input.trim();

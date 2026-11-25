@@ -30,8 +30,8 @@ test('깃발은 다음 위치 인자를 소비하지 않는다', () => {
 });
 
 test('모르는 옵션의 이름과 첫 오류만 돌려준다', () => {
-  assert.equal(parseOptions(['--x', '--data'], spec).error, '알 수 없는 옵션 --x');
-  assert.equal(parseOptions(['--x=p'], spec).error, '알 수 없는 옵션 --x');
+  assert.equal(parseOptions(['--x', '--data'], spec).error, '알 수 없는 옵션입니다: --x');
+  assert.equal(parseOptions(['--x=p'], spec).error, '알 수 없는 옵션입니다: --x');
 });
 
 test('값 옵션 뒤에 값이 필요하다', () => {

@@ -1,5 +1,5 @@
 import pkg from '../package.json' with { type: 'json' };
-import { DataError, UsageError } from './errors.js';
+import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { parseOptions } from './options.js';
 import { commands } from './registry.js';
 
@@ -24,10 +24,8 @@ export async function run(argv) {
     if (name === '--version') {
       const { args: operands, error } = parseOptions(args, {});
       if (error || operands.length) {
-        throw new UsageError(
-          error ?? `예상하지 않은 인자 ${operands[0]}`,
-          '사용법: gagyebu --version',
-        );
+        const usage = '사용법: gagyebu --version';
+        throw error ? new UsageError(error, usage) : unexpectedArgument(operands[0], usage);
       }
 
       console.log(pkg.version);
@@ -36,7 +34,7 @@ export async function run(argv) {
 
     const command = name === undefined || name === '--help' ? 'help' : name;
     if (!Object.hasOwn(commands, command)) {
-      throw new UsageError(`알 수 없는 명령 ${command}`, '사용법은 gagyebu help를 보세요.');
+      throw new UsageError(`알 수 없는 명령입니다: ${command}`, '사용법은 gagyebu help를 보세요.');
     }
 
     return await commands[command].run(args, { commands });

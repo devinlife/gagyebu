@@ -38,7 +38,7 @@ export function parseOptions(argv, { values = [], flags = [], repeatable = [] })
       }
       options.set(name, true);
     } else {
-      error = `알 수 없는 옵션 --${name}`;
+      error = `알 수 없는 옵션입니다: --${name}`;
       break;
     }
   }

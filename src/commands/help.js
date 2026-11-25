@@ -1,4 +1,4 @@
-import { UsageError } from '../errors.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseOptions } from '../options.js';
 
 export const name = 'help';
@@ -8,7 +8,8 @@ export const summary = '사용법과 명령 목록을 보여 줍니다.';
 export function run(argv, { commands }) {
   const { args, error } = parseOptions(argv, { flags: ['help'] });
   if (error || args.length) {
-    throw new UsageError(error ?? `예상하지 않은 인자 ${args[0]}`, '사용법: gagyebu help');
+    const usage = '사용법: gagyebu help';
+    throw error ? new UsageError(error, usage) : unexpectedArgument(args[0], usage);
   }
 
   const names = Object.keys(commands);

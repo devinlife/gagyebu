@@ -1,0 +1,112 @@
+import { UsageError, unexpectedArgument } from '../errors.js';
+import { formatTable, formatWon } from '../format.js';
+import { currentMonth, parseAmount, parseEntryOptions, parseId, parseMonth } from '../input.js';
+import { parseSubcommand } from '../options.js';
+import { addRule, removeRule } from '../recurring.js';
+import { loadData, validateDataOption, writeData } from '../store.js';
+import { describeTransaction } from '../transaction.js';
+import { TYPE_LABELS } from '../types.js';
+
+export const name = 'recurring';
+export const order = 26;
+export const summary = '매달 반복할 거래 규칙을 관리합니다.';
+
+const USAGE = '사용법: gagyebu recurring add|list|rm [인자] [--옵션 값]';
+const USAGES = {
+  add: '사용법: gagyebu recurring add <금액> --day <일> [--type expense|income] [--category <분류>] [--account <이름>] [--memo <글>] [--tag <태그>] [--start YYYY-MM] [--end YYYY-MM] [--data <경로>]',
+  list: '사용법: gagyebu recurring list [--json] [--data <경로>]',
+  rm: '사용법: gagyebu recurring rm <번호> [--data <경로>]',
+};
+
+function parseDay(text, usage) {
+  if (text === undefined) {
+    throw new UsageError('--day가 없습니다', usage);
+  }
+  const day = Number(text);
+  if (!/^[0-9]+$/.test(text) || day < 1 || day > 31) {
+    throw new UsageError(`--day는 1에서 31 사이의 정수여야 합니다: ${text}`, usage);
+  }
+  return day;
+}
+
+function rulePeriod({ start, end }) {
+  return `${start}~${end ?? ''}`;
+}
+
+function add(args, options, usage) {
+  if (args.length === 0) {
+    throw new UsageError('금액이 없습니다', usage);
+  }
+  if (args.length > 1) {
+    throw unexpectedArgument(args[1], usage);
+  }
+  const amount = parseAmount(args[0], usage);
+  const entry = parseEntryOptions(options, usage);
+  const day = parseDay(options.day, usage);
+  const start = options.start === undefined ? currentMonth() : parseMonth(options.start, usage, 'start');
+  const end = options.end === undefined ? null : parseMonth(options.end, usage, 'end');
+  if (end !== null && end < start) {
+    throw new UsageError(`--end가 --start보다 이릅니다: ${end} < ${start}`, usage);
+  }
+
+  const { filePath, data } = loadData(options, usage);
+  const updated = addRule(data, { ...entry, amount, day, start, end });
+  writeData(filePath, { ...data, ...updated });
+
+  const rule = updated.recurring.at(-1);
+  const description = describeTransaction({ ...rule, date: `매달 ${day}일` });
+  console.log(`반복 규칙을 더했습니다: ${description} (${rulePeriod(rule)})`);
+}
+
+function list(args, options, usage) {
+  if (args.length > 0) {
+    throw unexpectedArgument(args[0], usage);
+  }
+  const { data: { recurring } } = loadData(options, usage);
+  if (options.json) {
+    console.log(JSON.stringify(recurring, null, 2));
+    return;
+  }
+  if (recurring.length === 0) {
+    console.log('반복 규칙이 없습니다.');
+    return;
+  }
+
+  const rows = [['번호', '날', '구분', '금액', '분류', '계좌', '메모', '기간']];
+  for (const rule of recurring) {
+    const { id, day, type, amount, category, account, memo } = rule;
+    rows.push([String(id), `${day}일`, TYPE_LABELS[type], formatWon(amount), category, account, memo, rulePeriod(rule)]);
+  }
+  console.log(formatTable(rows, { right: [3] }));
+}
+
+function remove(args, options, usage) {
+  if (args.length === 0) {
+    throw new UsageError('번호가 없습니다', usage);
+  }
+  if (args.length > 1) {
+    throw unexpectedArgument(args[1], usage);
+  }
+  const id = parseId(args[0], usage);
+  const { filePath, data } = loadData(options, usage);
+  const { removed, recurring } = removeRule(data.recurring, id);
+  writeData(filePath, { ...data, recurring });
+  console.log(`반복 규칙을 지웠습니다: #${removed.id}`);
+}
+
+const commands = { add, list, rm: remove };
+
+export function run(argv) {
+  const parsed = parseSubcommand(argv, {
+    label: '반복 규칙', usage: USAGE, usages: USAGES,
+    values: { add: ['day', 'type', 'category', 'account', 'memo', 'tag', 'start', 'end'] },
+    repeatable: { add: ['tag'] },
+  });
+  if (parsed === null) {
+    return 0;
+  }
+  const { command, args, options, usage } = parsed;
+  validateDataOption(options, usage);
+  commands[command](args, options, usage);
+  return 0;
+}

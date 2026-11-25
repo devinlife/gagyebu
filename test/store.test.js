@@ -43,6 +43,8 @@ test('데이터 파일이 없으면 폴더나 파일을 만들지 않고 새 초
     budgets: {},
     accounts: [{ name: '현금', opening: 0 }],
     transactions: [],
+    recurring: [],
+    nextRecurringId: 1,
   });
   assert.deepEqual(second, first);
   assert.notEqual(first, second);
@@ -79,6 +81,8 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
       income: [...DEFAULT_CATEGORIES.income, '월급'],
     },
     transactions,
+    recurring: [],
+    nextRecurringId: 1,
     budgets: {},
     accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }, { name: '통장', opening: 0 }],
   });
@@ -138,6 +142,8 @@ test('버전 2의 계좌를 처음 나온 순서로 올리고 원본을 보존�
   assert.deepEqual(readData(filePath), {
     ...data,
     version: CURRENT_VERSION,
+    recurring: [],
+    nextRecurringId: 1,
     accounts: ['현금', '카드', '통장'].map((name) => ({ name, opening: 0 })),
   });
   assert.equal(readFileSync(filePath, 'utf8'), original);

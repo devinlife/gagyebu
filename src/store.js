@@ -8,7 +8,7 @@ import { DEFAULT_ACCOUNT } from './account.js';
 import { DEFAULT_CATEGORY } from './category.js';
 import { DataError, singleLineMessage } from './errors.js';
 import { withParticle } from './format.js';
-import { isValidDate, parseNonemptyOption } from './input.js';
+import { isValidDate, monthPattern, parseNonemptyOption } from './input.js';
 import { RECORD_TYPES, TRANSFER, TYPES } from './types.js';
 
 export const CURRENT_VERSION = 3;
@@ -127,6 +127,8 @@ export function readData(filePath) {
         budgets: {},
         accounts: [{ name: DEFAULT_ACCOUNT, opening: 0 }],
         transactions: [],
+        recurring: [],
+        nextRecurringId: 1,
       };
     }
     throw readError(filePath, error.code ?? error.message);
@@ -155,6 +157,44 @@ function parseDataText(text, invalid) {
   }
 
   return validateData(data, invalid);
+}
+
+function isValidRule(rule) {
+  if (rule === null || typeof rule !== 'object' || Array.isArray(rule)) {
+    return false;
+  }
+
+  const { id, day, type, amount, category, account, memo, tags, start, end } = rule;
+  return Number.isInteger(id) && id > 0
+    && Number.isInteger(day) && day >= 1 && day <= 31
+    && TYPES.includes(type) && Number.isSafeInteger(amount) && amount > 0
+    && [category, account, memo].every((text) => typeof text === 'string')
+    && Array.isArray(tags) && tags.every((tag) => typeof tag === 'string')
+    && typeof start === 'string' && monthPattern.test(start)
+    && (end === null || (typeof end === 'string' && monthPattern.test(end) && start <= end));
+}
+
+function validateRecurring(data, transactions, invalid) {
+  const { recurring = [] } = data;
+  if (!Array.isArray(recurring) || !recurring.every(isValidRule)
+      || new Set(recurring.map(({ id }) => id)).size !== recurring.length) {
+    throw invalid('recurring이 올바르지 않습니다');
+  }
+
+  let maxId = 0;
+  for (const { id } of recurring) {
+    maxId = Math.max(maxId, id);
+  }
+  for (const { recurringId } of transactions) {
+    if (Number.isInteger(recurringId)) {
+      maxId = Math.max(maxId, recurringId);
+    }
+  }
+  const { nextRecurringId = maxId + 1 } = data;
+  if (!Number.isInteger(nextRecurringId) || nextRecurringId <= maxId) {
+    throw invalid('nextRecurringId가 올바르지 않습니다');
+  }
+  return { recurring, nextRecurringId };
 }
 
 function validateData(data, invalid) {
@@ -193,7 +233,7 @@ function validateData(data, invalid) {
   }
   const transactions = data.transactions.map((transaction, index) => validateTransaction(transaction, index, invalid));
 
-  return { ...data, budgets, transactions };
+  return { ...data, budgets, transactions, ...validateRecurring(data, transactions, invalid) };
 }
 
 const HISTORY_LIMIT = 20;

@@ -57,6 +57,8 @@ export function currentData(overrides) {
     budgets: {},
     accounts: [{ name: '현금', opening: 0 }],
     transactions: [],
+    recurring: [],
+    nextRecurringId: 1,
     ...overrides,
   };
 }

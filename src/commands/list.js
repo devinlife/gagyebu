@@ -4,14 +4,17 @@ import { parseDate } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath } from '../store.js';
 
+import { parseTags } from '../transaction.js';
+
 export const summary = '거래 목록을 보여 줍니다.';
 
-const USAGE = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--json] [--data <경로>]';
+const USAGE = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['from', 'to', 'type', 'category', 'data'],
+    values: ['from', 'to', 'type', 'category', 'tag', 'data'],
     flags: ['json', 'help'],
+    repeatable: ['tag'],
   });
   if (error) {
     throw new UsageError(error, USAGE);
@@ -46,6 +49,7 @@ export function run(argv) {
     throw new UsageError('--data 값이 비었습니다', USAGE);
   }
 
+  const tags = parseTags(options.tag, USAGE);
   const filePath = resolveDataPath(data);
   const { transactions } = readData(filePath);
   if (!Array.isArray(transactions)) {
@@ -56,7 +60,8 @@ export function run(argv) {
     (from === undefined || from <= transaction.date)
     && (to === undefined || transaction.date <= to)
     && (type === undefined || type === transaction.type)
-    && (category === undefined || category === transaction.category));
+    && (category === undefined || category === transaction.category)
+    && tags.every((tag) => Array.isArray(transaction.tags) && transaction.tags.includes(tag)));
   list.sort((a, b) => {
     if (a.date === b.date) {
       return a.id - b.id;
@@ -83,9 +88,11 @@ export function run(argv) {
     } else {
       expense += transaction.amount;
     }
+    const tags = Array.isArray(transaction.tags) ? transaction.tags : [];
+    const memo = [transaction.memo, ...tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
     rows.push([
       String(transaction.id), transaction.date, isIncome ? '수입' : '지출',
-      formatWon(transaction.amount), transaction.category, transaction.memo,
+      formatWon(transaction.amount), transaction.category, memo,
     ]);
   }
 

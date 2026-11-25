@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { displayWidth } from '../src/format.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
-const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--json] [--data <경로>]';
+const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
 
 const sameDayIncome = {
   id: 10, date: '2026-02-10', type: 'income', amount: 1234567, category: '월급',
@@ -115,7 +115,7 @@ test('표는 한글 폭을 맞추고 번호와 금액을 오른쪽에 놓는다'
     '번호  날짜        구분         금액  분류    메모',
     '  12  2026-02-01  지출      1,200원  식비    아침',
     '   2  2026-02-10  지출         50원  식비    점심 2인',
-    '  10  2026-02-10  수입  1,234,567원  월급',
+    '  10  2026-02-10  수입  1,234,567원  월급    #정기',
     '   4  2026-02-28  지출      1,000원  식비권  coupon',
     '4건, 수입 1,234,567원, 지출 2,250원',
     '',
@@ -165,7 +165,9 @@ test('사용법 오류는 데이터 읽기 전에 종료 코드 2와 함께 출�
     [['--help=1'], '--help은 값을 받지 않습니다'],
     [['--category='], '--category 값이 비었습니다'],
     [['--data='], '--data 값이 비었습니다'],
-    ...['from', 'to', 'type', 'category', 'data'].map((option) => [[`--${option}`], `--${option} 값이 없습니다`]),
+    [['--tag='], '태그는 공백 없는 1~20자여야 합니다: '],
+    [['--tag', 'a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
+    ...['from', 'to', 'type', 'category', 'tag', 'data'].map((option) => [[`--${option}`], `--${option} 값이 없습니다`]),
   ]) {
     const { status, stdout, stderr } = run(...args);
     const invocation = args.join(' ');
@@ -194,4 +196,38 @@ test('깨진 JSON과 잘못된 거래 목록은 종료 코드 1을 반환한다'
 test('list --help는 사용법 한 줄을 출력한다', (t) => {
   const { run } = fixture(t);
   assertOutput(run('--help'), `${usage}\n`);
+});
+
+test('각 태그를 정규화하고 모두 가진 거래만 다른 필터와 함께 고른다', (t) => {
+  const { run, write } = fixture(t);
+  const regular = { ...sameDayExpense, tags: ['정기', '회식'] };
+  const oneTime = { ...last, tags: ['회식'] };
+  write([sameDayIncome, oneTime, first, regular]);
+
+  for (const [args, expected] of [
+    [['--tag', ' #정기 '], [regular, sameDayIncome]],
+    [['--tag', '정기', '--tag=회식'], [regular]],
+    [['--tag', '정기,회식,정기'], [regular]],
+    [['--tag', '정기', '--type', 'expense', '--from', '2026-02-10'], [regular]],
+    [['--tag', '정기', '--type', 'expense', '--from', '2026-02-11'], []],
+  ]) {
+    assert.deepEqual(readJson(run('--json', ...args)), expected);
+  }
+});
+
+test('메모 뒤에 태그를 붙이고 옛 거래의 메모 시작 칸을 유지한다', (t) => {
+  const { run, write } = fixture(t);
+  const { tags, ...legacy } = first;
+  const nonArray = { ...last, tags: '회식' };
+  const tagged = { ...sameDayExpense, tags: ['회식', '법인'] };
+  write([legacy, nonArray, tagged]);
+
+  const { status, stdout, stderr } = run();
+  assert.equal(status, 0, stderr);
+  const cells = ['메모', '아침', '점심 2인 #회식 #법인', 'coupon'];
+  const lines = stdout.split('\n').slice(0, cells.length);
+  assert.deepEqual(lines.map((line, index) => line.slice(-cells[index].length)), cells);
+  const offsets = lines.map((line, index) => displayWidth(line.slice(0, -cells[index].length)));
+  assert.deepEqual(offsets, Array(cells.length).fill(offsets[0]));
+  assert.deepEqual(readJson(run('--json', '--tag', '회식')), [tagged]);
 });

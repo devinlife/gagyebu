@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { UsageError } from '../src/errors.js';
-import { parseAmount, parseDate, parseMonth, parseType, today } from '../src/input.js';
+import { parseAmount, parseDate, parseMonth, parseType, parseYear, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
@@ -103,6 +103,16 @@ test('월 파서는 YYYY-MM 형식의 달만 받는다', () => {
   for (const month of ['2026-00', '2026-13', '2026-1', '']) {
     assert.throws(() => parseMonth(month, usage), {
       constructor: UsageError, message: `--month는 YYYY-MM 형식의 달이어야 합니다: ${month}`, usage,
+    });
+  }
+});
+
+test('연도 파서는 YYYY 형식만 받아 숫자로 돌려준다', () => {
+  assert.equal(parseYear('2026', usage), 2026);
+  assert.equal(parseYear('0000', usage), 0);
+  for (const year of ['26', '2026-01', 'abcd', '', ' 2026', '2026\n']) {
+    assert.throws(() => parseYear(year, usage), {
+      constructor: UsageError, message: `--year는 YYYY 형식의 연도여야 합니다: ${year}`, usage,
     });
   }
 });

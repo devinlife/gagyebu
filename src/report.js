@@ -40,6 +40,30 @@ export function summarizeMonth(transactions, budgets, month) {
   return { month, income, expense, net, expenseByCategory, incomeByCategory };
 }
 
+export function summarizeYear(transactions, year) {
+  const months = [];
+  const total = { income: 0, expense: 0, net: 0 };
+  const yearText = String(year).padStart(4, '0');
+  let activeMonths = 0;
+
+  for (let number = 1; number <= 12; number += 1) {
+    const month = `${yearText}-${String(number).padStart(2, '0')}`;
+    const { income, expense, net, expenseByCategory } = summarizeMonth(transactions, {}, month);
+    const [topExpense] = expenseByCategory;
+    const topCategory = topExpense ? { category: topExpense.category, amount: topExpense.amount } : null;
+    months.push({ month, income, expense, net, topCategory });
+    total.income += income;
+    total.expense += expense;
+    total.net += net;
+    if (income !== 0 || expense !== 0) {
+      activeMonths += 1;
+    }
+  }
+
+  const averageExpense = activeMonths === 0 ? 0 : Math.round(total.expense / activeMonths);
+  return { year, months, total, averageExpense };
+}
+
 export function budgetUsage(transactions, budgets, month) {
   const { categories } = monthlyTotals(transactions, month, [EXPENSE]);
   const entries = Object.entries(budgets).map(([category, budget]) => {

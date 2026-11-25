@@ -83,6 +83,13 @@ export function parseMonth(text, usage) {
   return text;
 }
 
+export function parseYear(text, usage) {
+  if (!/^\d{4}$/.test(text)) {
+    throw new UsageError(`--year는 YYYY 형식의 연도여야 합니다: ${text}`, usage);
+  }
+  return Number(text);
+}
+
 export function parseCategory(text, usage) {
   if (text === '') {
     throw new UsageError('--category 값이 비었습니다', usage);

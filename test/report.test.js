@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError } from '../src/errors.js';
-import { budgetUsage, removeBudget, setBudget, summarizeMonth } from '../src/report.js';
+import { budgetUsage, removeBudget, setBudget, summarizeMonth, summarizeYear } from '../src/report.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import { transaction } from './helpers.js';
 
@@ -27,6 +27,55 @@ test('월 집계는 이체와 다른 달을 제외하고 분류별 비율과 예
   assert.deepEqual(summarizeMonth(entries, budgets, '2026-04'), {
     month: '2026-04', income: 0, expense: 0, net: 0, expenseByCategory: [], incomeByCategory: [],
   });
+});
+
+test('빈 해에는 열두 달 모두 수입·지출·차액이 0이고 지출 1위 분류가 없다', () => {
+  assert.deepEqual(summarizeYear([], 2026), {
+    year: 2026,
+    months: [
+      '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12',
+    ].map((month) => ({ month: `2026-${month}`, income: 0, expense: 0, net: 0, topCategory: null })),
+    total: { income: 0, expense: 0, net: 0 },
+    averageExpense: 0,
+  });
+});
+
+test('연간 집계는 수입만 있는 달도 평균에 세고 지출 동률은 분류 이름순으로 고른다', () => {
+  const result = summarizeYear([
+    ...entries.slice(0, 4),
+    transaction({ date: '2026-04-01', type: 'transfer', amount: 8000 }),
+    transaction({ date: '2026-05-01', type: 'income', category: '급여', amount: 7000 }),
+    transaction({ date: '2025-02-01', amount: 20000 }),
+  ], 2026);
+
+  assert.deepEqual(result.months.filter(({ income, expense }) => income || expense), [
+    { month: '2026-02', income: 10000, expense: 8000, net: 2000, topCategory: { category: '교통', amount: 4000 } },
+    { month: '2026-05', income: 7000, expense: 0, net: 7000, topCategory: null },
+  ]);
+  assert.deepEqual(result.months[3], {
+    month: '2026-04', income: 0, expense: 0, net: 0, topCategory: null,
+  });
+  assert.deepEqual(result.total, { income: 17000, expense: 8000, net: 9000 });
+  assert.equal(result.averageExpense, 4000);
+});
+
+test('연간 평균 지출은 원 단위로 반올림한다', () => {
+  for (const [amounts, expected] of [
+    [[1000, 3000, 6000], 3333],
+    [[1, 2], 2],
+  ]) {
+    const transactions = amounts.map((amount, index) => transaction({
+      date: `2026-0${index + 1}-01`, amount,
+    }));
+    assert.equal(summarizeYear(transactions, 2026).averageExpense, expected);
+  }
+});
+
+test('연도 앞자리에 0이 있는 거래도 해당 연도의 달에 집계한다', () => {
+  const result = summarizeYear([transaction({ date: '0096-02-29' })], 96);
+  assert.equal(result.year, 96);
+  assert.equal(result.months[1].month, '0096-02');
+  assert.equal(result.months[1].expense, 1000);
 });
 
 test('예산 사용은 등록된 분류의 월 지출을 사용률과 이름 순으로 돌려준다', () => {

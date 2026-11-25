@@ -3,9 +3,9 @@ import { EXPENSE, TYPES } from './types.js';
 
 export const DEFAULT_CATEGORY = '기타';
 
-export function parseName(args, usage) {
+export function parseName(args, usage, label = '분류') {
   if (args.length === 0) {
-    throw new UsageError('분류 이름이 없습니다', usage);
+    throw new UsageError(`${label} 이름이 없습니다`, usage);
   }
   if (args.length > 1) {
     throw unexpectedArgument(args[1], usage);
@@ -13,7 +13,7 @@ export function parseName(args, usage) {
   const [input] = args;
   const name = input.trim();
   if (name === '' || [...name].length > 20) {
-    throw new UsageError(`분류 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${input}`, usage);
+    throw new UsageError(`${label} 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${input}`, usage);
   }
   return name;
 }

@@ -4,6 +4,7 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DEFAULT_ACCOUNT } from './account.js';
 import { DEFAULT_CATEGORY } from './category.js';
 import { DataError } from './errors.js';
 import { withParticle } from './format.js';
@@ -46,7 +47,7 @@ function migrateVersionOne(data) {
 }
 
 function migrateVersionTwo(data) {
-  const names = new Set(['현금']);
+  const names = new Set([DEFAULT_ACCOUNT]);
   if (Array.isArray(data.transactions)) {
     for (const transaction of data.transactions) {
       const { account } = transaction ?? {};
@@ -114,7 +115,7 @@ export function readData(filePath) {
         nextId: 1,
         categories: structuredClone(DEFAULT_CATEGORIES),
         budgets: {},
-        accounts: [{ name: '현금', opening: 0 }],
+        accounts: [{ name: DEFAULT_ACCOUNT, opening: 0 }],
         transactions: [],
       };
     }

@@ -174,6 +174,21 @@ export function parseAmount(text, usage) {
   throw new UsageError(`금액은 양의 정수여야 합니다: ${text}`, usage);
 }
 
+export function parseOpening(text, usage) {
+  if (text === '0') {
+    return 0;
+  }
+
+  try {
+    return text.startsWith('-') ? -parseAmount(text.slice(1), usage) : parseAmount(text, usage);
+  } catch (error) {
+    if (!(error instanceof UsageError)) {
+      throw error;
+    }
+    throw new UsageError(`--opening은 금액이거나 앞에 -를 붙인 금액이어야 합니다: ${text}`, usage);
+  }
+}
+
 export function parseId(text, usage) {
   const id = Number(text);
   if (!/^[1-9][0-9]*$/.test(text) || !Number.isSafeInteger(id)) {

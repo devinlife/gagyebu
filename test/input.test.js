@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
-import { parseAmount, parseChartOptions, parseDate, parseMonth, parsePeriod, parsePort, parseType, parseYear, today } from '../src/input.js';
+import { parseAmount, parseChartOptions, parseDate, parseMonth, parseOpening, parsePeriod, parsePort, parseType, parseYear, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
@@ -179,4 +179,17 @@ test('닫힌 기간은 빠진 날짜를 종료일의 달 1일과 오늘로 채�
     constructor: UsageError, message: '--from이 --to보다 늦습니다: 2026-03-02 > 2026-03-01', usage,
   });
   assert.deepEqual(parsePeriod({ from: '2026-03-02' }, usage), { from: '2026-03-02', to: undefined });
+});
+
+test('시작 잔액에 0과 양수와 음수를 받는다', () => {
+  for (const [input, expected] of [['0', 0], ['5000', 5000], ['-5000', -5000], ['-1만2천', -12000]]) {
+    assert.equal(parseOpening(input, usage), expected);
+  }
+  for (const input of ['-0', '--', '-', 'abc', '1.5', '- 100', '']) {
+    assert.throws(() => parseOpening(input, usage), {
+      constructor: UsageError,
+      message: `--opening은 금액이거나 앞에 -를 붙인 금액이어야 합니다: ${input}`,
+      usage,
+    });
+  }
 });

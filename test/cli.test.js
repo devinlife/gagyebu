@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { test } from 'node:test';
 import pkg from '../package.json' with { type: 'json' };
 
 import { reportError } from '../src/cli.js';
 import { DataError, UsageError } from '../src/errors.js';
+import { commands } from '../src/registry.js';
 import { binPath, runCli } from './helpers.js';
 
 function run(...args) {
@@ -13,12 +14,37 @@ function run(...args) {
 
 test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력한다', () => {
   const outputs = [run(), run('help'), run('--help'), run('help', '--help')];
-  const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help      사용법과 명령 목록을 보여 줍니다.\n  add       거래 하나를 더합니다.\n  list      거래 목록을 보여 줍니다.\n  search    글이나 태그로 거래를 찾습니다.\n  edit      거래의 값 일부를 바꿉니다.\n  rm        거래 하나를 지웁니다.\n  category  분류 목록을 보고 분류를 더하거나 지웁니다.\n  summary   한 달의 수입·지출과 분류별 합계를 보여 줍니다.\n  export    거래를 CSV로 내보냅니다.\n  budget    분류별 월 예산을 정하고 사용률을 보여 줍니다.\n';
+  const names = Object.keys(commands);
+  const width = Math.max(...names.map((name) => name.length));
+  const expected = [
+    '사용법: gagyebu <명령> [인자] [--옵션 값]', '',
+    ...names.map((name) => `  ${name.padEnd(width)}  ${commands[name].summary}`),
+    '',
+  ].join('\n');
   for (const { status, stdout, stderr } of outputs) {
     assert.equal(status, 0);
     assert.equal(stderr, '');
     assert.equal(stdout, expected);
   }
+});
+
+test('명령 표는 파일 이름에 맞는 명령을 중복 없는 순서로 등록한다', () => {
+  const files = readdirSync(new URL('../src/commands/', import.meta.url))
+    .filter((file) => file.endsWith('.js'));
+  assert.deepEqual(Object.keys(commands).sort(), files.map((file) => file.slice(0, -3)).sort());
+
+  const orders = [];
+  for (const file of files) {
+    const name = file.slice(0, -3);
+    const command = commands[name];
+    assert.equal(command.name, name);
+    assert.equal(typeof command.run, 'function');
+    assert.equal(typeof command.summary, 'string');
+    assert.ok(Number.isInteger(command.order), name);
+    orders.push(command.order);
+  }
+  assert.equal(new Set(orders).size, files.length);
+  assert.deepEqual(Object.values(commands).map(({ order }) => order), orders.sort((a, b) => a - b));
 });
 
 test('help와 --version은 모르는 옵션과 남는 인자를 거부한다', () => {

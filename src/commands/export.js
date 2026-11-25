@@ -6,6 +6,8 @@ import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
 import { filterTransactions } from '../transaction.js';
 
+export const name = 'export';
+export const order = 90;
 export const summary = '거래를 CSV로 내보냅니다.';
 
 const USAGE = '사용법: gagyebu export [--out <파일>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--force] [--data <경로>]';

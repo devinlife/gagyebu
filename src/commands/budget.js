@@ -7,6 +7,8 @@ import { budgetUsage } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { EXPENSE } from '../types.js';
 
+export const name = 'budget';
+export const order = 100;
 export const summary = '분류별 월 예산을 정하고 사용률을 보여 줍니다.';
 
 const USAGE = '사용법: gagyebu budget set|list|rm [인자] [--옵션 값]';

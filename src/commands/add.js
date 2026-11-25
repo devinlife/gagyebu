@@ -5,6 +5,8 @@ import { loadData, validateDataOption, writeData } from '../store.js';
 import { buildTransaction, describeTransaction } from '../transaction.js';
 import { EXPENSE } from '../types.js';
 
+export const name = 'add';
+export const order = 20;
 export const summary = '거래 하나를 더합니다.';
 
 const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';

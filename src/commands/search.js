@@ -1,6 +1,8 @@
 import { UsageError } from '../errors.js';
 import { showTransactions } from '../listing.js';
 
+export const name = 'search';
+export const order = 40;
 export const summary = '글이나 태그로 거래를 찾습니다.';
 
 const USAGE = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';

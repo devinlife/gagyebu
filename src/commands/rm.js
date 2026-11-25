@@ -4,6 +4,8 @@ import { parseOptions } from '../options.js';
 import { loadData, writeData } from '../store.js';
 import { describeTransaction } from '../transaction.js';
 
+export const name = 'rm';
+export const order = 60;
 export const summary = '거래 하나를 지웁니다.';
 
 const USAGE = '사용법: gagyebu rm <번호> [--data <경로>]';

@@ -1,6 +1,8 @@
 import { UsageError } from '../errors.js';
 import { parseOptions } from '../options.js';
 
+export const name = 'help';
+export const order = 10;
 export const summary = '사용법과 명령 목록을 보여 줍니다.';
 
 export function run(argv, { commands }) {

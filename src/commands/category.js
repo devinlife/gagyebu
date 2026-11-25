@@ -6,6 +6,8 @@ import { parseOptions } from '../options.js';
 import { loadData, writeData } from '../store.js';
 import { EXPENSE, TYPES, TYPE_LABELS } from '../types.js';
 
+export const name = 'category';
+export const order = 70;
 export const summary = '분류 목록을 보고 분류를 더하거나 지웁니다.';
 
 const USAGE = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';

@@ -6,6 +6,8 @@ import { loadData } from '../store.js';
 import { summarizeMonth } from '../report.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from '../types.js';
 
+export const name = 'summary';
+export const order = 80;
 export const summary = '한 달의 수입·지출과 분류별 합계를 보여 줍니다.';
 
 const USAGE = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';

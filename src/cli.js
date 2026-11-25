@@ -1,19 +1,7 @@
 import pkg from '../package.json' with { type: 'json' };
 import { DataError, UsageError } from './errors.js';
 import { parseOptions } from './options.js';
-
-const commands = {
-  help: await import('./commands/help.js'),
-  add: await import('./commands/add.js'),
-  list: await import('./commands/list.js'),
-  search: await import('./commands/search.js'),
-  edit: await import('./commands/edit.js'),
-  rm: await import('./commands/rm.js'),
-  category: await import('./commands/category.js'),
-  summary: await import('./commands/summary.js'),
-  export: await import('./commands/export.js'),
-  budget: await import('./commands/budget.js'),
-};
+import { commands } from './registry.js';
 
 export function reportError(error) {
   if (error instanceof UsageError || error instanceof DataError) {

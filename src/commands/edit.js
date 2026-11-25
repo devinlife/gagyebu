@@ -4,6 +4,8 @@ import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { applyChanges, describeTransaction } from '../transaction.js';
 
+export const name = 'edit';
+export const order = 50;
 export const summary = '거래의 값 일부를 바꿉니다.';
 
 const USAGE = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';

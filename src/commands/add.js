@@ -1,3 +1,4 @@
+import { isValidDate } from '../dates.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatWon } from '../format.js';
 import { parseOptions } from '../options.js';
@@ -13,19 +14,6 @@ function localToday() {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return [year, month, day].join('-');
-}
-
-function isValidDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(0);
-  date.setUTCFullYear(year, month - 1, day);
-  return date.getUTCFullYear() === year
-    && date.getUTCMonth() === month - 1
-    && date.getUTCDate() === day;
 }
 
 export function run(argv) {

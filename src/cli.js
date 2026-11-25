@@ -5,6 +5,7 @@ import { parseOptions } from './options.js';
 const commands = {
   help: await import('./commands/help.js'),
   add: await import('./commands/add.js'),
+  list: await import('./commands/list.js'),
 };
 
 export function reportError(error) {

@@ -124,15 +124,20 @@ test('이력 항목의 데이터가 올바르지 않으면 현재 거래와 이�
   }
   const originalData = readFileSync(filePath, 'utf8');
   const entries = readJson(historyPath);
-  entries.at(-1).data = {};
-  const originalHistory = writeJson(historyPath, entries);
-
-  const { status, stdout, stderr } = runCli(['undo'], { env });
-  assert.equal(status, 1);
-  assert.equal(stdout, '');
-  assert.equal(stderr, `오류: 이력 파일을 읽을 수 없습니다: ${historyPath} (version이 올바르지 않습니다: undefined)\n`);
-  assert.equal(readFileSync(filePath, 'utf8'), originalData);
-  assert.equal(readFileSync(historyPath, 'utf8'), originalHistory);
+  const latest = entries.at(-1);
+  for (const [data, reason] of [
+    [{}, 'version이 올바르지 않습니다: undefined'],
+    [{ ...latest.data, accounts: null }, 'accounts가 올바르지 않습니다'],
+  ]) {
+    latest.data = data;
+    const originalHistory = writeJson(historyPath, entries);
+    const { status, stdout, stderr } = runCli(['undo'], { env });
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 이력 파일을 읽을 수 없습니다: ${historyPath} (${reason})\n`);
+    assert.equal(readFileSync(filePath, 'utf8'), originalData);
+    assert.equal(readFileSync(historyPath, 'utf8'), originalHistory);
+  }
 });
 
 test('잘못된 인자는 사용법 오류로 보고하고 도움말은 성공한다', (t) => {

@@ -160,7 +160,7 @@ function validateData(data, invalid) {
   if (!Array.isArray(accounts) || !accounts.every((account) =>
     typeof account?.name === 'string' && account.name !== '' && Number.isSafeInteger(account.opening))
       || new Set(accounts.map(({ name }) => name)).size !== accounts.length) {
-    throw readError(filePath, 'accounts가 올바르지 않습니다');
+    throw invalid('accounts가 올바르지 않습니다');
   }
 
   if (!Array.isArray(data.transactions)) {

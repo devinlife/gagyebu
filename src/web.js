@@ -124,8 +124,8 @@ function transactionForm({ token, month, categories, accounts, values = {}, erro
   }
 
   const type = values.type ?? EXPENSE;
-  const categoryType = type || EXPENSE;
-  const category = values.category ?? (categories[categoryType]?.includes(DEFAULT_CATEGORY) ? DEFAULT_CATEGORY : '');
+  const categoryType = TYPES.includes(type) ? type : EXPENSE;
+  const category = values.category ?? (categories[categoryType].includes(DEFAULT_CATEGORY) ? DEFAULT_CATEGORY : '');
   const account = values.account ?? DEFAULT_ACCOUNT;
   const categoryGroups = TYPES.map((group) => {
     const options = categories[group].map((name) => formOption(name, name, group === categoryType && name === category));
@@ -143,7 +143,7 @@ ${error ? `<p id="form-error" role="alert">${escapeHtml(error.message)}</p>
 <div class="fields">
 ${input('amount', '금액', values.amount ?? '', ' inputmode="text" required')}
 ${select('type', '구분', type, TYPES, typeOptions)}
-${select('category', '분류', category, categories[categoryType] ?? [], categoryGroups)}
+${select('category', '분류', category, categories[categoryType], categoryGroups)}
 ${input('date', '날짜', values.date ?? today(), ' type="date"')}
 ${select('account', '계좌', account, accounts, accountOptions)}
 ${input('memo', '메모', values.memo ?? '')}

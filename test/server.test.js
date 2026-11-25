@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { test } from 'node:test';
 import { createServer } from '../src/server.js';
-import { currentData, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
+import { escapeHtml } from '../src/web.js';
+import { currentData, readJson, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const today = '2026-02-10';
 
@@ -26,14 +28,16 @@ async function fixture(t) {
   }));
 
   const previousToday = process.env.GAGYEBU_TODAY;
-  process.env.GAGYEBU_TODAY = today;
-  t.after(() => {
-    if (previousToday === undefined) {
-      delete process.env.GAGYEBU_TODAY;
-    } else {
-      process.env.GAGYEBU_TODAY = previousToday;
-    }
-  });
+  if (previousToday !== today) {
+    process.env.GAGYEBU_TODAY = today;
+    t.after(() => {
+      if (previousToday === undefined) {
+        delete process.env.GAGYEBU_TODAY;
+      } else {
+        process.env.GAGYEBU_TODAY = previousToday;
+      }
+    });
+  }
 
   const server = createServer({ data });
   t.after(() => new Promise((resolve, reject) => {
@@ -69,7 +73,7 @@ async function fixture(t) {
     return JSON.parse(stdout);
   }
 
-  return { cli, cliJson, data, html, request };
+  return { base, cli, cliJson, data, html, request };
 }
 
 test('거래 API의 필터와 정렬은 CLI 목록과 같다', async (t) => {
@@ -278,11 +282,157 @@ test('보고서의 잘못된 쿼리, 메서드, 데이터 파일에 HTML 오류�
 test('보고서는 같은 서버 토큰을 쓰고 추가된 거래의 알림을 표시한다', async (t) => {
   const { html } = await fixture(t);
   const first = await html('/');
-  const token = first.body.match(/name="csrf" value="([a-f0-9]{64})"/)?.[1];
-  assert.ok(token);
+  const token = formToken(first.body);
   const added = await html('/?added=2');
   assert.ok(added.body.includes(`name="csrf" value="${token}"`));
   assert.match(added.body, /<p role="status">추가했습니다: #2 2026-02-10 지출 1,000원 식비 점심 결제 #a #b<\/p>/);
   assert.doesNotMatch((await html('/?added=99')).body, /role="status"/);
   assert.match((await html('/?added=0', 400)).body, /번호는 양의 정수여야 합니다: 0/);
+});
+
+function formToken(html) {
+  const token = html.match(/name="csrf" value="([a-f0-9]{64})"/)?.[1];
+  assert.ok(token);
+  return token;
+}
+
+function postForm(base, body, headers) {
+  return fetch(base + '/transactions', {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
+    body,
+  });
+}
+
+test('웹 거래를 저장하고 해당 월의 알림을 표시하며 CLI로 되돌린다', async (t) => {
+  const { base, cli, cliJson, data, html } = await fixture(t);
+  const csrf = formToken((await html('/')).body);
+  const response = await postForm(base, new URLSearchParams({
+    amount: '1만2천', type: 'expense', category: '식비', date: '2026-01-15',
+    account: '카드', memo: '점심', tags: 'a,#b', csrf, month: '2026-02',
+  }), { origin: base, 'content-type': 'Application/X-WWW-Form-Urlencoded; charset=utf-8' });
+  assert.equal(response.status, 303);
+  assert.equal(await response.text(), '');
+  const location = response.headers.get('location');
+  assert.equal(location, '/?month=2026-01&added=8');
+  const stored = readJson(data);
+  assert.equal(stored.nextId, 9);
+  assert.deepEqual(stored.transactions.at(-1), transaction({
+    id: 8, amount: 12000, date: '2026-01-15', account: '카드', memo: '점심', tags: ['a', 'b'],
+  }));
+  assert.match((await html(location)).body, /<p role="status">추가했습니다: #8 2026-01-15 지출 12,000원 식비 점심 #a #b<\/p>/);
+  const history = cliJson('undo', '--list');
+  assert.equal(history.length, 1);
+  assert.equal(history[0].command, 'web add 12000 --type expense --category 식비 --account 카드 --date 2026-01-15 --memo 점심 --tag a,b');
+  const undone = cli('undo');
+  assert.equal(undone.status, 0, undone.stderr);
+  assert.equal(readJson(data).nextId, 8);
+  assert.equal(readJson(data).transactions.some(({ id }) => id === 8), false);
+  assert.deepEqual(cliJson('undo', '--list'), []);
+});
+
+test('웹 거래의 빈 칸을 CLI와 같은 기본값으로 채운다', async (t) => {
+  const { base, data, html } = await fixture(t);
+  const csrf = formToken((await html('/')).body);
+  const response = await postForm(base, new URLSearchParams({
+    amount: '12,000원', date: '', type: '', category: '', account: '', memo: '', tags: '', csrf,
+  }));
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get('location'), '/?month=2026-02&added=8');
+  await response.text();
+  assert.deepEqual(readJson(data).transactions.at(-1), transaction({ id: 8, amount: 12000, category: '기타' }));
+});
+
+test('웹 거래 검증 오류의 문구는 CLI와 같고 폼에 제출한 값을 남긴다', async (t) => {
+  const { base, cli, cliJson, data, html } = await fixture(t);
+  const csrf = formToken((await html('/')).body);
+  const before = readFileSync(data, 'utf8');
+  for (const [field, overrides, cliArgs, status, retained] of [
+    ['amount', { amount: '' }, [], 2, /name="amount"[^>]*value=""/],
+    ['amount', { amount: 'abc' }, ['abc'], 2, /name="amount"[^>]*value="abc"/],
+    ['type', { type: 'transfer' }, ['1000', '--type', 'transfer'], 2, /<option value="" disabled selected>transfer<\/option>/],
+    ['type', { type: '__proto__' }, ['1000', '--type', '__proto__'], 2, /<option value="" disabled selected>__proto__<\/option>/],
+    ['category', { type: 'income' }, ['1000', '--type', 'income', '--category', '식비'], 1, /<option value="" disabled selected>식비<\/option>/],
+    ['account', { account: '<"미등록">' }, ['1000', '--account', '<"미등록">'], 1, /<option value="" disabled selected>&lt;&quot;미등록&quot;&gt;<\/option>/],
+    ['date', { date: '2026-02-30' }, ['1000', '--date', '2026-02-30'], 2, /name="date"[^>]*value="2026-02-30"/],
+    ['tags', { tags: 'a b' }, ['1000', '--tag', 'a b'], 2, /name="tags"[^>]*value="a b"/],
+  ]) {
+    const cliResult = cli('add', ...cliArgs);
+    assert.equal(cliResult.status, status, cliResult.stderr);
+    const message = cliResult.stderr.split('\n')[0].slice('오류: '.length);
+    const response = await postForm(base, new URLSearchParams({
+      amount: '1000', type: 'expense', category: '식비', account: '카드', date: today,
+      memo: '<script>"</script>', tags: '#a', csrf, month: '2026-01', ...overrides,
+    }));
+    assert.equal(response.status, 400, field);
+    const body = await response.text();
+    const errorText = body.match(/<p id="form-error" role="alert">([^<]*)<\/p>\s*<form/)?.[1];
+    assert.equal(errorText, escapeHtml(message));
+    assert.ok(body.includes(`name="${field}" aria-describedby="form-error" aria-invalid="true"`));
+    assert.ok(body.includes(`name="csrf" value="${csrf}"`));
+    assert.match(body, retained);
+    assert.match(body, /<h1>2026년 1월 가계부<\/h1>/);
+    assert.match(body, /name="memo" value="&lt;script&gt;&quot;&lt;\/script&gt;"/);
+    assert.equal(readFileSync(data, 'utf8'), before);
+  }
+  assert.deepEqual(cliJson('undo', '--list'), []);
+});
+
+test('웹 거래 요청의 출처, 크기, 형식, 칸 이름과 토큰을 순서대로 거른다', async (t) => {
+  const { base, cliJson, data, html } = await fixture(t);
+  const other = await fixture(t);
+  const csrf = formToken((await html('/')).body);
+  const otherToken = formToken((await other.html('/')).body);
+  const before = readFileSync(data, 'utf8');
+  const large = 'x'.repeat(10241);
+  for (const [status, body, headers, message] of [
+    [403, large, { origin: 'http://evil.example' }, /요청 출처가 이 서버가 아닙니다/],
+    [413, large, { 'content-type': 'application/json' }, /폼 본문은 10KB를 넘을 수 없습니다/],
+    [415, 'x'.repeat(10240), { 'content-type': 'application/json' }, /폼 본문 형식은/],
+    [415, 'unknown=1', { 'content-type': 'application/json' }, /폼 본문 형식은/],
+    [400, 'unknown=1', {}, /알 수 없는 매개변수입니다: unknown/],
+    [403, 'amount=1000', {}, /폼 토큰이 맞지 않습니다/],
+    [403, 'amount=1000&csrf=wrong', {}, /폼 토큰이 맞지 않습니다/],
+    [403, `amount=abc&month=bad&csrf=${otherToken}`, {}, /폼 토큰이 맞지 않습니다/],
+    [400, `amount=1000&month=bad&csrf=${csrf}`, {}, /--month는 YYYY-MM/],
+  ]) {
+    const response = await postForm(base, body, headers);
+    assert.equal(response.status, status);
+    assert.match(await response.text(), message);
+  }
+  const get = await html('/transactions', 405);
+  assert.equal(get.headers.get('allow'), 'POST');
+  assert.equal(readFileSync(data, 'utf8'), before);
+  assert.deepEqual(cliJson('undo', '--list'), []);
+});
+
+test('길이를 알 수 없는 폼도 10240바이트를 넘는 즉시 응답한다', { timeout: 5000 }, async (t) => {
+  const { base, cliJson, data } = await fixture(t);
+  const before = readFileSync(data, 'utf8');
+  const request = httpRequest(base + '/transactions', {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  });
+  t.after(() => request.destroy());
+  const replied = once(request, 'response');
+  request.write('x'.repeat(10240));
+  request.write('x');
+  const [response] = await replied;
+  assert.equal(response.statusCode, 413);
+  assert.equal(response.headers.connection, 'close');
+  response.resume();
+  await once(response, 'end');
+  assert.equal(readFileSync(data, 'utf8'), before);
+  assert.deepEqual(cliJson('undo', '--list'), []);
+});
+
+test('웹 거래 입력이 유효해도 손상된 데이터 파일에는 저장하지 않는다', async (t) => {
+  const { base, data, html } = await fixture(t);
+  const csrf = formToken((await html('/')).body);
+  const broken = '{깨진 JSON';
+  writeFileSync(data, broken);
+  const response = await postForm(base, new URLSearchParams({ amount: '1000', csrf }));
+  assert.equal(response.status, 500);
+  assert.match(await response.text(), /데이터 파일을 읽을 수 없습니다/);
+  assert.equal(readFileSync(data, 'utf8'), broken);
 });

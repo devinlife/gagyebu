@@ -5,8 +5,8 @@ import { DataError, UsageError } from './errors.js';
 import { currentMonth, currentYear, monthEnd, parseId, parseMonth, parseYear } from './input.js';
 import { parseListingFilters } from './listing.js';
 import { summarizeMonth, summarizeYear } from './report.js';
-import { loadData } from './store.js';
-import { describeAddedTransaction, filterTransactions } from './transaction.js';
+import { describeCommand, loadData, writeData } from './store.js';
+import { buildTransaction, describeAddedTransaction, filterTransactions, parseTransactionFields } from './transaction.js';
 import { renderErrorPage, renderReportPage } from './web.js';
 
 function queryOptions(params, names) {
@@ -72,12 +72,81 @@ const routes = new Map([
   }],
 ]);
 
+const transactionsPath = '/transactions';
+const MAX_FORM_BYTES = 10 * 1024;
+const formFields = ['amount', 'type', 'category', 'date', 'account', 'memo', 'tags', 'csrf', 'month'];
+
+async function readFormBody(request) {
+  if (Number(request.headers['content-length']) > MAX_FORM_BYTES) {
+    return null;
+  }
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of request.iterator({ destroyOnReturn: false })) {
+    size += chunk.length;
+    if (size > MAX_FORM_BYTES) {
+      return null;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function postTransaction(request, { options, token, port }, send, sendError) {
+  const { origin } = request.headers;
+  if (origin !== undefined && origin !== `http://127.0.0.1:${port}`) {
+    return sendError(403, `요청 출처가 이 서버가 아닙니다: ${origin}`);
+  }
+  const body = await readFormBody(request);
+  if (body === null) {
+    return sendError(413, '폼 본문은 10KB를 넘을 수 없습니다', { connection: 'close' });
+  }
+  const contentType = request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase();
+  if (contentType !== 'application/x-www-form-urlencoded') {
+    return sendError(415, '폼 본문 형식은 application/x-www-form-urlencoded여야 합니다');
+  }
+  const params = new URLSearchParams(body);
+  const { csrf, month: reportMonth, tags, ...raw } = queryOptions(params, formFields);
+  if (csrf !== token) {
+    return sendError(403, '폼 토큰이 맞지 않습니다');
+  }
+  const month = parseMonth(reportMonth ?? currentMonth());
+
+  let loaded;
+  let transaction;
+  try {
+    const fields = parseTransactionFields({ ...raw, tags: tags === undefined ? [] : [tags] });
+    loaded = loadData(options);
+    transaction = buildTransaction(loaded.data, fields, loaded.filePath);
+  } catch (error) {
+    if (!(error instanceof UsageError || error instanceof DataError) || error.field === undefined) {
+      throw error;
+    }
+    const { data } = loaded ?? loadData(options);
+    return send(400, reportPage(month, data, {
+      token, values: Object.fromEntries(params), error: { message: error.message, field: error.field },
+    }));
+  }
+
+  const { filePath, data } = loaded;
+  const { id, date, amount, type, category, account, memo, tags: parsedTags } = transaction;
+  const command = describeCommand([
+    'web', 'add', String(amount), '--type', type, '--category', category, '--account', account, '--date', date,
+    ...(memo ? ['--memo', memo] : []),
+    ...(parsedTags.length ? ['--tag', parsedTags.join(',')] : []),
+  ]);
+  data.transactions.push(transaction);
+  data.nextId += 1;
+  writeData(filePath, data, command);
+  send(303, '', { location: `/?month=${date.slice(0, 7)}&added=${id}` });
+}
+
 export function createServer(options) {
   const token = randomBytes(32).toString('hex');
-  return createHttpServer((request, response) => {
+  const server = createHttpServer((request, response) => {
     const queryStart = request.url.indexOf('?');
     const pathname = queryStart === -1 ? request.url : request.url.slice(0, queryStart);
-    const html = pathname === reportPath;
+    const html = pathname === reportPath || pathname === transactionsPath;
     const contentType = html ? 'text/html' : 'application/json';
 
     function send(status, value, headers) {
@@ -90,7 +159,30 @@ export function createServer(options) {
       send(status, html ? renderErrorPage(status, message) : { error: message }, headers);
     }
 
+    function handleError(error) {
+      if (response.destroyed) {
+        return;
+      }
+      if (error instanceof UsageError) {
+        sendError(400, error.message);
+      } else if (error instanceof DataError) {
+        sendError(500, error.message);
+      } else {
+        console.error(error);
+        sendError(500, '서버 내부 오류입니다');
+      }
+    }
+
     try {
+      if (pathname === transactionsPath) {
+        if (request.method !== 'POST') {
+          sendError(405, `POST만 받습니다: ${request.method}`, { allow: 'POST' });
+        } else {
+          const { port } = server.address();
+          postTransaction(request, { options, token, port }, send, sendError).catch(handleError);
+        }
+        return;
+      }
       const route = routes.get(pathname);
       if (!route) {
         sendError(404, `없는 경로입니다: ${pathname}`);
@@ -101,14 +193,8 @@ export function createServer(options) {
         send(200, route(new URLSearchParams(query), { options, token }));
       }
     } catch (error) {
-      if (error instanceof UsageError) {
-        sendError(400, error.message);
-      } else if (error instanceof DataError) {
-        sendError(500, error.message);
-      } else {
-        console.error(error);
-        sendError(500, '서버 내부 오류입니다');
-      }
+      handleError(error);
     }
   });
+  return server;
 }

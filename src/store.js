@@ -307,8 +307,8 @@ export function popHistory(filePath, entries = readHistory(filePath)) {
   return latest;
 }
 
-export function writeData(filePath, data) {
-  if (commandSummary !== undefined) {
+export function writeData(filePath, data, command = commandSummary) {
+  if (command !== undefined) {
     const before = readData(filePath);
     let entries;
     try {
@@ -320,7 +320,7 @@ export function writeData(filePath, data) {
       console.error(singleLineMessage(`경고: 이력 파일이 깨져 새로 시작합니다: ${error.details}`));
       entries = [];
     }
-    entries.push({ at: new Date().toISOString(), command: commandSummary, data: before });
+    entries.push({ at: new Date().toISOString(), command, data: before });
     writeJsonFile(historyPath(filePath), entries.slice(-HISTORY_LIMIT), '이력 파일');
   }
   writeJsonFile(filePath, data, '데이터 파일');

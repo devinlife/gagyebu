@@ -1,9 +1,10 @@
 import { findCategoryIndex } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
-import { parseAmount, parseDate, today } from '../input.js';
+import { parseAmount, parseDate, parseTags, parseType, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, readError, validateDataOption, writeData } from '../store.js';
-import { describeTransaction, parseTags } from '../transaction.js';
+import { describeTransaction } from '../transaction.js';
+import { EXPENSE } from '../types.js';
 
 export const summary = '거래 하나를 더합니다.';
 
@@ -30,22 +31,14 @@ export function run(argv) {
   }
 
   const [input] = args;
-  const amount = parseAmount(input);
-  if (amount === null) {
-    throw new UsageError(`금액은 양의 정수여야 합니다: ${input}`, USAGE);
-  }
+  const amount = parseAmount(input, USAGE);
 
-  const { type = 'expense', category = '기타', memo = '' } = options;
-  if (type !== 'expense' && type !== 'income') {
-    throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, USAGE);
-  }
+  const { category = '기타', memo = '' } = options;
+  const type = parseType(options.type ?? EXPENSE, USAGE);
   if (category === '') {
     throw new UsageError('--category 값이 비었습니다', USAGE);
   }
-  const date = options.date === undefined ? today() : parseDate(options.date);
-  if (date === null) {
-    throw new UsageError(`날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.date}`, USAGE);
-  }
+  const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
   validateDataOption(options, USAGE);
 
   const tags = parseTags(options.tag, USAGE);

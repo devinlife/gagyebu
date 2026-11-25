@@ -1,8 +1,10 @@
 import { findCategoryIndex, parseName } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatTable } from '../format.js';
+import { parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, writeData } from '../store.js';
+import { EXPENSE, TYPES, TYPE_LABELS } from '../types.js';
 
 export const summary = '분류 목록을 보고 분류를 더하거나 지웁니다.';
 
@@ -12,7 +14,6 @@ const USAGES = {
   add: '사용법: gagyebu category add <이름> [--type expense|income] [--data <경로>]',
   rm: '사용법: gagyebu category rm <이름> [--type expense|income] [--data <경로>]',
 };
-const LABELS = { expense: '지출', income: '수입' };
 
 function countCategories(transactions, type) {
   const counts = new Map();
@@ -26,7 +27,7 @@ function countCategories(transactions, type) {
 }
 
 function listCategories({ categories, transactions }, { type, json }) {
-  const types = type === undefined ? Object.keys(LABELS) : [type];
+  const types = type === undefined ? TYPES : [type];
   const list = {};
   for (const entryType of types) {
     const counts = countCategories(transactions, entryType);
@@ -39,7 +40,7 @@ function listCategories({ categories, transactions }, { type, json }) {
   const rows = [['구분', '분류', '거래']];
   for (const entryType of types) {
     for (const { name, count } of list[entryType]) {
-      rows.push([LABELS[entryType], name, `${count}건`]);
+      rows.push([TYPE_LABELS[entryType], name, `${count}건`]);
     }
   }
   console.log(formatTable(rows, { right: [2] }));
@@ -79,8 +80,8 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[0]}`, usage);
   }
   const name = isList ? undefined : parseName(args, usage);
-  if (options.type !== undefined && !Object.hasOwn(LABELS, options.type)) {
-    throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${options.type}`, usage);
+  if (options.type !== undefined) {
+    parseType(options.type, usage);
   }
   const { filePath, data } = loadData(options, usage);
   if (isList) {
@@ -88,7 +89,7 @@ export function run(argv) {
     return 0;
   }
 
-  const { type = 'expense' } = options;
+  const { type = EXPENSE } = options;
   const index = findCategoryIndex(data.categories, type, name);
   if (command === 'add') {
     if (index !== -1) {
@@ -96,7 +97,7 @@ export function run(argv) {
     }
     data.categories[type].push(name);
     writeData(filePath, data);
-    console.log(`분류를 더했습니다: ${LABELS[type]} ${name}`);
+    console.log(`분류를 더했습니다: ${TYPE_LABELS[type]} ${name}`);
     return 0;
   }
 
@@ -107,11 +108,11 @@ export function run(argv) {
   if (count > 0) {
     throw new DataError(`${count}건의 거래가 쓰는 분류입니다: ${name}`);
   }
-  if (type === 'expense' && Object.hasOwn(data.budgets, name)) {
+  if (type === EXPENSE && Object.hasOwn(data.budgets, name)) {
     throw new DataError(`예산이 있는 분류입니다: ${name}`);
   }
   data.categories[type].splice(index, 1);
   writeData(filePath, data);
-  console.log(`분류를 지웠습니다: ${LABELS[type]} ${name}`);
+  console.log(`분류를 지웠습니다: ${TYPE_LABELS[type]} ${name}`);
   return 0;
 }

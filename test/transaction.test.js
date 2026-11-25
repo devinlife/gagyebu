@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { describeTransaction, parseId, parseTags } from '../src/transaction.js';
+import { UsageError } from '../src/errors.js';
+import { parseId, parseTags } from '../src/input.js';
+import { describeTransaction } from '../src/transaction.js';
+
+const usage = '사용법: gagyebu edit';
 
 test('거래 확인 줄에 날짜, 유형, 금액, 분류와 메모를 표시한다', () => {
   assert.equal(describeTransaction({
@@ -14,10 +18,12 @@ test('거래 확인 줄에 날짜, 유형, 금액, 분류와 메모를 표시한
 
 test('거래 번호는 앞에 0이나 부호가 없는 양의 안전한 정수만 받는다', () => {
   for (const text of ['1', '42', '9007199254740991']) {
-    assert.equal(parseId(text), Number(text), text);
+    assert.equal(parseId(text, usage), Number(text), text);
   }
   for (const text of ['0', '-1', '01', '1.5', '1e3', 'abc', '', ' 1', '+1', '9007199254740992', '1\n']) {
-    assert.equal(parseId(text), null, JSON.stringify(text));
+    assert.throws(() => parseId(text, usage), {
+      constructor: UsageError, message: `번호는 양의 정수여야 합니다: ${text}`, usage,
+    }, JSON.stringify(text));
   }
 });
 

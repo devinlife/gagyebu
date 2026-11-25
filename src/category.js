@@ -1,4 +1,5 @@
 import { UsageError } from './errors.js';
+import { TYPES } from './types.js';
 
 export function parseName(args, usage) {
   if (args.length === 0) {
@@ -16,7 +17,7 @@ export function parseName(args, usage) {
 }
 
 export function findCategoryIndex(categories, type, name) {
-  if (type !== 'expense' && type !== 'income') {
+  if (!TYPES.includes(type)) {
     return -1;
   }
   return categories[type].indexOf(name);

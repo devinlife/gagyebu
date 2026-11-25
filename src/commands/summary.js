@@ -1,13 +1,13 @@
 import { UsageError } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
-import { today } from '../input.js';
+import { parseMonth, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData } from '../store.js';
+import { EXPENSE, INCOME, TYPES, TYPE_LABELS } from '../types.js';
 
 export const summary = '한 달의 수입·지출과 분류별 합계를 보여 줍니다.';
 
 const USAGE = '사용법: gagyebu summary [--month YYYY-MM] [--json] [--data <경로>]';
-const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function categoryBreakdown(categories, total) {
   return [...categories.values()]
@@ -51,16 +51,13 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[0]}`, USAGE);
   }
 
-  const { month = today().slice(0, 7) } = options;
-  if (!monthPattern.test(month)) {
-    throw new UsageError(`--month는 YYYY-MM 형식의 달이어야 합니다: ${month}`, USAGE);
-  }
+  const month = parseMonth(options.month ?? today().slice(0, 7), USAGE);
   const { data: { budgets, transactions } } = loadData(options, USAGE);
 
   const totals = { expense: 0, income: 0 };
   const categories = { expense: new Map(), income: new Map() };
   for (const { date, type, category, amount } of transactions) {
-    if ((type !== 'expense' && type !== 'income') || date.slice(0, 7) !== month) {
+    if (!TYPES.includes(type) || date.slice(0, 7) !== month) {
       continue;
     }
     totals[type] += amount;
@@ -92,16 +89,16 @@ export function run(argv) {
     return 0;
   }
 
-  const lines = [title, `수입 ${formatWon(income)}`, `지출 ${formatWon(expense)}`, `차액 ${formatWon(net)}`];
+  const lines = [title, `${TYPE_LABELS[INCOME]} ${formatWon(income)}`, `${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}`, `차액 ${formatWon(net)}`];
   if (expenseByCategory.length > 0) {
-    lines.push('', categoryTable('지출 분류', expenseByCategory, expense, true));
+    lines.push('', categoryTable(`${TYPE_LABELS[EXPENSE]} 분류`, expenseByCategory, expense, true));
     const overBudget = expenseByCategory.filter(({ over }) => over > 0).map(({ category }) => category);
     if (overBudget.length > 0) {
       lines.push(`예산 초과: ${overBudget.join(', ')}`);
     }
   }
   if (incomeByCategory.length > 0) {
-    lines.push('', categoryTable('수입 분류', incomeByCategory, income));
+    lines.push('', categoryTable(`${TYPE_LABELS[INCOME]} 분류`, incomeByCategory, income));
   }
   console.log(lines.join('\n'));
   return 0;

@@ -1,4 +1,7 @@
 import { UsageError } from './errors.js';
+import { TYPES } from './types.js';
+
+export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const relativeDays = new Map([['오늘', 0], ['어제', 1], ['그제', 2]]);
 const numberPattern = '[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+';
@@ -36,7 +39,7 @@ export function today(env = process.env) {
   return [year, month, day].join('-');
 }
 
-export function parseDate(text, env = process.env) {
+export function parseDate(text, usage, subject = '날짜는', env = process.env) {
   if (isValidDate(text)) {
     return text;
   }
@@ -46,38 +49,85 @@ export function parseDate(text, env = process.env) {
     const [year, month, day] = today(env).split('-').map(Number);
     const date = new Date(0);
     date.setUTCFullYear(year, month - 1, day - daysAgo);
-    return date.getUTCFullYear() >= 0 ? date.toISOString().slice(0, 10) : null;
+    if (date.getUTCFullYear() >= 0) {
+      return date.toISOString().slice(0, 10);
+    }
+  } else {
+    const match = /^(\d{2})-(\d{2})$/.exec(text) ?? /^(\d{1,2})\/(\d{1,2})$/.exec(text);
+    if (match) {
+      const [, month, day] = match;
+      const year = today(env).slice(0, 4);
+      const date = [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
+      if (isValidDate(date)) {
+        return date;
+      }
+    }
   }
 
-  const match = /^(\d{2})-(\d{2})$/.exec(text) ?? /^(\d{1,2})\/(\d{1,2})$/.exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const [, month, day] = match;
-  const year = today(env).slice(0, 4);
-  const date = [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
-  return isValidDate(date) ? date : null;
+  throw new UsageError(`${subject} YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${text}`, usage);
 }
 
-export function parseAmount(text) {
+export function parsePeriod(options, usage) {
+  const from = options.from === undefined ? undefined : parseDate(options.from, usage, '--from은');
+  const to = options.to === undefined ? undefined : parseDate(options.to, usage, '--to는');
+  if (from !== undefined && to !== undefined && from > to) {
+    throw new UsageError(`--from이 --to보다 늦습니다: ${from} > ${to}`, usage);
+  }
+  return { from, to };
+}
+
+export function parseMonth(text, usage) {
+  if (!monthPattern.test(text)) {
+    throw new UsageError(`--month는 YYYY-MM 형식의 달이어야 합니다: ${text}`, usage);
+  }
+  return text;
+}
+
+export function parseType(text, usage) {
+  if (!TYPES.includes(text)) {
+    throw new UsageError(`--type은 ${TYPES.join(' 또는 ')}이어야 합니다: ${text}`, usage);
+  }
+  return text;
+}
+
+export function parseAmount(text, usage) {
   const value = text.endsWith('원') ? text.slice(0, -1) : text;
   const match = amountPattern.exec(value);
-  if (!match || value.endsWith(' ')) {
-    return null;
+  if (match && !value.endsWith(' ')) {
+    const [, tenThousandsText, thousandsText = '0', remainderText = '0'] = match;
+    const tenThousands = Number((tenThousandsText ?? '0').replaceAll(',', ''));
+    const thousands = Number(thousandsText);
+    const remainder = Number(remainderText.replaceAll(',', ''));
+    const amount = tenThousands * 10000 + thousands * 1000 + remainder;
+    if (!(tenThousandsText !== undefined && tenThousands === 0)
+        && !(thousands > 0 && remainder >= 1000)
+        && !(tenThousands > 0 && remainder >= 10000)
+        && amount > 0 && [tenThousands, thousands, remainder, amount].every(Number.isSafeInteger)) {
+      return amount;
+    }
   }
 
-  const [, tenThousandsText, thousandsText = '0', remainderText = '0'] = match;
-  const tenThousands = Number((tenThousandsText ?? '0').replaceAll(',', ''));
-  const thousands = Number(thousandsText);
-  const remainder = Number(remainderText.replaceAll(',', ''));
-  if ((tenThousandsText !== undefined && tenThousands === 0)
-    || (thousands > 0 && remainder >= 1000)
-    || (tenThousands > 0 && remainder >= 10000)) {
-    return null;
-  }
+  throw new UsageError(`금액은 양의 정수여야 합니다: ${text}`, usage);
+}
 
-  const amount = tenThousands * 10000 + thousands * 1000 + remainder;
-  return amount > 0 && [tenThousands, thousands, remainder, amount].every(Number.isSafeInteger)
-    ? amount : null;
+export function parseId(text, usage) {
+  const id = Number(text);
+  if (!/^[1-9][0-9]*$/.test(text) || !Number.isSafeInteger(id)) {
+    throw new UsageError(`번호는 양의 정수여야 합니다: ${text}`, usage);
+  }
+  return id;
+}
+
+export function parseTags(values = [], usage) {
+  const tags = new Set();
+  for (const value of values) {
+    for (const part of value.split(',')) {
+      const tag = part.trim().replace(/^#/, '');
+      if (!tag || /\s/.test(tag) || [...tag].length > 20) {
+        throw new UsageError(`태그는 공백 없는 1~20자여야 합니다: ${part}`, usage);
+      }
+      tags.add(tag);
+    }
+  }
+  return [...tags];
 }

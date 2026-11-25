@@ -1,9 +1,10 @@
 import { writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
 import { DataError, UsageError } from '../errors.js';
+import { parsePeriod } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
-import { sortTransactions, parsePeriod } from './list.js';
+import { sortTransactions } from './list.js';
 
 export const summary = '거래를 CSV로 내보냅니다.';
 

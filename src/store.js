@@ -6,9 +6,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { DataError, UsageError } from './errors.js';
 import { isValidDate } from './input.js';
+import { RECORD_TYPES, TYPES } from './types.js';
 
 export const CURRENT_VERSION = 2;
-const RECORD_TYPES = ['expense', 'income', 'transfer'];
 export const DEFAULT_CATEGORIES = {
   expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', '기타'],
   income: ['급여', '용돈', '기타'],
@@ -48,7 +48,7 @@ function migrateVersionOne(data) {
   if (Array.isArray(data.transactions)) {
     for (const transaction of data.transactions) {
       const { type, category } = transaction ?? {};
-      if ((type === 'expense' || type === 'income')
+      if (TYPES.includes(type)
           && typeof category === 'string' && category !== '' && !categories[type].includes(category)) {
         categories[type].push(category);
       }
@@ -140,7 +140,7 @@ export function readData(filePath) {
     data = { ...MIGRATIONS[v](data), version: v + 1 };
   }
   const { categories } = data;
-  if (!['expense', 'income'].every((type) =>
+  if (!TYPES.every((type) =>
     Array.isArray(categories?.[type]) && categories[type].every((name) => typeof name === 'string'))) {
     throw readError(filePath, 'categories가 올바르지 않습니다');
   }

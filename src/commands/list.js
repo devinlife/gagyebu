@@ -1,9 +1,9 @@
 import { UsageError } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
-import { parseDate } from '../input.js';
+import { parsePeriod, parseTags, parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
-import { parseTags } from '../transaction.js';
+import { EXPENSE, INCOME, TYPE_LABELS } from '../types.js';
 
 export const summary = '거래 목록을 보여 줍니다.';
 
@@ -16,21 +16,6 @@ export function run(argv) {
     }
     return () => true;
   });
-}
-
-export function parsePeriod(options, usage) {
-  const from = options.from === undefined ? undefined : parseDate(options.from);
-  if (from === null) {
-    throw new UsageError(`--from은 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.from}`, usage);
-  }
-  const to = options.to === undefined ? undefined : parseDate(options.to);
-  if (to === null) {
-    throw new UsageError(`--to는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${options.to}`, usage);
-  }
-  if (from !== undefined && to !== undefined && from > to) {
-    throw new UsageError(`--from이 --to보다 늦습니다: ${from} > ${to}`, usage);
-  }
-  return { from, to };
 }
 
 export function sortTransactions(transactions) {
@@ -59,8 +44,8 @@ export function showTransactions(argv, usage, prepareMatch) {
 
   const { type, category } = options;
   const { from, to } = parsePeriod(options, usage);
-  if (type !== undefined && type !== 'expense' && type !== 'income') {
-    throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, usage);
+  if (type !== undefined) {
+    parseType(type, usage);
   }
   if (category === '') {
     throw new UsageError('--category 값이 비었습니다', usage);
@@ -92,7 +77,7 @@ export function showTransactions(argv, usage, prepareMatch) {
   let income = 0;
   let expense = 0;
   for (const transaction of list) {
-    const isIncome = transaction.type === 'income';
+    const isIncome = transaction.type === INCOME;
     if (isIncome) {
       income += transaction.amount;
     } else {
@@ -101,12 +86,12 @@ export function showTransactions(argv, usage, prepareMatch) {
     const tags = Array.isArray(transaction.tags) ? transaction.tags : [];
     const memo = [transaction.memo, ...tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
     rows.push([
-      String(transaction.id), transaction.date, isIncome ? '수입' : '지출',
+      String(transaction.id), transaction.date, TYPE_LABELS[transaction.type],
       formatWon(transaction.amount), transaction.category, memo,
     ]);
   }
 
   console.log(formatTable(rows, { right: [0, 3] }));
-  console.log(`${list.length}건, 수입 ${formatWon(income)}, 지출 ${formatWon(expense)}`);
+  console.log(`${list.length}건, ${TYPE_LABELS[INCOME]} ${formatWon(income)}, ${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}`);
   return 0;
 }

@@ -4,6 +4,7 @@ import { formatPercent, formatTable, formatWon } from '../format.js';
 import { parseAmount, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
+import { EXPENSE } from '../types.js';
 
 export const summary = '분류별 월 예산을 정하고 사용률을 보여 줍니다.';
 
@@ -17,7 +18,7 @@ const USAGES = {
 function listBudgets({ budgets, transactions }, month, { json }) {
   const spending = new Map();
   for (const { date, type, category, amount } of transactions) {
-    if (type === 'expense' && date.slice(0, 7) === month) {
+    if (type === EXPENSE && date.slice(0, 7) === month) {
       spending.set(category, (spending.get(category) ?? 0) + amount);
     }
   }
@@ -91,12 +92,9 @@ export function run(argv) {
     if (args.length > 2) {
       throw new UsageError(`예상하지 않은 인자 ${args[2]}`, usage);
     }
-    const amount = parseAmount(args[1]);
-    if (amount === null) {
-      throw new UsageError(`금액은 양의 정수여야 합니다: ${args[1]}`, usage);
-    }
+    const amount = parseAmount(args[1], usage);
     const { filePath, data } = loadData(options, usage);
-    if (findCategoryIndex(data.categories, 'expense', name) === -1) {
+    if (findCategoryIndex(data.categories, EXPENSE, name) === -1) {
       throw new DataError(`없는 분류입니다: ${name}`);
     }
     data.budgets = { ...data.budgets, [name]: amount };

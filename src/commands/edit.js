@@ -1,9 +1,9 @@
 import { findCategoryIndex } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
-import { parseAmount, parseDate } from '../input.js';
+import { parseAmount, parseDate, parseId, parseTags, parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { describeTransaction, parseId, parseTags } from '../transaction.js';
+import { describeTransaction } from '../transaction.js';
 
 export const summary = '거래의 값 일부를 바꿉니다.';
 
@@ -29,24 +29,15 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[1]}`, USAGE);
   }
 
-  const id = parseId(args[0]);
-  if (id === null) {
-    throw new UsageError(`번호는 양의 정수여야 합니다: ${args[0]}`, USAGE);
-  }
+  const id = parseId(args[0], USAGE);
 
   const changes = {};
   const { amount, type, category, date, memo } = options;
   if (amount !== undefined) {
-    changes.amount = parseAmount(amount);
-    if (changes.amount === null) {
-      throw new UsageError(`금액은 양의 정수여야 합니다: ${amount}`, USAGE);
-    }
+    changes.amount = parseAmount(amount, USAGE);
   }
   if (type !== undefined) {
-    if (type !== 'expense' && type !== 'income') {
-      throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, USAGE);
-    }
-    changes.type = type;
+    changes.type = parseType(type, USAGE);
   }
   if (category !== undefined) {
     if (category === '') {
@@ -55,10 +46,7 @@ export function run(argv) {
     changes.category = category;
   }
   if (date !== undefined) {
-    changes.date = parseDate(date);
-    if (changes.date === null) {
-      throw new UsageError(`날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${date}`, USAGE);
-    }
+    changes.date = parseDate(date, USAGE);
   }
   if (memo !== undefined) {
     changes.memo = memo;

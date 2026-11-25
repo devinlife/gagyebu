@@ -1,7 +1,8 @@
 import { DataError, UsageError } from '../errors.js';
+import { parseId } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, writeData } from '../store.js';
-import { describeTransaction, parseId } from '../transaction.js';
+import { describeTransaction } from '../transaction.js';
 
 export const summary = '거래 하나를 지웁니다.';
 
@@ -26,10 +27,7 @@ export function run(argv) {
     throw new UsageError(`예상하지 않은 인자 ${args[1]}`, USAGE);
   }
 
-  const id = parseId(args[0]);
-  if (id === null) {
-    throw new UsageError(`번호는 양의 정수여야 합니다: ${args[0]}`, USAGE);
-  }
+  const id = parseId(args[0], USAGE);
   const { filePath, data } = loadData(options, USAGE);
 
   const index = data.transactions.findIndex((entry) => entry.id === id);

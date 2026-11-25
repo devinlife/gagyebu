@@ -214,8 +214,7 @@ function validateData(data, invalid) {
     data = { ...MIGRATIONS[v](data), version: v + 1 };
   }
   const { categories } = data;
-  if (!TYPES.every((type) =>
-    Array.isArray(categories?.[type]) && categories[type].every((name) => typeof name === 'string'))) {
+  if (!TYPES.every((type) => isStringArray(categories?.[type]))) {
     throw invalid('categories가 올바르지 않습니다');
   }
 

@@ -6,7 +6,7 @@ import {
 import path from 'node:path';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES, loadData, MIGRATIONS, readData, resolveDataPath, writeData } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES, loadData, MIGRATIONS, readBackup, readData, resolveDataPath, writeData } from '../src/store.js';
 import { runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 test('데이터 경로는 옵션, 환경 변수, 기본값 순으로 정한다', (t) => {
@@ -179,6 +179,37 @@ test('깨진 JSON과 올바르지 않거나 지원하지 않는 버전을 처리
     assert.throws(() => readData(filePath), {
       constructor: DataError,
       message: `데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})`,
+    });
+  }
+});
+
+test('옛 버전 백업을 현재 버전으로 올려 읽는다', (t) => {
+  const filePath = path.join(tempDir(t), 'backup.json');
+  const transactions = [transaction({ id: 1, category: '커피' })];
+  const original = writeJson(filePath, { version: 1, nextId: 2, transactions });
+
+  const data = readBackup(filePath);
+  assert.equal(data.version, CURRENT_VERSION);
+  assert.ok(data.categories.expense.includes('커피'));
+  assert.deepEqual(data.transactions, transactions);
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+});
+
+test('없거나 깨진 백업은 백업 파일 읽기 오류로 보고한다', (t) => {
+  const filePath = path.join(tempDir(t), 'backup.json');
+  for (const [contents, reason] of [
+    [undefined, 'ENOENT'],
+    ['{', 'JSON 형식이 잘못되었습니다'],
+    ['{}', 'version이 올바르지 않습니다: undefined'],
+    [JSON.stringify({ version: CURRENT_VERSION + 1 }), `지원하지 않는 version입니다: ${CURRENT_VERSION + 1}`],
+    [JSON.stringify(currentData({ transactions: [null] })), '거래 1번째: 객체가 아닙니다'],
+  ]) {
+    if (contents !== undefined) {
+      writeFileSync(filePath, contents);
+    }
+    assert.throws(() => readBackup(filePath), {
+      constructor: DataError,
+      message: `백업 파일을 읽을 수 없습니다: ${filePath} (${reason})`,
     });
   }
 });

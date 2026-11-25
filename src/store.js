@@ -29,7 +29,11 @@ export function resolveDataPath(dataOption, env = process.env, home = os.homedir
 }
 
 export function readError(filePath, reason) {
-  return new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})`);
+  return fileReadError('데이터', filePath, reason);
+}
+
+function fileReadError(label, filePath, reason) {
+  return new DataError(`${label} 파일을 읽을 수 없습니다: ${filePath} (${reason})`);
 }
 
 function migrateVersionOne(data) {
@@ -128,14 +132,29 @@ export function readData(filePath) {
     throw readError(filePath, error.code ?? error.message);
   }
 
+  return parseDataText(text, (reason) => readError(filePath, reason));
+}
+
+export function readBackup(filePath) {
+  const invalid = (reason) => fileReadError('백업', filePath, reason);
+  let text;
+  try {
+    text = readFileSync(filePath, 'utf8');
+  } catch (error) {
+    throw invalid(error.code ?? error.message);
+  }
+  return parseDataText(text, invalid);
+}
+
+function parseDataText(text, invalid) {
   let data;
   try {
     data = JSON.parse(text);
   } catch {
-    throw readError(filePath, 'JSON 형식이 잘못되었습니다');
+    throw invalid('JSON 형식이 잘못되었습니다');
   }
 
-  return validateData(data, (reason) => readError(filePath, reason));
+  return validateData(data, invalid);
 }
 
 function validateData(data, invalid) {

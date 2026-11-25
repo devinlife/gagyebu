@@ -1,4 +1,5 @@
 import { DataError, UsageError, unexpectedArgument } from './errors.js';
+import { countTransactionsBy } from './transaction-counts.js';
 import { EXPENSE, TYPES } from './types.js';
 
 export const DEFAULT_CATEGORY = '기타';
@@ -34,14 +35,7 @@ export function requireCategoryIndex(categories, type, name, suffix = '') {
 }
 
 export function countCategories(transactions, type) {
-  const counts = new Map();
-  for (const transaction of transactions) {
-    if (transaction.type === type) {
-      const { category } = transaction;
-      counts.set(category, (counts.get(category) ?? 0) + 1);
-    }
-  }
-  return counts;
+  return countTransactionsBy(transactions.filter((transaction) => transaction.type === type), 'category');
 }
 
 export function listCategories({ categories, transactions }, type) {

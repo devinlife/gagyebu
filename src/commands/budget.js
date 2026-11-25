@@ -2,7 +2,7 @@ import { parseName } from '../category.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { currentMonth, parseAmount } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseSubcommand } from '../options.js';
 import { budgetUsage, removeBudget, setBudget } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 
@@ -36,34 +36,13 @@ function listBudgets({ budgets, transactions }, month, { json }) {
 }
 
 export function run(argv) {
-  const [command, ...operands] = argv;
-  if (command === '--help') {
-    const { args, error } = parseOptions(operands, {});
-    if (error || args.length > 0) {
-      throw error ? new UsageError(error, USAGE) : unexpectedArgument(args[0], USAGE);
-    }
-    console.log(Object.values(USAGES).join('\n'));
-    return 0;
-  }
-  if (command === undefined) {
-    throw new UsageError('예산 하위 명령이 없습니다', USAGE);
-  }
-  if (!Object.hasOwn(USAGES, command)) {
-    throw new UsageError(`알 수 없는 예산 하위 명령입니다: ${command}`, USAGE);
-  }
-
-  const usage = USAGES[command];
-  const { args, options, error } = parseOptions(operands, {
-    values: ['data'],
-    flags: command === 'list' ? ['help', 'json'] : ['help'],
+  const parsed = parseSubcommand(argv, {
+    label: '예산', usage: USAGE, usages: USAGES,
   });
-  if (error) {
-    throw new UsageError(error, usage);
-  }
-  if (options.help) {
-    console.log(usage);
+  if (parsed === null) {
     return 0;
   }
+  const { command, args, options, usage } = parsed;
   validateDataOption(options, usage);
 
   if (command === 'list') {

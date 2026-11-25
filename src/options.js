@@ -1,3 +1,4 @@
+import { UsageError, unexpectedArgument } from './errors.js';
 import { withParticle } from './format.js';
 
 export function parseOptions(argv, { values = [], flags = [], repeatable = [] }) {
@@ -44,4 +45,39 @@ export function parseOptions(argv, { values = [], flags = [], repeatable = [] })
   }
 
   return { args, options: Object.fromEntries(options), error };
+}
+
+export function parseSubcommand(argv, { label, usage, usages, values = {} }) {
+  const [command, ...operands] = argv;
+  if (command === '--help') {
+    const parsed = parseOptions(operands, {});
+    if (parsed.error) {
+      throw new UsageError(parsed.error, usage);
+    }
+    if (parsed.args.length > 0) {
+      throw unexpectedArgument(parsed.args[0], usage);
+    }
+    console.log(Object.values(usages).join('\n'));
+    return null;
+  }
+  if (command === undefined) {
+    throw new UsageError(`${label} 하위 명령이 없습니다`, usage);
+  }
+  if (!Object.hasOwn(usages, command)) {
+    throw new UsageError(`알 수 없는 ${label} 하위 명령입니다: ${command}`, usage);
+  }
+
+  const commandUsage = usages[command];
+  const { args, options, error } = parseOptions(operands, {
+    values: ['data', ...(values[command] ?? [])],
+    flags: command === 'list' ? ['help', 'json'] : ['help'],
+  });
+  if (error) {
+    throw new UsageError(error, commandUsage);
+  }
+  if (options.help) {
+    console.log(commandUsage);
+    return null;
+  }
+  return { command, usage: commandUsage, args, options };
 }

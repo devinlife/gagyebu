@@ -1,4 +1,5 @@
 import { DataError } from './errors.js';
+import { countTransactionsBy } from './transaction-counts.js';
 
 export const DEFAULT_ACCOUNT = '현금';
 const accountHint = ' (gagyebu account add로 더하세요)';
@@ -15,16 +16,8 @@ export function requireAccount(accounts, name, suffix = accountHint) {
   return index;
 }
 
-function countAccounts(transactions) {
-  const counts = new Map();
-  for (const { account } of transactions) {
-    counts.set(account, (counts.get(account) ?? 0) + 1);
-  }
-  return counts;
-}
-
 export function listAccounts({ accounts, transactions }) {
-  const counts = countAccounts(transactions);
+  const counts = countTransactionsBy(transactions, 'account');
   return accounts.map(({ name, opening }) => ({ name, opening, count: counts.get(name) ?? 0 }));
 }
 
@@ -37,7 +30,7 @@ export function addAccount(accounts, name, opening) {
 
 export function removeAccount({ accounts, transactions }, name) {
   const index = requireAccount(accounts, name, '');
-  const count = countAccounts(transactions).get(name) ?? 0;
+  const count = countTransactionsBy(transactions, 'account').get(name) ?? 0;
   if (count > 0) {
     throw new DataError(`${count}건의 거래가 쓰는 계좌입니다: ${name}`);
   }

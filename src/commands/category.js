@@ -1,8 +1,8 @@
 import { addCategory, listCategories, parseName, removeCategory } from '../category.js';
-import { UsageError, unexpectedArgument } from '../errors.js';
+import { unexpectedArgument } from '../errors.js';
 import { formatTable } from '../format.js';
 import { parseType } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseSubcommand } from '../options.js';
 import { loadData, writeData } from '../store.js';
 import { EXPENSE, TYPE_LABELS } from '../types.js';
 
@@ -32,35 +32,15 @@ function printCategories(list, { json }) {
 }
 
 export function run(argv) {
-  const [command, ...operands] = argv;
-  if (command === '--help') {
-    const { args, error } = parseOptions(operands, {});
-    if (error || args.length > 0) {
-      throw error ? new UsageError(error, USAGE) : unexpectedArgument(args[0], USAGE);
-    }
-    console.log(Object.values(USAGES).join('\n'));
-    return 0;
-  }
-  if (command === undefined) {
-    throw new UsageError('분류 하위 명령이 없습니다', USAGE);
-  }
-  if (!Object.hasOwn(USAGES, command)) {
-    throw new UsageError(`알 수 없는 분류 하위 명령입니다: ${command}`, USAGE);
-  }
-
-  const usage = USAGES[command];
-  const isList = command === 'list';
-  const { args, options, error } = parseOptions(operands, {
-    values: ['type', 'data'],
-    flags: isList ? ['help', 'json'] : ['help'],
+  const parsed = parseSubcommand(argv, {
+    label: '분류', usage: USAGE, usages: USAGES,
+    values: { list: ['type'], add: ['type'], rm: ['type'] },
   });
-  if (error) {
-    throw new UsageError(error, usage);
-  }
-  if (options.help) {
-    console.log(usage);
+  if (parsed === null) {
     return 0;
   }
+  const { command, args, options, usage } = parsed;
+  const isList = command === 'list';
   if (isList && args.length > 0) {
     throw unexpectedArgument(args[0], usage);
   }

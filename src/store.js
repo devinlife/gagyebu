@@ -9,7 +9,7 @@ import { DEFAULT_CATEGORY } from './category.js';
 import { DataError, singleLineMessage } from './errors.js';
 import { withParticle } from './format.js';
 import { isValidDate, parseNonemptyOption } from './input.js';
-import { RECORD_TYPES, TYPES } from './types.js';
+import { RECORD_TYPES, TRANSFER, TYPES } from './types.js';
 
 export const CURRENT_VERSION = 3;
 export const DEFAULT_CATEGORIES = {
@@ -97,6 +97,9 @@ function validateTransaction(transaction, index, invalid) {
     if (typeof transaction[field] !== 'string') {
       throw invalid(`${label}: ${withParticle(field, '이/가')} 문자열이 아닙니다`);
     }
+  }
+  if (type === TRANSFER && (typeof transaction.toAccount !== 'string' || transaction.toAccount === '')) {
+    throw readError(filePath, `${label}: toAccount가 문자열이 아닙니다`);
   }
   if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) {
     throw invalid(`${label}: tags가 문자열 배열이 아닙니다`);

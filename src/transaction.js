@@ -4,11 +4,17 @@ import { DataError, UsageError } from './errors.js';
 import { formatWon, withParticle } from './format.js';
 import { parseAmount, parseDate, parseImportType, parseTags } from './input.js';
 import { readError } from './store.js';
-import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
+import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
 const categoryHint = ' (gagyebu category add로 더하세요)';
 
-export function describeTransaction({ id, date, type, amount, category, memo, tags }) {
+export function categoryText({ type, account, toAccount, category }) {
+  return type === TRANSFER ? `${account}→${toAccount}` : category;
+}
+
+export function describeTransaction(transaction) {
+  const { id, date, type, amount, memo, tags } = transaction;
+  const category = categoryText(transaction);
   const label = TYPE_LABELS[type];
   const description = memo ? `${category} ${memo}` : category;
   const tagText = Array.isArray(tags) && tags.length > 0 ? ` #${tags.join(' #')}` : '';
@@ -16,13 +22,30 @@ export function describeTransaction({ id, date, type, amount, category, memo, ta
 }
 
 export function buildTransaction(data, { date, type, amount, category, account = DEFAULT_ACCOUNT, memo, tags }, filePath) {
-  const { nextId: id } = data;
-  if (!Number.isSafeInteger(id) || id < 1) {
-    throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
-  }
+  const id = requireNextId(data, filePath);
   requireCategoryIndex(data.categories, type, category, categoryHint);
   requireAccount(data.accounts, account);
   return { id, date, type, amount, category, account, memo, tags };
+}
+
+export function requireDistinctAccounts(from, to, usage) {
+  if (from === to) {
+    throw new UsageError('보내는 계좌와 받는 계좌는 달라야 합니다', usage);
+  }
+}
+
+export function buildTransfer(data, { date, amount, from, to, memo }, filePath) {
+  const id = requireNextId(data, filePath);
+  requireAccount(data.accounts, from);
+  requireAccount(data.accounts, to);
+  return { id, date, type: TRANSFER, amount, category: '', account: from, toAccount: to, memo, tags: [] };
+}
+
+function requireNextId({ nextId: id }, filePath) {
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
+  }
+  return id;
 }
 
 export function importTransactions(data, rows, filePath) {

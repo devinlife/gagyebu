@@ -39,7 +39,7 @@ const february = [
   { date: '2026-01-31', type: 'income', category: '급여', amount: 1000000 },
   { date: '2026-02-20', type: 'expense', category: '식비', amount: 10000 },
   { date: '2026-02-28', type: 'expense', category: '식비', amount: 20000 },
-  { date: '2026-02-28', type: 'transfer', category: '식비', amount: 80000 },
+  { date: '2026-02-28', type: 'transfer', category: '', toAccount: '통장', amount: 80000 },
 ];
 
 test('지정한 달의 수입과 지출 및 분류별 집계를 JSON으로 출력한다', (t) => {
@@ -215,7 +215,7 @@ test('집계할 거래가 없는 달은 안내 한 줄 또는 빈 JSON 집계를
   assert.deepEqual(readdirSync(directory), []);
   write([{ date: '2026-03-01', type: 'expense', category: '식비', amount: 1000 }]);
   assertEmpty();
-  write([{ date: '2026-02-10', type: 'transfer', category: '식비', amount: 1000 }]);
+  write([{ date: '2026-02-10', type: 'transfer', category: '', toAccount: '통장', amount: 1000 }]);
   assertEmpty();
 });
 

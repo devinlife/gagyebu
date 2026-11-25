@@ -67,11 +67,11 @@ test('이번 달 지출만 합산하고 사용률과 분류 이름 순으로 예
     ['2026-02-28', 'expense', '식비', 20000],
     ['2026-04-01', 'expense', '식비', 20000],
     ['2026-03-03', 'income', '식비', 20000],
-    ['2026-03-04', 'transfer', '식비', 20000],
+    ['2026-03-04', 'transfer', '', 20000, '통장'],
     ['2026-03-05', 'expense', '교통', 6000],
     ['2026-03-06', 'expense', '문화', 12000],
     ['2026-03-07', 'expense', '생활', 5000],
-  ].map(([date, type, category, amount], index) => transaction({ id: index + 1, date, type, category, amount }));
+  ].map(([date, type, category, amount, toAccount], index) => transaction({ id: index + 1, date, type, category, amount, toAccount }));
   const original = write({ 문화: 24000, 식비: 12000, 교통: 12000, 의료: 5000 }, transactions);
 
   assert.deepEqual(JSON.parse(output(run('list', '--data', data, '--json'))), {

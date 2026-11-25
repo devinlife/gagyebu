@@ -7,7 +7,7 @@ const usage = '사용법: gagyebu stats [--from <날짜>] [--to <날짜>] [--jso
 const transactions = [
   transaction({ id: 1, date: '2026-11-23', amount: 12000, memo: '점심' }),
   transaction({ id: 2, date: '2026-11-26', amount: 3000, category: '교통' }),
-  transaction({ id: 3, date: '2026-11-20', type: 'transfer' }),
+  transaction({ id: 3, date: '2026-11-20', type: 'transfer', category: '', toAccount: '통장' }),
   transaction({ id: 4, date: '2026-11-26', type: 'income', category: '급여' }),
 ];
 

@@ -65,7 +65,7 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
     transaction({ id: 3, type: 'expense', category: '식비' }),
     transaction({ id: 4, type: 'expense', category: '책' }),
     transaction({ id: 5, type: 'expense', category: '커피' }),
-    transaction({ id: 6, type: 'transfer', category: '이체' }),
+    transaction({ id: 6, type: 'transfer', category: '', toAccount: '카드' }),
     transaction({ id: 7, type: 'income', category: '' }),
   ];
   const original = JSON.stringify({ version: 1, nextId: 10, transactions });
@@ -267,6 +267,8 @@ test('거래 필드가 잘못되면 위치와 원인을 한 줄로 보고하고 
     ...[0, '1', 1.5].map((id) => [{ ...valid, id }, '거래 2번째: id가 양의 정수가 아닙니다']),
     ...['2026-02-30', undefined, ['2026-02-10']].map((date) =>
       [{ ...valid, date }, '거래 #1: date가 있는 날이 아닙니다']),
+    ...[undefined, '', 3].map((toAccount) =>
+      [{ ...valid, type: 'transfer', toAccount }, '거래 #1: toAccount가 문자열이 아닙니다']),
     [{ ...valid, type: 'refund' }, '거래 #1: type을 알 수 없습니다: refund'],
     [{ ...valid, type: { toString: null } }, '거래 #1: type을 알 수 없습니다: object'],
     ...[0, -1, '1000'].map((amount) => [{ ...valid, amount }, '거래 #1: amount가 양의 정수가 아닙니다']),
@@ -287,7 +289,7 @@ test('거래 필드가 잘못되면 위치와 원인을 한 줄로 보고하고 
 
 test('이체와 태그 없는 옛 거래를 읽고 파일은 유지한다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
-  const transfer = transaction({ id: 1, type: 'transfer', tags: undefined });
+  const transfer = transaction({ id: 1, type: 'transfer', category: '', toAccount: '현금', account: '통장', tags: undefined });
   const original = writeJson(filePath, { version: 1, nextId: 2, transactions: [transfer] });
   assert.deepEqual(readData(filePath).transactions, [{ ...transfer, tags: [] }]);
   assert.equal(readFileSync(filePath, 'utf8'), original);

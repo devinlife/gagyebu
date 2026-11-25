@@ -11,7 +11,7 @@ const entries = [
   { category: '교통', amount: 4000 },
   { type: 'income', category: '급여', amount: 10000 },
   { date: '2026-05-01', amount: 2001 },
-  { date: '2026-07-01', type: 'transfer', amount: 50000 },
+  { date: '2026-07-01', type: 'transfer', category: '', toAccount: '통장', amount: 50000 },
   { date: '2025-02-01', amount: 100000 },
 ];
 

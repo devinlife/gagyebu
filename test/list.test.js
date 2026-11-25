@@ -229,7 +229,7 @@ test('메모 뒤에 태그를 붙이고 옛 거래의 메모 시작 칸을 유�
 
 test('이체를 표에 표시하고 수입과 지출 합계에서 뺀다', (t) => {
   const { run, write } = fixture(t);
-  write([sameDayIncome, first, { ...last, type: 'transfer', amount: 9000 }]);
+  write([sameDayIncome, first, { ...last, type: 'transfer', category: '', toAccount: '통장', amount: 9000 }]);
 
   const { status, stdout, stderr } = run();
   assert.equal(status, 0);

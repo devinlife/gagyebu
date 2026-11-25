@@ -3,8 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
+import { assertUsageError, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json | --chart [--width <10~120>]] [--data <경로>]';
 
@@ -19,7 +18,7 @@ function fixture(t, today = '2026-02-10') {
   }
 
   function write(transactions, budgets) {
-    const schema = budgets === undefined ? { version: 1 } : { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, budgets };
+    const schema = budgets === undefined ? { version: 1 } : currentData({ budgets });
     return writeJson(data, { ...schema, nextId: transactions.length + 1, transactions: transactions.map((entry, index) => transaction({ id: index + 1, ...entry })) });
   }
 

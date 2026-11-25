@@ -3,18 +3,16 @@ import { once } from 'node:events';
 import { writeFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { createServer } from '../src/server.js';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
+import { currentData, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const today = '2026-02-10';
 
 async function fixture(t) {
   const env = testEnv(tempDir(t), { GAGYEBU_TODAY: today });
   const data = env.GAGYEBU_DATA;
-  writeJson(data, {
-    version: CURRENT_VERSION,
+  writeJson(data, currentData({
     nextId: 5,
-    categories: DEFAULT_CATEGORIES,
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     budgets: { 식비: 1500 },
     transactions: [
       transaction({ id: 4, type: 'income', category: '급여' }),
@@ -22,7 +20,7 @@ async function fixture(t) {
       transaction({ id: 2, account: '카드', tags: ['a', 'b'] }),
       transaction({ id: 1, date: '2026-02-01', tags: ['b'] }),
     ],
-  });
+  }));
 
   const previousToday = process.env.GAGYEBU_TODAY;
   process.env.GAGYEBU_TODAY = today;

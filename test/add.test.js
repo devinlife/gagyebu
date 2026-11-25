@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
@@ -34,16 +33,13 @@ test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선�
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, '추가했습니다: #1 2026-02-28 수입 12,300원 급여 11월분\n');
   assert.deepEqual(readdirSync(directory), ['data.json']);
-  assert.deepEqual(read(), {
-    version: CURRENT_VERSION,
-    budgets: {},
+  assert.deepEqual(read(), currentData({
     nextId: 2,
-    categories: DEFAULT_CATEGORIES,
     transactions: [{
       id: 1, date: '2026-02-28', type: 'income', amount: 12300, category: '급여',
       account: '현금', memo: '11월분', tags: [],
     }],
-  });
+  }));
 });
 
 test('거래 기본값과 로컬 날짜를 저장한다', (t) => {

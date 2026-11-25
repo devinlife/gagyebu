@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
 
 export const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 
@@ -45,5 +46,17 @@ export function transaction(overrides) {
   return {
     date: '2026-02-10', type: 'expense', amount: 1000, category: '식비',
     account: '현금', memo: '', tags: [], ...overrides,
+  };
+}
+
+export function currentData(overrides) {
+  return {
+    version: CURRENT_VERSION,
+    nextId: 1,
+    categories: structuredClone(DEFAULT_CATEGORIES),
+    budgets: {},
+    accounts: [{ name: '현금', opening: 0 }],
+    transactions: [],
+    ...overrides,
   };
 }

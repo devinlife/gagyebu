@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu rm <번호> [--data <경로>]';
 
@@ -52,13 +51,11 @@ test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번�
   assert.equal(status, 0);
   assert.equal(stderr, '');
   assert.equal(stdout, '삭제했습니다: #2 2026-03-01 지출 6,000원 식비 아침 #외식\n');
-  assert.deepEqual(readJson(override), {
-    ...original,
-    version: CURRENT_VERSION,
-    budgets: {},
-    categories: DEFAULT_CATEGORIES,
+  assert.deepEqual(readJson(override), currentData({
+    nextId: original.nextId,
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     transactions: [original.transactions[0], original.transactions[2]],
-  });
+  }));
   assert.deepEqual(readdirSync(directory), ['override.json']);
 });
 

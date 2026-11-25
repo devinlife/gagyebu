@@ -4,8 +4,8 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { addCategory, listCategories, removeCategory } from '../src/category.js';
 import { DataError } from '../src/errors.js';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';
 const usages = {
@@ -67,10 +67,7 @@ test('빈 데이터의 기본 분류를 등록 순서대로 보여 주고 파일
 
 test('지출 분류에 예산이 있으면 예산을 지운 뒤에만 분류를 지울 수 있다', (t) => {
   const { data, run, runCli, read } = fixture(t);
-  const original = JSON.stringify({
-    version: CURRENT_VERSION, nextId: 1, categories: DEFAULT_CATEGORIES, budgets: { 식비: 12000, 기타: 30000 },
-    transactions: [],
-  });
+  const original = JSON.stringify(currentData({ budgets: { 식비: 12000, 기타: 30000 } }));
   writeFileSync(data, original);
 
   assertError(run('rm', '식비'), 1, '오류: 예산이 있는 분류입니다: 식비\n');
@@ -117,13 +114,9 @@ test('분류를 등록 순서 끝에 더하고 거래에 쓸 수 있게 한다',
   writeJson(data, { version: 1, nextId: 1, transactions: [] });
 
   assertOutput(run('add', '  커피  '), '분류를 더했습니다: 지출 커피\n');
-  assert.deepEqual(read(), {
-    version: CURRENT_VERSION,
-    budgets: {},
-    nextId: 1,
+  assert.deepEqual(read(), currentData({
     categories: { ...DEFAULT_CATEGORIES, expense: [...DEFAULT_CATEGORIES.expense, '커피'] },
-    transactions: [],
-  });
+  }));
   assertOutput(run('add', '커피', '--type', 'income'), '분류를 더했습니다: 수입 커피\n');
   assert.deepEqual(read().categories.income, [...DEFAULT_CATEGORIES.income, '커피']);
   assertOutput(runCli('add', '1000', '--category', '커피'),
@@ -170,13 +163,11 @@ test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막
   writeJson(data, { version: 1, nextId: 2, transactions });
 
   assertOutput(run('rm', '  기타  '), '분류를 지웠습니다: 지출 기타\n');
-  assert.deepEqual(read(), {
-    version: CURRENT_VERSION,
-    budgets: {},
+  assert.deepEqual(read(), currentData({
     nextId: 2,
     categories: { ...DEFAULT_CATEGORIES, expense: DEFAULT_CATEGORIES.expense.slice(0, -1) },
     transactions,
-  });
+  }));
   assertError(runCli('add', '1000'), 1,
     '오류: 없는 분류입니다: 기타 (gagyebu category add로 더하세요)\n');
   assertError(run('rm', '기타', '--type', 'income'), 1, '오류: 1건의 거래가 쓰는 분류입니다: 기타\n');

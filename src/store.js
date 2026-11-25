@@ -10,7 +10,7 @@ import { withParticle } from './format.js';
 import { isValidDate, parseNonemptyOption } from './input.js';
 import { RECORD_TYPES, TYPES } from './types.js';
 
-export const CURRENT_VERSION = 2;
+export const CURRENT_VERSION = 3;
 export const DEFAULT_CATEGORIES = {
   expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', DEFAULT_CATEGORY],
   income: ['급여', '용돈', DEFAULT_CATEGORY],
@@ -45,7 +45,20 @@ function migrateVersionOne(data) {
   return { ...data, categories };
 }
 
-export const MIGRATIONS = { 1: migrateVersionOne };
+function migrateVersionTwo(data) {
+  const names = new Set(['현금']);
+  if (Array.isArray(data.transactions)) {
+    for (const transaction of data.transactions) {
+      const { account } = transaction ?? {};
+      if (typeof account === 'string' && account !== '') {
+        names.add(account);
+      }
+    }
+  }
+  return { ...data, accounts: [...names].map((name) => ({ name, opening: 0 })) };
+}
+
+export const MIGRATIONS = { 1: migrateVersionOne, 2: migrateVersionTwo };
 
 export function validateDataOption(options, usage) {
   parseNonemptyOption(options.data, 'data', usage);
@@ -101,6 +114,7 @@ export function readData(filePath) {
         nextId: 1,
         categories: structuredClone(DEFAULT_CATEGORIES),
         budgets: {},
+        accounts: [{ name: '현금', opening: 0 }],
         transactions: [],
       };
     }
@@ -135,6 +149,13 @@ export function readData(filePath) {
   if (budgets === null || typeof budgets !== 'object' || Array.isArray(budgets)
       || !Object.values(budgets).every((amount) => Number.isSafeInteger(amount) && amount > 0)) {
     throw readError(filePath, 'budgets가 올바르지 않습니다');
+  }
+
+  const { accounts } = data;
+  if (!Array.isArray(accounts) || !accounts.every((account) =>
+    typeof account?.name === 'string' && account.name !== '' && Number.isSafeInteger(account.opening))
+      || new Set(accounts.map(({ name }) => name)).size !== accounts.length) {
+    throw readError(filePath, 'accounts가 올바르지 않습니다');
   }
 
   if (!Array.isArray(data.transactions)) {

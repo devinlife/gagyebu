@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
+import { assertUsageError, currentData, readJson, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu import <파일> [--dry-run] [--data <경로>]';
 const header = 'date,amount,type';
@@ -18,7 +17,7 @@ function fixture(t) {
 }
 
 function writeDataFixture(file, transactions = [], nextId = 1) {
-  return writeJson(file, { version: CURRENT_VERSION, nextId, categories: DEFAULT_CATEGORIES, budgets: {}, transactions });
+  return writeJson(file, currentData({ nextId, transactions }));
 }
 
 function assertResult({ status, stdout, stderr }, expectedStatus, expectedOut = '', expectedError = '') {

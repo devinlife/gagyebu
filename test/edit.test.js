@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
@@ -48,13 +48,11 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
   assert.equal(status, 0);
   assert.equal(stderr, '');
   assert.equal(stdout, '수정했습니다: #2 2026-03-01 지출 12,000원 식비 점심 #외식\n');
-  assert.deepEqual(readJson(override), {
-    ...original,
-    version: CURRENT_VERSION,
-    budgets: {},
-    categories: DEFAULT_CATEGORIES,
+  assert.deepEqual(readJson(override), currentData({
+    nextId: original.nextId,
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     transactions: [original.transactions[0], { ...original.transactions[1], amount: 12000, memo: '점심' }],
-  });
+  }));
   assert.deepEqual(readdirSync(directory), ['override.json']);
 });
 
@@ -67,13 +65,11 @@ test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한�
   assert.equal(status, 0);
   assert.equal(stderr, '');
   assert.equal(stdout, '수정했습니다: #1 2026-02-27 수입 40,000원 급여 2월분\n');
-  assert.deepEqual(read(), {
-    ...original,
-    version: CURRENT_VERSION,
-    budgets: {},
-    categories: DEFAULT_CATEGORIES,
+  assert.deepEqual(read(), currentData({
+    nextId: original.nextId,
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     transactions: [{ ...original.transactions[0], category: '급여' }, original.transactions[1]],
-  });
+  }));
 });
 
 test('금액과 날짜를 정규화하고 빈 메모로 기존 메모를 지운다', (t) => {
@@ -140,11 +136,12 @@ test('수정 결과의 구분에 분류가 등록되지 않으면 거래를 보�
 
 test('구분과 분류를 건드리지 않는 수정은 기존 분류를 검사하지 않는다', (t) => {
   const { data, original, run, read } = fixture(t);
-  const saved = {
-    ...original,
-    version: CURRENT_VERSION,
+  const saved = currentData({
+    nextId: original.nextId,
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     categories: { ...DEFAULT_CATEGORIES, expense: ['기타'] },
-  };
+    transactions: original.transactions,
+  });
   writeJson(data, saved);
 
   const { status, stderr } = run('2', '--memo', '점심');

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES, loadData, MIGRATIONS, readData, resolveDataPath, writeData } from '../src/store.js';
-import { runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
+import { runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 test('데이터 경로는 옵션, 환경 변수, 기본값 순으로 정한다', (t) => {
   const home = tempDir(t);
@@ -41,6 +41,7 @@ test('데이터 파일이 없으면 폴더나 파일을 만들지 않고 새 초
       income: ['급여', '용돈', '기타'],
     },
     budgets: {},
+    accounts: [{ name: '현금', opening: 0 }],
     transactions: [],
   });
   assert.deepEqual(second, first);
@@ -59,7 +60,7 @@ test('데이터 파일이 없으면 폴더나 파일을 만들지 않고 새 초
 test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 처음 나온 순서로 더한다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
   const transactions = [
-    transaction({ id: 1, type: 'expense', category: '커피' }),
+    transaction({ id: 1, type: 'expense', category: '커피', account: '카드' }),
     transaction({ id: 2, type: 'income', category: '월급' }),
     transaction({ id: 3, type: 'expense', category: '식비' }),
     transaction({ id: 4, type: 'expense', category: '책' }),
@@ -79,6 +80,7 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
     },
     transactions,
     budgets: {},
+    accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
   });
   assert.equal(readFileSync(filePath, 'utf8'), original);
   const invalidCategory = transaction({ id: 8, category: 3 });
@@ -89,7 +91,7 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
 test('버전 2의 분류 목록이 잘못되면 데이터 오류를 보고한다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
   for (const categories of [undefined, [], { expense: [], income: {} }, { expense: [1], income: [] }]) {
-    writeJson(filePath, { version: CURRENT_VERSION, categories });
+    writeJson(filePath, { version: 2, categories });
     assert.throws(() => readData(filePath), {
       constructor: DataError,
       message: `데이터 파일을 읽을 수 없습니다: ${filePath} (categories가 올바르지 않습니다)`,
@@ -100,11 +102,12 @@ test('버전 2의 분류 목록이 잘못되면 데이터 오류를 보고한다
 test('버전 2에 예산이 없으면 빈 객체를 쓰고 등록된 예산은 그대로 읽는다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
   for (const budgets of [undefined, { 식비: 12000, 교통: 30000 }]) {
-    const original = JSON.stringify({ version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, budgets, transactions: [] });
+    const original = JSON.stringify({ version: 2, categories: DEFAULT_CATEGORIES, budgets, transactions: [] });
     writeFileSync(filePath, original);
     const data = readData(filePath);
     assert.equal(data.version, CURRENT_VERSION);
     assert.deepEqual(data.budgets, budgets ?? {});
+    assert.deepEqual(data.accounts, [{ name: '현금', opening: 0 }]);
     assert.equal(readFileSync(filePath, 'utf8'), original);
   }
 });
@@ -112,7 +115,7 @@ test('버전 2에 예산이 없으면 빈 객체를 쓰고 등록된 예산은 �
 test('버전 1과 2의 예산 형식이 잘못되면 데이터 오류를 보고한다', (t) => {
   const filePath = path.join(tempDir(t), 'data.json');
   const invalidBudgets = [[], null, 1, ...[0, -1, 1.5, '1000', 2 ** 53].map((amount) => ({ 식비: amount }))];
-  for (const version of [1, CURRENT_VERSION]) {
+  for (const version of [1, 2]) {
     for (const budgets of invalidBudgets) {
       writeJson(filePath, { version, categories: DEFAULT_CATEGORIES, budgets });
       assert.throws(() => readData(filePath), {
@@ -121,6 +124,42 @@ test('버전 1과 2의 예산 형식이 잘못되면 데이터 오류를 보고�
       });
     }
   }
+});
+
+test('버전 2의 계좌를 처음 나온 순서로 올리고 원본을 보존한다', (t) => {
+  const filePath = path.join(tempDir(t), 'data.json');
+  const transactions = ['카드', '현금', '통장', '카드', ''].map((account, index) =>
+    transaction({ id: index + 1, account }));
+  const categories = { expense: ['식비'], income: ['급여'] };
+  const budgets = { 식비: 12000 };
+  const data = { version: 2, nextId: 6, categories, budgets, transactions };
+  const original = writeJson(filePath, data);
+
+  assert.deepEqual(readData(filePath), {
+    ...data,
+    version: CURRENT_VERSION,
+    accounts: ['현금', '카드', '통장'].map((name) => ({ name, opening: 0 })),
+  });
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+});
+
+test('계좌 목록의 모양과 시작 잔액을 검사한다', (t) => {
+  const env = testEnv(tempDir(t));
+  const filePath = env.GAGYEBU_DATA;
+  const valid = { name: '카드', opening: -50000 };
+  for (const accounts of [
+    undefined, {}, [null], [{ ...valid, name: '' }], [{ ...valid, name: 1 }],
+    [{ ...valid, opening: 1.5 }], [{ ...valid, opening: '1' }], [{ ...valid, opening: 2 ** 53 }],
+    [valid, valid],
+  ]) {
+    writeJson(filePath, currentData({ accounts }));
+    const { status, stdout, stderr } = runCli(['list'], { env });
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 데이터 파일을 읽을 수 없습니다: ${filePath} (accounts가 올바르지 않습니다)\n`);
+  }
+  writeJson(filePath, currentData({ accounts: [valid] }));
+  assert.deepEqual(readData(filePath).accounts, [valid]);
 });
 
 test('깨진 JSON과 올바르지 않거나 지원하지 않는 버전을 처리 오류로 보고한다', (t) => {
@@ -156,11 +195,11 @@ test('하위 폴더에 데이터를 쓰고 덮어써도 올바른 JSON 파일만
   const directory = path.join(tempDir(t), 'a', 'b');
   const filePath = path.join(directory, 'data.json');
   for (const data of [
-    { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] },
-    { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 2, transactions: [transaction({ id: 1 })] },
+    currentData(),
+    currentData({ nextId: 2, transactions: [transaction({ id: 1 })] }),
   ]) {
     writeData(filePath, data);
-    assert.deepEqual(readData(filePath), { ...data, budgets: {} });
+    assert.deepEqual(readData(filePath), data);
     assert.equal(readFileSync(filePath, 'utf8'), JSON.stringify(data, null, 2) + '\n');
     assert.deepEqual(readdirSync(directory), ['data.json']);
   }
@@ -184,21 +223,21 @@ test('데이터 교체에 실패하면 처리 오류를 던지고 임시 파일�
 test('JSON으로 변환할 수 없으면 기존 데이터 파일을 보존한다', (t) => {
   const directory = tempDir(t);
   const filePath = path.join(directory, 'data.json');
-  const data = { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] };
+  const data = currentData();
   writeData(filePath, data);
 
   assert.throws(() => writeData(filePath, undefined), {
     constructor: DataError,
     message: `데이터 파일을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`,
   });
-  assert.deepEqual(readData(filePath), { ...data, budgets: {} });
+  assert.deepEqual(readData(filePath), data);
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });
 
 test('새 데이터 파일은 소유자만 접근할 수 있고 덮어쓸 때 기존 권한을 보존한다',
   { skip: process.platform === 'win32' }, (t) => {
     const filePath = path.join(tempDir(t), 'data.json');
-    const data = { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] };
+    const data = currentData();
     writeData(filePath, data);
     assert.equal(statSync(filePath).mode & 0o077, 0);
 
@@ -212,11 +251,11 @@ test('새 데이터 파일은 소유자만 접근할 수 있고 덮어쓸 때 �
 test('예상하지 못한 직렬화 오류는 원래 오류로 전파하고 기존 데이터를 보존한다', (t) => {
   const directory = tempDir(t);
   const filePath = path.join(directory, 'data.json');
-  const data = { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] };
+  const data = currentData();
   writeData(filePath, data);
 
   assert.throws(() => writeData(filePath, { version: CURRENT_VERSION, amount: 1n }), TypeError);
-  assert.deepEqual(readData(filePath), { ...data, budgets: {} });
+  assert.deepEqual(readData(filePath), data);
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });
 

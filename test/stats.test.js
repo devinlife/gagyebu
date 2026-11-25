@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
+import { assertUsageError, runCli, tempDir, testEnv, transaction, writeJson, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu stats [--from <날짜>] [--to <날짜>] [--json] [--data <경로>]';
 const transactions = [
@@ -15,9 +14,9 @@ const transactions = [
 function fixture(t, entries = transactions) {
   const directory = tempDir(t);
   const env = testEnv(directory, { GAGYEBU_TODAY: '2026-11-26' });
-  writeJson(env.GAGYEBU_DATA, {
-    version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: entries.length + 1, transactions: entries,
-  });
+  writeJson(env.GAGYEBU_DATA, currentData({
+    nextId: entries.length + 1, transactions: entries,
+  }));
   return env;
 }
 

@@ -2,6 +2,7 @@ import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { formatLocalDateTime } from './format.js';
 import { TYPE_LABELS, TYPES } from './types.js';
 
+export const MISSING_AMOUNT = '금액이 없습니다';
 export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const relativeDays = new Map([['오늘', 0], ['어제', 1], ['그제', 2]]);
@@ -206,8 +207,12 @@ function requireSingleArgument(args, missing, usage) {
   return args[0];
 }
 
+export function requireAmountArgument(args, usage) {
+  return requireSingleArgument(args, MISSING_AMOUNT, usage);
+}
+
 export function parseAmountArgument(args, usage) {
-  return parseAmount(requireSingleArgument(args, '금액이 없습니다', usage), usage);
+  return parseAmount(requireAmountArgument(args, usage), usage);
 }
 
 export function parseOpening(text, usage) {

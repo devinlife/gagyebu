@@ -407,6 +407,22 @@ test('웹 거래 요청의 출처, 크기, 형식, 칸 이름과 토큰을 순�
   assert.deepEqual(cliJson('undo', '--list'), []);
 });
 
+test('유효한 토큰이 있어도 호스트나 포트가 다른 출처에는 저장하지 않는다', async (t) => {
+  const { base, cliJson, data, html } = await fixture(t);
+  const csrf = formToken((await html('/')).body);
+  const before = readFileSync(data, 'utf8');
+  const { port } = new URL(base);
+  const body = new URLSearchParams({ amount: '1000', csrf });
+
+  for (const origin of ['http://127.0.0.1:1', `http://localhost:${port}`]) {
+    const response = await postForm(base, body, { origin });
+    assert.equal(response.status, 403, origin);
+    assert.ok((await response.text()).includes(`요청 출처가 이 서버가 아닙니다: ${origin}`));
+    assert.equal(readFileSync(data, 'utf8'), before, origin);
+    assert.deepEqual(cliJson('undo', '--list'), [], origin);
+  }
+});
+
 test('길이를 알 수 없는 폼도 10240바이트를 넘는 즉시 응답한다', { timeout: 5000 }, async (t) => {
   const { base, cliJson, data } = await fixture(t);
   const before = readFileSync(data, 'utf8');

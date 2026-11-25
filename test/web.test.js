@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { today } from '../src/input.js';
-
 import { escapeHtml, renderErrorPage, renderReportPage } from '../src/web.js';
 
 test('HTML에서 특별한 다섯 글자를 이스케이프한다', () => {
@@ -59,6 +58,11 @@ test('보고서 요약 위에 이름표, 날짜 기본값과 등록된 선택지
   assert.match(html, /<optgroup label="지출"><option value="기타" selected>기타<\/option>/);
   assert.match(html, /<optgroup label="수입"><option value="기타">기타<\/option><option value="급여">급여<\/option>/);
   assert.match(html, /<option value="현금" selected>현금<\/option>/);
+});
+
+test('기본 계좌가 삭제되면 빈 선택과 등록된 계좌를 표시한다', () => {
+  const html = reportWithForm({ accounts: ['카드'] });
+  assert.match(html, /<select id="add-account" name="account"><option value="" selected><\/option><option value="카드">카드<\/option><\/select>/);
 });
 
 test('폼에 입력값을 남기고 오류가 난 칸을 오류 문구에 연결한다', () => {

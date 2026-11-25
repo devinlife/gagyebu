@@ -2,7 +2,7 @@ import { DEFAULT_ACCOUNT, requireAccount } from './account.js';
 import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { formatTag, formatWon, withParticle } from './format.js';
-import { parseAmount, parseCategory, parseDate, parseImportType, parseNonemptyOption, parseTags, parseType, today } from './input.js';
+import { MISSING_AMOUNT, parseAmount, parseCategory, parseDate, parseImportType, parseNonemptyOption, parseTags, parseType, today } from './input.js';
 import { readError } from './store.js';
 import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
@@ -48,7 +48,7 @@ export function parseEntryOptions({ type, category, account, memo = '', tags }, 
 export function parseTransactionFields({ amount, date, ...entry }, usage) {
   const parsedAmount = withField('amount', UsageError, () => {
     if (amount === undefined) {
-      throw new UsageError('금액이 없습니다', usage);
+      throw new UsageError(MISSING_AMOUNT, usage);
     }
     return parseAmount(amount, usage);
   });
@@ -64,6 +64,11 @@ export function buildTransaction(data, { date, type, amount, category, account =
   const id = requireNextId(data, filePath);
   requireEntryReferences(data, { type, category, account });
   return { id, date, type, amount, category, account, memo, tags };
+}
+
+export function appendTransaction(data, transaction) {
+  data.transactions.push(transaction);
+  data.nextId += 1;
 }
 
 export function requireEntryReferences(data, { type, category, account }) {

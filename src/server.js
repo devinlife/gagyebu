@@ -6,7 +6,7 @@ import { currentMonth, currentYear, monthEnd, parseId, parseMonth, parseYear } f
 import { parseListingFilters } from './listing.js';
 import { summarizeMonth, summarizeYear } from './report.js';
 import { describeCommand, loadData, writeData } from './store.js';
-import { buildTransaction, describeAddedTransaction, filterTransactions, parseTransactionFields } from './transaction.js';
+import { appendTransaction, buildTransaction, describeAddedTransaction, filterTransactions, parseTransactionFields } from './transaction.js';
 import { renderErrorPage, renderReportPage } from './web.js';
 
 function queryOptions(params, names) {
@@ -28,8 +28,7 @@ function queryOptions(params, names) {
   return Object.fromEntries(options);
 }
 
-function queryMonth(params) {
-  const { month } = queryOptions(params, ['month']);
+function parseReportMonth(month) {
   return parseMonth(month ?? currentMonth());
 }
 
@@ -48,7 +47,7 @@ const reportPath = '/';
 const routes = new Map([
   [reportPath, (params, { options, token }) => {
     const query = queryOptions(params, ['month', 'added']);
-    const month = parseMonth(query.month ?? currentMonth());
+    const month = parseReportMonth(query.month);
     const id = query.added === undefined ? undefined : parseId(query.added);
     const { data } = loadData(options);
     const added = id === undefined ? undefined : data.transactions.find((transaction) => transaction.id === id);
@@ -60,9 +59,10 @@ const routes = new Map([
     return filterTransactions(transactions, filters);
   }],
   ['/api/summary', (params, { options }) => {
-    const month = queryMonth(params);
+    const { month } = queryOptions(params, ['month']);
+    const parsedMonth = parseReportMonth(month);
     const { data: { transactions, budgets } } = loadData(options);
-    return summarizeMonth(transactions, budgets, month);
+    return summarizeMonth(transactions, budgets, parsedMonth);
   }],
   ['/api/report', (params, { options }) => {
     const { year } = queryOptions(params, ['year']);
@@ -110,7 +110,7 @@ async function postTransaction(request, { options, token, port }, send, sendErro
   if (csrf !== token) {
     return sendError(403, '폼 토큰이 맞지 않습니다');
   }
-  const month = parseMonth(reportMonth ?? currentMonth());
+  const month = parseReportMonth(reportMonth);
 
   let loaded;
   let transaction;
@@ -135,8 +135,7 @@ async function postTransaction(request, { options, token, port }, send, sendErro
     ...(memo ? ['--memo', memo] : []),
     ...(parsedTags.length ? ['--tag', parsedTags.join(',')] : []),
   ]);
-  data.transactions.push(transaction);
-  data.nextId += 1;
+  appendTransaction(data, transaction);
   writeData(filePath, data, command);
   send(303, '', { location: `/?month=${date.slice(0, 7)}&added=${id}` });
 }

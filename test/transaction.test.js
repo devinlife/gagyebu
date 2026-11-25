@@ -5,7 +5,8 @@ import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import {
-  applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals, parseTransactionFields, removeTransaction,
+  applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals,
+  parseEntryOptions, parseTransactionFields, removeTransaction,
 } from '../src/transaction.js';
 import { currentData, transaction } from './helpers.js';
 
@@ -59,6 +60,18 @@ test('기간, 구분, 분류, 태그와 검색어로 거르고 날짜와 번호 
   assert.deepEqual(filterTransactions(entries, { query: 'COUPON' }), [first, other]);
   assert.deepEqual(filterTransactions(entries, { type: 'expense', query: '#정기' }), [third]);
   assert.deepEqual(entries.map(({ id }) => id), [3, 1, 4, 5, 2]);
+});
+
+test('거래 옵션의 기본값과 잘못된 구분 및 빈 분류를 검사한다', () => {
+  assert.deepEqual(parseEntryOptions({}, usage), {
+    type: 'expense', category: '기타', account: '현금', memo: '', tags: [],
+  });
+  assert.throws(() => parseEntryOptions({ type: 'transfer' }, usage), {
+    constructor: UsageError, message: '--type은 expense 또는 income이어야 합니다: transfer', usage,
+  });
+  assert.throws(() => parseEntryOptions({ category: '' }, usage), {
+    constructor: UsageError, message: '--category 값이 비었습니다', usage,
+  });
 });
 
 test('거래 입력에 기본값을 적용하고 금액과 태그를 해석한다', (t) => {

@@ -126,7 +126,7 @@ function transactionForm({ token, month, categories, accounts, values = {}, erro
   const type = values.type ?? EXPENSE;
   const categoryType = TYPES.includes(type) ? type : EXPENSE;
   const category = values.category ?? (categories[categoryType].includes(DEFAULT_CATEGORY) ? DEFAULT_CATEGORY : '');
-  const account = values.account ?? DEFAULT_ACCOUNT;
+  const account = values.account ?? (accounts.includes(DEFAULT_ACCOUNT) ? DEFAULT_ACCOUNT : '');
   const categoryGroups = TYPES.map((group) => {
     const options = categories[group].map((name) => formOption(name, name, group === categoryType && name === category));
     return `<optgroup label="${TYPE_LABELS[group]}">${options.join('')}</optgroup>`;

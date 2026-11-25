@@ -3,7 +3,7 @@ import { formatWon, withParticle } from '../format.js';
 import { parseAmountArgument, parseDate, parseNonemptyOption, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { buildTransfer, categoryText, requireDistinctAccounts } from '../transaction.js';
+import { appendTransaction, buildTransfer, categoryText, requireDistinctAccounts } from '../transaction.js';
 
 export const name = 'transfer';
 export const order = 25;
@@ -37,8 +37,7 @@ export function run(argv) {
 
   const { filePath, data } = loadData(options, USAGE);
   const transaction = buildTransfer(data, { date, amount, from, to, memo }, filePath);
-  data.transactions.push(transaction);
-  data.nextId += 1;
+  appendTransaction(data, transaction);
   writeData(filePath, data);
 
   console.log(`이체했습니다: #${transaction.id} ${date} ${categoryText(transaction)} ${formatWon(amount)}`);

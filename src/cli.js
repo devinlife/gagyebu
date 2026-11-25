@@ -1,11 +1,11 @@
 import pkg from '../package.json' with { type: 'json' };
-import { DataError, UsageError, unexpectedArgument } from './errors.js';
+import { DataError, UsageError, singleLineMessage, unexpectedArgument } from './errors.js';
 import { parseOptions } from './options.js';
 import { commands } from './registry.js';
 
 export function reportError(error) {
   if (error instanceof UsageError || error instanceof DataError) {
-    const message = error.message.replaceAll('\r', '\\r').replaceAll('\n', '\\n');
+    const message = singleLineMessage(error.message);
     console.error(`오류: ${message}`);
     if (error instanceof UsageError) {
       console.error(error.usage);

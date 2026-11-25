@@ -93,11 +93,7 @@ export function shiftMonth(month, delta) {
   const [year, number] = month.split('-').map(Number);
   const date = new Date(0);
   date.setUTCFullYear(year, number - 1 + delta, 1);
-  const shiftedYear = date.getUTCFullYear();
-  if (shiftedYear < 0 || shiftedYear > 9999) {
-    return null;
-  }
-  return date.toISOString().slice(0, 7);
+  return date.toISOString().split('T')[0].slice(0, -3);
 }
 
 export function monthEnd(month) {

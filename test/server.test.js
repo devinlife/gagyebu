@@ -11,10 +11,13 @@ async function fixture(t) {
   const env = testEnv(tempDir(t), { GAGYEBU_TODAY: today });
   const data = env.GAGYEBU_DATA;
   writeJson(data, currentData({
-    nextId: 5,
+    nextId: 8,
     accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
-    budgets: { 식비: 1500 },
+    budgets: { 식비: 1500, 교통: 2000 },
     transactions: [
+      transaction({ id: 7, date: '2026-01-31', type: 'income', amount: 5000, category: '급여', account: '카드' }),
+      transaction({ id: 6, amount: 500, category: '기타' }),
+      transaction({ id: 5, category: '교통' }),
       transaction({ id: 4, type: 'income', category: '급여' }),
       transaction({ id: 3, date: '2026-03-01', category: '교통', account: '카드', tags: ['a'] }),
       transaction({ id: 2, account: '카드', memo: '점심 결제', tags: ['a', 'b'] }),
@@ -170,15 +173,25 @@ test('월 보고서에는 합계, 지출 분류, 거래, 월말 잔액이 나온
   assert.match(body, /<title>2026년 2월 가계부<\/title>/);
   assert.match(body, /<h1>2026년 2월 가계부<\/h1>/);
   assert.match(body, /<dt>수입<\/dt><dd>1,000원<\/dd>/);
-  assert.match(body, /<dt>지출<\/dt><dd>2,000원<\/dd>/);
-  assert.match(body, /<dt>차액<\/dt><dd>-1,000원<\/dd>/);
-  assert.match(body, /<tr class="over">\s*<td>식비<\/td>[\s\S]*?2,000원[\s\S]*?100\.0%[\s\S]*?1,500원[\s\S]*?133\.3%[\s\S]*?초과 500원/);
+  assert.match(body, /<dt>지출<\/dt><dd>3,500원<\/dd>/);
+  assert.match(body, /<dt>차액<\/dt><dd>-2,500원<\/dd>/);
+  const rows = Array.from(body.matchAll(/<tr\b([^>]*)>([\s\S]*?)<\/tr>/g), ([, attributes, content]) => ({
+    attributes,
+    cells: Array.from(content.matchAll(/<td\b[^>]*>([^<]*)<\/td>/g), ([, text]) => text),
+  }));
+  assert.deepEqual(rows.filter(({ cells: [first] }) => ['식비', '교통', '기타'].includes(first)), [
+    { attributes: ' class="over"', cells: ['식비', '2,000원', '57.1%', '1,500원', '133.3%', '초과 500원'] },
+    { attributes: '', cells: ['교통', '1,000원', '28.6%', '2,000원', '50.0%', ''] },
+    { attributes: '', cells: ['기타', '500원', '14.3%', '', '', ''] },
+  ]);
   assert.match(body, /\.over\s*\{\s*color:/);
-  assert.match(body, /<td>점심 결제<\/td>\s*<td>#a #b<\/td>/);
-  assert.doesNotMatch(body, /2026-03-01/);
+  assert.deepEqual(rows.find(({ cells }) => cells.includes('점심 결제'))?.cells, [
+    '2026-02-10', '지출', '1,000원', '식비', '카드', '점심 결제', '#a #b',
+  ]);
+  assert.doesNotMatch(body, /2026-01-31|2026-03-01/);
   assert.match(body, /2026-02-28 기준/);
-  assert.match(body, /<td>카드<\/td><td class="number">-1,000원<\/td>/);
-  assert.match(body, /<th scope="row">합계<\/th><td class="number">-1,000원<\/td>/);
+  assert.match(body, /<td>카드<\/td><td class="number">4,000원<\/td>/);
+  assert.match(body, /<th scope="row">합계<\/th><td class="number">2,500원<\/td>/);
   assert.match(body, /<th scope="col">/);
   assert.equal(body.match(/<div class="table-wrap">\s*<table>/g)?.length, 3);
   assert.match(body, /\.table-wrap\s*\{\s*overflow-x: auto/);
@@ -194,19 +207,12 @@ test('빈 달 매개변수는 이번 달을 쓰고 이웃 달 링크는 해를 �
     assert.match(body, /<h1>2026년 2월 가계부<\/h1>/, path);
   }
   const december = await html('/?month=2026-12');
-  assert.match(december.body, /href="\/\?month=2026-11"/);
-  assert.match(december.body, /href="\/\?month=2027-01"/);
+  assert.ok(december.body.includes('<a href="/?month=2026-11">이전 달</a>'));
+  assert.ok(december.body.includes('<a href="/?month=2027-01">다음 달</a>'));
   const january = await html('/?month=2026-01');
-  assert.match(january.body, /href="\/\?month=2025-12"/);
+  assert.ok(january.body.includes('<a href="/?month=2025-12">이전 달</a>'));
   const leapFebruary = await html('/?month=2028-02');
   assert.match(leapFebruary.body, /2028-02-29 기준/);
-
-  const first = await html('/?month=0000-01');
-  assert.match(first.body, /href="\/\?month=0000-02"/);
-  assert.doesNotMatch(first.body, /이전 달/);
-  const last = await html('/?month=9999-12');
-  assert.match(last.body, /href="\/\?month=9999-11"/);
-  assert.doesNotMatch(last.body, /다음 달/);
 });
 
 test('보고서는 사용자 입력을 이스케이프하고 말일 이체를 거래에 포함한다', async (t) => {

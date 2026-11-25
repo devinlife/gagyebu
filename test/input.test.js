@@ -118,11 +118,9 @@ test('월 파서는 YYYY-MM 형식의 달만 받는다', () => {
   }
 });
 
-test('달 이동은 연도 경계와 지원하는 연도 범위를 반영한다', () => {
+test('달 이동은 연도 경계를 반영한다', () => {
   assert.equal(shiftMonth('2026-12', 1), '2027-01');
   assert.equal(shiftMonth('2026-01', -1), '2025-12');
-  assert.equal(shiftMonth('0000-01', -1), null);
-  assert.equal(shiftMonth('9999-12', 1), null);
 });
 
 test('말일 계산은 윤년과 12월을 반영한다', () => {

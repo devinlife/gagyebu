@@ -1,6 +1,6 @@
 import { accountBalances } from '../account.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
-import { formatTable, formatWon } from '../format.js';
+import { formatBalanceDate, formatTable, formatWon } from '../format.js';
 import { parseDate, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
@@ -41,7 +41,7 @@ export function run(argv) {
     rows.push([name, formatWon(balance)]);
   }
   rows.push(['합계', formatWon(balances.total)]);
-  console.log(`${date} 기준`);
+  console.log(formatBalanceDate(date));
   console.log(formatTable(rows, { right: [1] }));
   return 0;
 }

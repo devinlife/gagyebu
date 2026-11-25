@@ -1,7 +1,7 @@
 import { DEFAULT_ACCOUNT, requireAccount } from './account.js';
 import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
-import { formatWon, withParticle } from './format.js';
+import { formatTag, formatWon, withParticle } from './format.js';
 import { parseAmount, parseDate, parseImportType, parseTags } from './input.js';
 import { readError } from './store.js';
 import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
@@ -17,7 +17,7 @@ export function describeTransaction(transaction) {
   const category = categoryText(transaction);
   const label = TYPE_LABELS[type];
   const description = memo ? `${category} ${memo}` : category;
-  const tagText = Array.isArray(tags) && tags.length > 0 ? ` #${tags.join(' #')}` : '';
+  const tagText = Array.isArray(tags) && tags.length > 0 ? ` ${tags.map(formatTag).join(' ')}` : '';
   return `#${id} ${date} ${label} ${formatWon(amount)} ${description}${tagText}`;
 }
 
@@ -149,7 +149,7 @@ export function filterTransactions(transactions, { from, to, type, category, acc
 }
 
 function matchesQuery({ memo, category, tags }, search) {
-  return [memo, category, ...tags.map((tag) => `#${tag}`)]
+  return [memo, category, ...tags.map(formatTag)]
     .some((text) => text.toLowerCase().includes(search));
 }
 

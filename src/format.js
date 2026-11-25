@@ -1,3 +1,5 @@
+export const NO_TRANSACTIONS = '거래가 없습니다.';
+
 export function formatLocalDateTime(date) {
   const year = String(date.getFullYear()).padStart(4, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -18,6 +20,18 @@ export function formatMonthName(month) {
 
 export function formatYearMonth(month) {
   return `${month.slice(0, 4)}년 ${formatMonthName(month)}`;
+}
+
+export function formatBudgetOverage(amount) {
+  return `초과 ${formatWon(amount)}`;
+}
+
+export function formatBalanceDate(date) {
+  return `${date} 기준`;
+}
+
+export function formatTag(tag) {
+  return `#${tag}`;
 }
 
 export function formatPercent(amount, total) {

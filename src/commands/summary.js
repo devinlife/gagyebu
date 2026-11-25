@@ -1,5 +1,5 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
-import { formatPercent, formatTable, formatWon, formatYearMonth, renderBars } from '../format.js';
+import { formatBudgetOverage, formatPercent, formatTable, formatWon, formatYearMonth, NO_TRANSACTIONS, renderBars } from '../format.js';
 import { currentMonth, parseChartOptions, parseMonth } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData } from '../store.js';
@@ -22,7 +22,7 @@ function categoryTable(heading, entries, total, showBudget = false) {
     if (showBudget) {
       let budgetText = budget === null ? '' : `예산 ${formatWon(budget)} (${formatPercent(amount, budget)})`;
       if (over > 0) {
-        budgetText += ` 초과 ${formatWon(over)}`;
+        budgetText += ` ${formatBudgetOverage(over)}`;
       }
       row.push(budgetText);
     }
@@ -60,7 +60,7 @@ export function run(argv) {
 
   const title = formatYearMonth(month);
   if (expenseByCategory.length === 0 && incomeByCategory.length === 0) {
-    console.log(`${title} 거래가 없습니다.`);
+    console.log(`${title} ${NO_TRANSACTIONS}`);
     return 0;
   }
 

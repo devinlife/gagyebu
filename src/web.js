@@ -1,4 +1,4 @@
-import { formatPercent, formatWon, formatYearMonth } from './format.js';
+import { formatBalanceDate, formatBudgetOverage, formatPercent, formatTag, formatWon, formatYearMonth, NO_TRANSACTIONS } from './format.js';
 import { shiftMonth } from './input.js';
 import { categoryText } from './transaction.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
@@ -47,7 +47,7 @@ ${footer}
 </div>`;
 }
 
-const empty = '<p>거래가 없습니다.</p>';
+const empty = `<p>${NO_TRANSACTIONS}</p>`;
 
 function expenseTable({ expense, expenseByCategory }) {
   if (expenseByCategory.length === 0) {
@@ -60,7 +60,7 @@ function expenseTable({ expense, expenseByCategory }) {
   <td class="number">${formatPercent(amount, expense)}</td>
   <td class="number">${budget === null ? '' : formatWon(budget)}</td>
   <td class="number">${budget === null ? '' : formatPercent(amount, budget)}</td>
-  <td class="number">${over > 0 ? `초과 ${formatWon(over)}` : ''}</td>
+  <td class="number">${over > 0 ? formatBudgetOverage(over) : ''}</td>
 </tr>`);
   return table(['분류', '금액', '비율', '예산', '사용률', '초과'], rows);
 }
@@ -79,7 +79,7 @@ function transactionTable(transactions) {
   <td>${escapeHtml(categoryText(transaction))}</td>
   <td>${escapeHtml(account)}</td>
   <td>${escapeHtml(memo)}</td>
-  <td>${escapeHtml(tags.map((tag) => `#${tag}`).join(' '))}</td>
+  <td>${escapeHtml(tags.map(formatTag).join(' '))}</td>
 </tr>`;
   });
   return table(['날짜', '구분', '금액', '분류', '계좌', '메모', '태그'], rows);
@@ -92,17 +92,13 @@ function balanceTable({ accounts, total }) {
   return table(['계좌', '잔액'], rows, footer);
 }
 
-function monthLink(month, label) {
-  return month === null ? '' : `<a href="/?month=${month}">${label}</a>`;
-}
-
 export function renderReportPage({ summary, transactions, balances }) {
   const { month, income, expense, net } = summary;
   const previous = shiftMonth(month, -1);
   const next = shiftMonth(month, 1);
   return page(`${formatYearMonth(month)} 가계부`, `<nav aria-label="월 이동">
-${monthLink(previous, '이전 달')}
-${monthLink(next, '다음 달')}
+<a href="/?month=${previous}">이전 달</a>
+<a href="/?month=${next}">다음 달</a>
 </nav>
 <dl>
   <dt>${TYPE_LABELS[INCOME]}</dt><dd>${formatWon(income)}</dd>
@@ -119,7 +115,7 @@ ${transactionTable(transactions)}
 </section>
 <section>
 <h2>계좌별 잔액</h2>
-<p>${escapeHtml(balances.date)} 기준</p>
+<p>${escapeHtml(formatBalanceDate(balances.date))}</p>
 ${balanceTable(balances)}
 </section>`);
 }

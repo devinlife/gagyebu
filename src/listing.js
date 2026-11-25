@@ -1,5 +1,5 @@
 import { UsageError } from './errors.js';
-import { formatTable, formatWon } from './format.js';
+import { formatTable, formatTag, formatWon, NO_TRANSACTIONS } from './format.js';
 import { parseCategory, parseNonemptyOption, parsePeriod, parseTags, parseType } from './input.js';
 import { parseOptions } from './options.js';
 import { validateDataOption } from './store.js';
@@ -42,13 +42,13 @@ export function printTransactions(list, { json }) {
     return;
   }
   if (list.length === 0) {
-    console.log('거래가 없습니다.');
+    console.log(NO_TRANSACTIONS);
     return;
   }
 
   const rows = [['번호', '날짜', '구분', '금액', '분류', '계좌', '메모']];
   for (const transaction of list) {
-    const memo = [transaction.memo, ...transaction.tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
+    const memo = [transaction.memo, ...transaction.tags.map(formatTag)].filter(Boolean).join(' ');
     rows.push([
       String(transaction.id), transaction.date, TYPE_LABELS[transaction.type],
       formatWon(transaction.amount), categoryText(transaction), transaction.account, memo,

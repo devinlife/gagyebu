@@ -1,5 +1,5 @@
 import { DataError, UsageError, unexpectedArgument } from './errors.js';
-import { formatLocalDateTime } from './format.js';
+import { formatLocalDateTime, withParticle } from './format.js';
 import { RECORD_TYPES, TYPE_LABELS, TYPES } from './types.js';
 
 export const MISSING_AMOUNT = '금액이 없습니다';
@@ -42,7 +42,22 @@ export function currentYear(env) {
   return today(env).slice(0, 4);
 }
 
-export function parseDate(text, usage, subject = '날짜는', env = process.env) {
+export function parseName(args, usage, label) {
+  if (args.length === 0) {
+    throw new UsageError(`${label} 이름이 없습니다`, usage);
+  }
+  if (args.length > 1) {
+    throw unexpectedArgument(args[1], usage);
+  }
+  const [input] = args;
+  const name = input.trim();
+  if (name === '' || [...name].length > 20) {
+    throw new UsageError(`${label} 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${input}`, usage);
+  }
+  return name;
+}
+
+export function parseDate(text, usage, subject = '날짜', env = process.env) {
   if (isValidDate(text)) {
     return text;
   }
@@ -67,7 +82,7 @@ export function parseDate(text, usage, subject = '날짜는', env = process.env)
     }
   }
 
-  throw new UsageError(`${subject} YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${text}`, usage);
+  throw new UsageError(`${withParticle(subject, '은/는')} YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${text}`, usage);
 }
 
 export function parseDateOrToday(text, usage) {
@@ -78,8 +93,8 @@ export function parseDateOrToday(text, usage) {
 }
 
 export function parsePeriod(options, usage, { closed = false } = {}) {
-  let from = options.from === undefined ? undefined : parseDate(options.from, usage, '--from은');
-  let to = options.to === undefined ? undefined : parseDate(options.to, usage, '--to는');
+  let from = options.from === undefined ? undefined : parseDate(options.from, usage, '--from');
+  let to = options.to === undefined ? undefined : parseDate(options.to, usage, '--to');
   if (closed) {
     to ??= today();
     from ??= `${to.slice(0, 7)}-01`;
@@ -92,7 +107,7 @@ export function parsePeriod(options, usage, { closed = false } = {}) {
 
 export function parseMonth(text, usage, option = 'month') {
   if (!monthPattern.test(text)) {
-    throw new UsageError(`--${option}는 YYYY-MM 형식의 달이어야 합니다: ${text}`, usage);
+    throw new UsageError(`${withParticle(`--${option}`, '은/는')} YYYY-MM 형식의 달이어야 합니다: ${text}`, usage);
   }
   return text;
 }

@@ -97,7 +97,7 @@ export function buildTransfer(data, { date, amount, from, to, memo, tags = [] },
 }
 
 function buildImportEntry(data, fields) {
-  const date = parseDate(fields.date, undefined, 'date는');
+  const date = parseDate(fields.date, undefined, 'date');
   const amount = parseAmount(fields.amount);
   const type = parseImportType(fields.type);
   const memo = fields.memo ?? '';

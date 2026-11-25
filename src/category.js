@@ -1,23 +1,8 @@
-import { DataError, UsageError, unexpectedArgument } from './errors.js';
+import { DataError } from './errors.js';
 import { TYPES } from './types.js';
 import { countUses } from './usage.js';
 
 export const DEFAULT_CATEGORY = '기타';
-
-export function parseName(args, usage, label = '분류') {
-  if (args.length === 0) {
-    throw new UsageError(`${label} 이름이 없습니다`, usage);
-  }
-  if (args.length > 1) {
-    throw unexpectedArgument(args[1], usage);
-  }
-  const [input] = args;
-  const name = input.trim();
-  if (name === '' || [...name].length > 20) {
-    throw new UsageError(`${label} 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${input}`, usage);
-  }
-  return name;
-}
 
 export function findCategoryIndex(categories, type, name) {
   if (!TYPES.includes(type)) {

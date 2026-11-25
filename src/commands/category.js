@@ -1,7 +1,7 @@
-import { addCategory, listCategories, parseName, removeCategory } from '../category.js';
+import { addCategory, listCategories, removeCategory } from '../category.js';
 import { unexpectedArgument } from '../errors.js';
 import { formatTable } from '../format.js';
-import { parseType } from '../input.js';
+import { parseName, parseType } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { loadData, writeData } from '../store.js';
 import { EXPENSE, TYPE_LABELS } from '../types.js';
@@ -45,7 +45,7 @@ export function run(argv) {
   if (isList && args.length > 0) {
     throw unexpectedArgument(args[0], usage);
   }
-  const name = isList ? undefined : parseName(args, usage);
+  const name = isList ? undefined : parseName(args, usage, '분류');
   if (options.type !== undefined) {
     parseType(options.type, usage);
   }

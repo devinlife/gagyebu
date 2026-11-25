@@ -1,7 +1,6 @@
-import { parseName } from '../category.js';
 import { unexpectedArgument } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
-import { currentMonth, parseAmountArgument } from '../input.js';
+import { currentMonth, parseAmountArgument, parseName } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { budgetUsage, removeBudget, setBudget } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
@@ -57,7 +56,7 @@ export function run(argv) {
   }
 
   if (command === 'set') {
-    const name = parseName(args.slice(0, 1), usage);
+    const name = parseName(args.slice(0, 1), usage, '분류');
     const amount = parseAmountArgument(args.slice(1), usage);
     const { filePath, data } = loadData(options, usage);
     const budgets = setBudget(data, name, amount);
@@ -66,7 +65,7 @@ export function run(argv) {
     return 0;
   }
 
-  const name = parseName(args, usage);
+  const name = parseName(args, usage, '분류');
   const { filePath, data } = loadData(options, usage);
   const budgets = removeBudget(data.budgets, name);
   writeData(filePath, { ...data, budgets });

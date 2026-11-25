@@ -3,8 +3,7 @@ import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
 import {
   monthEnd, parseAmount, parseChartOptions, parseDate, parseDateOrToday, parseMonth, parseMonthOrCurrent,
-  parseOpening,
-  parsePeriod, parsePort, parseType, parseYear, shiftMonth, today,
+  parseName, parseOpening, parsePeriod, parsePort, parseType, parseYear, shiftMonth, today,
 } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
@@ -232,4 +231,27 @@ test('빠진 날짜와 달은 설정된 오늘과 이번 달로 채운다', (t) 
   assert.throws(() => parseMonthOrCurrent('2026-13', usage, 'start'), {
     constructor: UsageError, message: '--start는 YYYY-MM 형식의 달이어야 합니다: 2026-13', usage,
   });
+});
+
+test('이름에서 앞뒤 공백을 빼고 인자 개수와 이름 길이를 검사한다', () => {
+  assert.throws(() => parseName([], usage, '계좌'), {
+    constructor: UsageError, message: '계좌 이름이 없습니다', usage,
+  });
+  assert.throws(() => parseName(['a', 'b'], usage, '계좌'), {
+    constructor: UsageError, message: '예상하지 않은 인자입니다: b', usage,
+  });
+  assert.throws(() => parseName(['  '], usage, '계좌'), {
+    constructor: UsageError, message: '계좌 이름은 앞뒤 공백을 뺀 1~20자여야 합니다:' + ' '.repeat(3), usage,
+  });
+  assert.equal(parseName([' 식비 '], usage, '분류'), '식비');
+});
+
+test('날짜 오류 문구에 입력 항목에 맞는 조사를 붙인다', () => {
+  for (const [subject, prefix] of [[undefined, '날짜는'], ['--from', '--from은']]) {
+    assert.throws(() => parseDate('x', usage, subject), {
+      constructor: UsageError,
+      message: prefix + ' YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: x',
+      usage,
+    });
+  }
 });

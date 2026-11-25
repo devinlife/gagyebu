@@ -355,7 +355,7 @@ export function writeData(filePath, data, command = commandSummary) {
 function writeJsonFile(filePath, value, label) {
   const json = JSON.stringify(value, null, 2);
   if (json === undefined) {
-    throw new DataError(`${label}을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`);
+    throw new DataError(`${withParticle(label, '을/를')} 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`);
   }
 
   let temporaryPath;
@@ -381,10 +381,10 @@ function writeJsonFile(filePath, value, label) {
         rmSync(temporaryPath, { force: true });
       } catch (cleanupError) {
         throw new DataError(
-          `${label}을 쓸 수 없습니다: ${filePath} (${error.code ?? error.message}, 임시 파일을 지울 수 없습니다: ${cleanupError.code ?? cleanupError.message})`,
+          `${withParticle(label, '을/를')} 쓸 수 없습니다: ${filePath} (${error.code ?? error.message}, 임시 파일을 지울 수 없습니다: ${cleanupError.code ?? cleanupError.message})`,
         );
       }
     }
-    throw new DataError(`${label}을 쓸 수 없습니다: ${filePath} (${error.code ?? error.message})`);
+    throw new DataError(`${withParticle(label, '을/를')} 쓸 수 없습니다: ${filePath} (${error.code ?? error.message})`);
   }
 }

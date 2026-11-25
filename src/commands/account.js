@@ -1,8 +1,7 @@
 import { addAccount, listAccounts, removeAccount } from '../account.js';
-import { parseName } from '../category.js';
 import { unexpectedArgument } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
-import { parseOpening } from '../input.js';
+import { parseName, parseOpening } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { loadData, writeData } from '../store.js';
 

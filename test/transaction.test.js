@@ -7,7 +7,7 @@ import { DEFAULT_CATEGORIES } from '../src/store.js';
 import {
   applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals, removeTransaction,
 } from '../src/transaction.js';
-import { transaction } from './helpers.js';
+import { currentData, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu edit';
 
@@ -61,10 +61,10 @@ test('기간, 구분, 분류, 태그와 검색어로 거르고 날짜와 번호 
   assert.deepEqual(entries.map(({ id }) => id), [3, 1, 4, 5, 2]);
 });
 
-test('새 거래의 번호와 계좌를 채우고 데이터는 그대로 둔다', () => {
-  const data = Object.freeze({ nextId: 7, categories: DEFAULT_CATEGORIES, transactions: Object.freeze([]) });
-  const { date, type, amount, category, memo, tags } = transaction({});
-  const fields = { date, type, amount, category, memo, tags };
+test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그대로 둔다', () => {
+  const data = Object.freeze(currentData({ nextId: 7, transactions: Object.freeze([]) }));
+  const { date, type, amount, category, account, memo, tags } = transaction({});
+  const fields = { date, type, amount, category, account, memo, tags };
   const filePath = '/data.json';
   assert.deepEqual(buildTransaction(data, fields, filePath), transaction({ id: 7 }));
   assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }, filePath), {

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
 import { assertUsageError, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--account <계좌>] [--tag <태그>] [--json] [--data <경로>]';
+const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--account <이름>] [--tag <태그>] [--json] [--data <경로>]';
 
 const sameDayIncome = {
   id: 10, date: '2026-02-10', type: 'income', amount: 1234567, category: '월급',
@@ -17,7 +17,7 @@ const first = {
 };
 const sameDayExpense = {
   id: 2, date: '2026-02-10', type: 'expense', amount: 50, category: '식비',
-  memo: '점심 2인', account: '현금', tags: [],
+  memo: '점심 2인', account: '카드', tags: [],
 };
 const last = {
   id: 4, date: '2026-02-28', type: 'expense', amount: 1000, category: '식비권',
@@ -110,11 +110,11 @@ test('표는 한글 폭을 맞추고 번호와 금액을 오른쪽에 놓는다'
 
   const result = run();
   assertOutput(result, [
-    '번호  날짜        구분         금액  분류    메모',
-    '  12  2026-02-01  지출      1,200원  식비    아침',
-    '   2  2026-02-10  지출         50원  식비    점심 2인',
-    '  10  2026-02-10  수입  1,234,567원  월급    #정기',
-    '   4  2026-02-28  지출      1,000원  식비권  coupon',
+    '번호  날짜        구분         금액  분류    계좌  메모',
+    '  12  2026-02-01  지출      1,200원  식비    현금  아침',
+    '   2  2026-02-10  지출         50원  식비    카드  점심 2인',
+    '  10  2026-02-10  수입  1,234,567원  월급    현금  #정기',
+    '   4  2026-02-28  지출      1,000원  식비권  현금  coupon',
     '4건, 수입 1,234,567원, 지출 2,250원',
     '',
   ].join('\n'));
@@ -163,6 +163,7 @@ test('사용법 오류는 데이터 읽기 전에 종료 코드 2와 함께 출�
     [['--help=1'], '--help는 값을 받지 않습니다'],
     [['--category='], '--category 값이 비었습니다'],
     [['--account', ''], '--account 값이 비었습니다'],
+    [['--account='], '--account 값이 비었습니다'],
     [['--data='], '--data 값이 비었습니다'],
     [['--tag='], '태그는 공백 없는 1~20자여야 합니다: '],
     [['--tag', 'a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
@@ -235,4 +236,12 @@ test('이체를 표에 표시하고 수입과 지출 합계에서 뺀다', (t) =
   assert.equal(stderr, '');
   assert.match(stdout, /이체 +9,000원/);
   assert.ok(stdout.endsWith('3건, 수입 1,234,567원, 지출 1,200원\n'));
+});
+
+test('계좌 필터를 분류 필터와 함께 적용하고 없는 계좌는 빈 목록으로 보여 준다', (t) => {
+  const { data, run, write } = fixture(t);
+  const original = write();
+  assert.deepEqual(readJson(run('--account', '카드', '--category', '식비', '--json')), [sameDayExpense]);
+  assertOutput(run('--account', '없는통장'), '거래가 없습니다.\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
 });

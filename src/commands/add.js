@@ -1,6 +1,7 @@
+import { DEFAULT_ACCOUNT } from '../account.js';
 import { DEFAULT_CATEGORY } from '../category.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
-import { parseAmount, parseCategory, parseDate, parseTags, parseType, today } from '../input.js';
+import { parseAmount, parseCategory, parseDate, parseNonemptyOption, parseTags, parseType, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { buildTransaction, describeTransaction } from '../transaction.js';
@@ -10,11 +11,11 @@ export const name = 'add';
 export const order = 20;
 export const summary = '거래 하나를 더합니다.';
 
-const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
+const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--account <이름>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['type', 'category', 'date', 'memo', 'tag', 'data'],
+    values: ['type', 'category', 'account', 'date', 'memo', 'tag', 'data'],
     flags: ['help'],
     repeatable: ['tag'],
   });
@@ -38,12 +39,13 @@ export function run(argv) {
   const { memo = '' } = options;
   const type = parseType(options.type ?? EXPENSE, USAGE);
   const category = parseCategory(options.category ?? DEFAULT_CATEGORY, USAGE);
+  const account = parseNonemptyOption(options.account ?? DEFAULT_ACCOUNT, 'account', USAGE);
   const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
   validateDataOption(options, USAGE);
 
   const tags = parseTags(options.tag, USAGE);
   const { filePath, data } = loadData(options, USAGE);
-  const transaction = buildTransaction(data, { date, type, amount, category, memo, tags }, filePath);
+  const transaction = buildTransaction(data, { date, type, amount, category, account, memo, tags }, filePath);
   data.transactions.push(transaction);
   data.nextId += 1;
   writeData(filePath, data);

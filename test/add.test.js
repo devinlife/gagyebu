@@ -4,7 +4,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
 
-const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
+const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--account <이름>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
 function fixture(t, envOverrides = {}) {
   const directory = tempDir(t, 'gagyebu-add-');
@@ -248,4 +248,25 @@ test('반복 태그를 정규화해 저장하고 확인 줄에 표시한다', (t
   const saved = readFileSync(data, 'utf8');
   assertUsageError(run('1000', '--tag', 'a b', '--data', data), '태그는 공백 없는 1~20자여야 합니다: a b', usage);
   assert.equal(readFileSync(data, 'utf8'), saved);
+});
+
+test('거래에 등록한 계좌를 저장하고 계좌를 생략하면 현금을 쓴다', (t) => {
+  const { envData, run, read } = fixture(t);
+  const data = currentData();
+  data.accounts.push({ name: '카드', opening: -50000 });
+  writeJson(envData, data);
+
+  for (const args of [['--account', '카드'], []]) {
+    const { status, stderr } = run('1000', ...args);
+    assert.equal(status, 0, stderr);
+  }
+  assert.deepEqual(read(envData).transactions.map(({ account }) => account), ['카드', '현금']);
+
+  const original = readFileSync(envData, 'utf8');
+  const unknown = run('1000', '--account', '없는통장');
+  assert.equal(unknown.status, 1);
+  assert.equal(unknown.stderr, '오류: 없는 계좌입니다: 없는통장 (gagyebu account add로 더하세요)\n');
+  assertUsageError(run('1000', '--account', ''), '--account 값이 비었습니다', usage);
+  assertUsageError(run('1000', '--account'), '--account 값이 없습니다', usage);
+  assert.equal(readFileSync(envData, 'utf8'), original);
 });

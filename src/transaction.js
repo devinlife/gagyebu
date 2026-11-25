@@ -1,3 +1,4 @@
+import { DEFAULT_ACCOUNT, requireAccount } from './account.js';
 import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { formatWon, withParticle } from './format.js';
@@ -14,7 +15,13 @@ export function describeTransaction({ id, date, type, amount, category, memo, ta
   return `#${id} ${date} ${label} ${formatWon(amount)} ${description}${tagText}`;
 }
 
-export function buildTransaction(data, { date, type, amount, category, account = '현금', memo, tags }, filePath) {
+export function buildTransaction(data, fields, filePath) {
+  const transaction = createTransaction(data, fields, filePath);
+  requireAccount(data.accounts, transaction.account);
+  return transaction;
+}
+
+function createTransaction(data, { date, type, amount, category, account = DEFAULT_ACCOUNT, memo, tags }, filePath) {
   const { nextId: id } = data;
   if (!Number.isSafeInteger(id) || id < 1) {
     throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
@@ -42,7 +49,7 @@ export function importTransactions(data, rows, filePath) {
       const account = fields.account || undefined;
       const memo = fields.memo ?? '';
       const tags = parseTags(fields.tags);
-      const entry = buildTransaction({ ...data, nextId: data.nextId + added.length },
+      const entry = createTransaction({ ...data, nextId: data.nextId + added.length },
         { date, type, amount, category, account, memo, tags }, filePath);
 
       if (data.transactions.some((existing) =>
@@ -80,6 +87,9 @@ export function applyChanges(data, id, changes) {
   const updated = { ...transaction, ...changes };
   if (changes.type !== undefined || changes.category !== undefined) {
     requireCategoryIndex(data.categories, updated.type, updated.category, categoryHint);
+  }
+  if (changes.account !== undefined) {
+    requireAccount(data.accounts, updated.account);
   }
   return updated;
 }

@@ -46,12 +46,12 @@ export function printTransactions(list, { json }) {
     return;
   }
 
-  const rows = [['번호', '날짜', '구분', '금액', '분류', '메모']];
+  const rows = [['번호', '날짜', '구분', '금액', '분류', '계좌', '메모']];
   for (const transaction of list) {
     const memo = [transaction.memo, ...transaction.tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
     rows.push([
       String(transaction.id), transaction.date, TYPE_LABELS[transaction.type],
-      formatWon(transaction.amount), transaction.category, memo,
+      formatWon(transaction.amount), transaction.category, transaction.account, memo,
     ]);
   }
 

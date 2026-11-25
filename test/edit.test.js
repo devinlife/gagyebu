@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
 
-const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
+const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--account <이름>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
 function fixture(t) {
   const directory = tempDir(t, 'gagyebu-edit-');
@@ -212,4 +212,20 @@ test('태그 교체와 지우기를 함께 쓰거나 지우기에 값을 주면 
     assertUsageError(run('2', ...args), message, usage);
     assert.equal(readFileSync(data, 'utf8'), saved);
   }
+});
+
+test('계좌 옵션만으로 거래를 수정하고 없는 계좌를 거부한다', (t) => {
+  const { data, original, run, read } = fixture(t);
+  writeJson(data, original);
+  const edited = run('1', '--account', '카드');
+  assert.equal(edited.status, 0, edited.stderr);
+  assert.deepEqual(read().transactions, [{ ...original.transactions[0], account: '카드' }, original.transactions[1]]);
+
+  const saved = readFileSync(data, 'utf8');
+  const unknown = run('1', '--account', '없는통장');
+  assert.equal(unknown.status, 1);
+  assert.equal(unknown.stderr, '오류: 없는 계좌입니다: 없는통장 (gagyebu account add로 더하세요)\n');
+  assertUsageError(run('1', '--account', ''), '--account 값이 비었습니다', usage);
+  assertUsageError(run('1', '--account'), '--account 값이 없습니다', usage);
+  assert.equal(readFileSync(data, 'utf8'), saved);
 });

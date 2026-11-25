@@ -1,7 +1,7 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { buildTransaction, describeTransaction, parseTransactionFields } from '../transaction.js';
+import { buildTransaction, describeAddedTransaction, parseTransactionFields } from '../transaction.js';
 
 export const name = 'add';
 export const order = 20;
@@ -34,6 +34,6 @@ export function run(argv) {
   data.nextId += 1;
   writeData(filePath, data);
 
-  console.log(`추가했습니다: ${describeTransaction(transaction)}`);
+  console.log(describeAddedTransaction(transaction));
   return 0;
 }

@@ -1,7 +1,9 @@
 import { formatBalanceDate, formatBudgetOverage, formatPercent, formatTag, formatWon, formatYearMonth, NO_TRANSACTIONS } from './format.js';
-import { shiftMonth } from './input.js';
+import { DEFAULT_ACCOUNT } from './account.js';
+import { DEFAULT_CATEGORY } from './category.js';
+import { shiftMonth, today } from './input.js';
 import { categoryText } from './transaction.js';
-import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
+import { EXPENSE, INCOME, TYPE_LABELS, TYPES } from './types.js';
 
 const htmlEntities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -20,6 +22,9 @@ function page(title, content) {
 <style>
   body { font-family: system-ui, sans-serif; max-width: 64rem; margin: 1rem auto; padding: 0 1rem; }
   nav a { margin-inline-end: 1rem; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0.75rem; margin-block: 0.75rem; }
+  .fields label { display: block; }
+  .fields input, .fields select { box-sizing: border-box; width: 100%; padding: 0.35rem; font: inherit; }
   .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; }
   th, td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #ccc; text-align: start; }
@@ -92,7 +97,64 @@ function balanceTable({ accounts, total }) {
   return table(['계좌', '잔액'], rows, footer);
 }
 
-export function renderReportPage({ summary, transactions, balances }) {
+function formOption(value, label, selected) {
+  return `<option value="${escapeHtml(value)}"${selected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+}
+
+function transactionForm({ token, month, categories, accounts, values = {}, error }) {
+  function attributes(name) {
+    const invalid = error?.field === name ? ' aria-describedby="form-error" aria-invalid="true"' : '';
+    return `id="add-${name}" name="${name}"${invalid}`;
+  }
+
+  function field(name, label, control) {
+    return `<div><label for="add-${name}">${label}</label>${control}</div>`;
+  }
+
+  function input(name, label, value, extra = '') {
+    return field(name, label, `<input ${attributes(name)}${extra} value="${escapeHtml(value)}">`);
+  }
+
+  function select(name, label, value, choices, options) {
+    const unavailable = value !== '' && !choices.includes(value);
+    const placeholder = unavailable
+      ? `<option value="" disabled selected>${escapeHtml(value)}</option>`
+      : value === '' ? formOption('', '', true) : '';
+    return field(name, label, `<select ${attributes(name)}${unavailable ? ' required' : ''}>${placeholder}${options}</select>`);
+  }
+
+  const type = values.type ?? EXPENSE;
+  const categoryType = type || EXPENSE;
+  const category = values.category ?? (categories[categoryType]?.includes(DEFAULT_CATEGORY) ? DEFAULT_CATEGORY : '');
+  const account = values.account ?? DEFAULT_ACCOUNT;
+  const categoryGroups = TYPES.map((group) => {
+    const options = categories[group].map((name) => formOption(name, name, group === categoryType && name === category));
+    return `<optgroup label="${TYPE_LABELS[group]}">${options.join('')}</optgroup>`;
+  }).join('');
+  const typeOptions = TYPES.map((option) => formOption(option, TYPE_LABELS[option], option === type)).join('');
+  const accountOptions = accounts.map((name) => formOption(name, name, name === account)).join('');
+
+  return `<section aria-labelledby="add-heading">
+<h2 id="add-heading">거래 추가</h2>
+${error ? `<p id="form-error" role="alert">${escapeHtml(error.message)}</p>
+` : ''}<form method="post" action="/transactions">
+<input type="hidden" name="csrf" value="${escapeHtml(token)}">
+<input type="hidden" name="month" value="${escapeHtml(month)}">
+<div class="fields">
+${input('amount', '금액', values.amount ?? '', ' inputmode="text" required')}
+${select('type', '구분', type, TYPES, typeOptions)}
+${select('category', '분류', category, categories[categoryType] ?? [], categoryGroups)}
+${input('date', '날짜', values.date ?? today(), ' type="date"')}
+${select('account', '계좌', account, accounts, accountOptions)}
+${input('memo', '메모', values.memo ?? '')}
+${input('tags', '태그', values.tags ?? '', ' placeholder="쉼표로 구분"')}
+</div>
+<button type="submit">추가</button>
+</form>
+</section>`;
+}
+
+export function renderReportPage({ summary, transactions, balances, form, notice }) {
   const { month, income, expense, net } = summary;
   const previous = shiftMonth(month, -1);
   const next = shiftMonth(month, 1);
@@ -100,7 +162,9 @@ export function renderReportPage({ summary, transactions, balances }) {
 <a href="/?month=${previous}">이전 달</a>
 <a href="/?month=${next}">다음 달</a>
 </nav>
-<dl>
+${notice === undefined ? '' : `<p role="status">${escapeHtml(notice)}</p>
+`}${form ? `${transactionForm(form)}
+` : ''}<dl>
   <dt>${TYPE_LABELS[INCOME]}</dt><dd>${formatWon(income)}</dd>
   <dt>${TYPE_LABELS[EXPENSE]}</dt><dd>${formatWon(expense)}</dd>
   <dt>차액</dt><dd>${formatWon(net)}</dd>

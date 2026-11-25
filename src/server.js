@@ -1,11 +1,12 @@
+import { randomBytes } from 'node:crypto';
 import { createServer as createHttpServer } from 'node:http';
 import { accountBalances } from './account.js';
 import { DataError, UsageError } from './errors.js';
-import { currentMonth, currentYear, monthEnd, parseMonth, parseYear } from './input.js';
+import { currentMonth, currentYear, monthEnd, parseId, parseMonth, parseYear } from './input.js';
 import { parseListingFilters } from './listing.js';
 import { summarizeMonth, summarizeYear } from './report.js';
 import { loadData } from './store.js';
-import { filterTransactions } from './transaction.js';
+import { describeAddedTransaction, filterTransactions } from './transaction.js';
 import { renderErrorPage, renderReportPage } from './web.js';
 
 function queryOptions(params, names) {
@@ -32,29 +33,38 @@ function queryMonth(params) {
   return parseMonth(month ?? currentMonth());
 }
 
+function reportPage(month, data, { token, values, error, notice }) {
+  const end = monthEnd(month);
+  return renderReportPage({
+    summary: summarizeMonth(data.transactions, data.budgets, month),
+    transactions: filterTransactions(data.transactions, { from: `${month}-01`, to: end }),
+    balances: accountBalances(data, end),
+    form: { token, month, categories: data.categories, accounts: data.accounts.map(({ name }) => name), values, error },
+    notice,
+  });
+}
+
 const reportPath = '/';
 const routes = new Map([
-  [reportPath, (params, options) => {
-    const month = queryMonth(params);
-    const end = monthEnd(month);
+  [reportPath, (params, { options, token }) => {
+    const query = queryOptions(params, ['month', 'added']);
+    const month = parseMonth(query.month ?? currentMonth());
+    const id = query.added === undefined ? undefined : parseId(query.added);
     const { data } = loadData(options);
-    return renderReportPage({
-      summary: summarizeMonth(data.transactions, data.budgets, month),
-      transactions: filterTransactions(data.transactions, { from: `${month}-01`, to: end }),
-      balances: accountBalances(data, end),
-    });
+    const added = id === undefined ? undefined : data.transactions.find((transaction) => transaction.id === id);
+    return reportPage(month, data, { token, notice: added && describeAddedTransaction(added) });
   }],
-  ['/api/transactions', (params, options) => {
+  ['/api/transactions', (params, { options }) => {
     const filters = parseListingFilters(queryOptions(params, ['from', 'to', 'type', 'category', 'account', 'tag']));
     const { data: { transactions } } = loadData(options);
     return filterTransactions(transactions, filters);
   }],
-  ['/api/summary', (params, options) => {
+  ['/api/summary', (params, { options }) => {
     const month = queryMonth(params);
     const { data: { transactions, budgets } } = loadData(options);
     return summarizeMonth(transactions, budgets, month);
   }],
-  ['/api/report', (params, options) => {
+  ['/api/report', (params, { options }) => {
     const { year } = queryOptions(params, ['year']);
     const parsedYear = parseYear(year ?? currentYear());
     const { data: { transactions } } = loadData(options);
@@ -63,6 +73,7 @@ const routes = new Map([
 ]);
 
 export function createServer(options) {
+  const token = randomBytes(32).toString('hex');
   return createHttpServer((request, response) => {
     const queryStart = request.url.indexOf('?');
     const pathname = queryStart === -1 ? request.url : request.url.slice(0, queryStart);
@@ -87,7 +98,7 @@ export function createServer(options) {
         sendError(405, `GET만 받습니다: ${request.method}`, { allow: 'GET' });
       } else {
         const query = queryStart === -1 ? '' : request.url.slice(queryStart);
-        send(200, route(new URLSearchParams(query), options));
+        send(200, route(new URLSearchParams(query), { options, token }));
       }
     } catch (error) {
       if (error instanceof UsageError) {

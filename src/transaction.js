@@ -21,6 +21,10 @@ export function describeTransaction(transaction) {
   return `#${id} ${date} ${label} ${formatWon(amount)} ${description}${tagText}`;
 }
 
+export function describeAddedTransaction(transaction) {
+  return `추가했습니다: ${describeTransaction(transaction)}`;
+}
+
 function withField(field, ErrorType, read) {
   try {
     return read();

@@ -274,3 +274,15 @@ test('보고서의 잘못된 쿼리, 메서드, 데이터 파일에 HTML 오류�
   assert.match(broken.body, /<h1>500 오류<\/h1>/);
   assert.ok(broken.body.includes(stderr.trimEnd().slice('오류: '.length)));
 });
+
+test('보고서는 같은 서버 토큰을 쓰고 추가된 거래의 알림을 표시한다', async (t) => {
+  const { html } = await fixture(t);
+  const first = await html('/');
+  const token = first.body.match(/name="csrf" value="([a-f0-9]{64})"/)?.[1];
+  assert.ok(token);
+  const added = await html('/?added=2');
+  assert.ok(added.body.includes(`name="csrf" value="${token}"`));
+  assert.match(added.body, /<p role="status">추가했습니다: #2 2026-02-10 지출 1,000원 식비 점심 결제 #a #b<\/p>/);
+  assert.doesNotMatch((await html('/?added=99')).body, /role="status"/);
+  assert.match((await html('/?added=0', 400)).body, /번호는 양의 정수여야 합니다: 0/);
+});

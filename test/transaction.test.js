@@ -5,7 +5,7 @@ import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import {
-  applyChanges, buildTransaction, buildTransfer, describeTransaction, filterTransactions, importTransactions, listTotals,
+  appendTransactions, applyChanges, buildTransaction, buildTransfer, describeTransaction, filterTransactions, importTransactions, listTotals,
   parseEntryOptions, parseTransactionFields, removeTransaction,
 } from '../src/transaction.js';
 import { currentData, transaction } from './helpers.js';
@@ -235,4 +235,18 @@ test('거래 삭제는 첫 일치 거래와 나머지를 돌려주고 입력을 
   assert.throws(() => removeTransaction(transactions, 3), {
     constructor: DataError, message: '거래 #3이 없습니다',
   });
+});
+
+test('여러 거래를 순서대로 붙이고 추가 건수만큼 다음 번호를 올린다', () => {
+  const first = transaction({ id: 1 });
+  const added = [transaction({ id: 2 }), transaction({ id: 3 })];
+  const data = currentData({ nextId: 2, transactions: [first] });
+
+  appendTransactions(data, added);
+  assert.deepEqual(data.transactions, [first, ...added]);
+  assert.equal(data.nextId, 4);
+
+  appendTransactions(data, []);
+  assert.deepEqual(data.transactions, [first, ...added]);
+  assert.equal(data.nextId, 4);
 });

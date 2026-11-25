@@ -66,8 +66,14 @@ export function buildTransaction(data, { date, type, amount, category, account =
 }
 
 export function appendTransaction(data, transaction) {
-  data.transactions.push(transaction);
-  data.nextId += 1;
+  appendTransactions(data, [transaction]);
+}
+
+export function appendTransactions(data, transactions) {
+  for (const transaction of transactions) {
+    data.transactions.push(transaction);
+  }
+  data.nextId += transactions.length;
 }
 
 export function requireEntryReferences(data, { type, category, account }) {

@@ -4,7 +4,7 @@ import { currentMonth, parseAmountArgument, parseDay, parseIdArgument, parseMont
 import { parseSubcommand } from '../options.js';
 import { addRule, applyRecurring, removeRule } from '../recurring.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { describeTransaction, parseEntryOptions } from '../transaction.js';
+import { appendTransactions, describeTransaction, parseEntryOptions } from '../transaction.js';
 import { TYPE_LABELS } from '../types.js';
 
 export const name = 'recurring';
@@ -81,11 +81,8 @@ function apply(args, options, usage) {
   const { added, existing } = applyRecurring(data, month);
   const dryRun = options['dry-run'];
   if (!dryRun && added.length > 0) {
-    writeData(filePath, {
-      ...data,
-      transactions: [...data.transactions, ...added],
-      nextId: data.nextId + added.length,
-    });
+    appendTransactions(data, added);
+    writeData(filePath, data);
   }
 
   const prefix = dryRun ? '만들 거래' : '추가했습니다';

@@ -3,7 +3,7 @@ import { parseCsv, readCsvRows } from '../csv.js';
 import { DataError, UsageError, singleLineMessage, unexpectedArgument } from '../errors.js';
 import { parseCommand } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { importTransactions } from '../transaction.js';
+import { appendTransactions, importTransactions } from '../transaction.js';
 
 export const name = 'import';
 export const order = 95;
@@ -63,8 +63,7 @@ export function run(argv) {
     return 0;
   }
   if (added.length > 0) {
-    data.transactions = data.transactions.concat(added);
-    data.nextId += added.length;
+    appendTransactions(data, added);
     writeData(filePath, data);
   }
   console.log(`${added.length}건을 더했습니다(중복 ${duplicates}건 건너뜀).`);

@@ -28,6 +28,21 @@ test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력�
   }
 });
 
+test('등록된 모든 명령은 --help로 자기 사용법을 출력한다', () => {
+  const names = Object.keys(commands);
+  assert.ok(names.length > 0);
+
+  for (const name of names) {
+    const { status, stdout, stderr } = run(name, '--help');
+    assert.equal(status, 0, name);
+    assert.equal(stderr, '', name);
+    assert.ok(stdout.startsWith('사용법: gagyebu '), name);
+    if (name !== 'help') {
+      assert.ok(stdout.split('\n')[0].includes(`gagyebu ${name} `), name);
+    }
+  }
+});
+
 test('명령 표는 파일 이름에 맞는 명령을 중복 없는 순서로 등록한다', () => {
   const files = readdirSync(new URL('../src/commands/', import.meta.url))
     .filter((file) => file.endsWith('.js'));

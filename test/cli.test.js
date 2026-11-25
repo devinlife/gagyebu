@@ -13,13 +13,22 @@ function runCli(...args) {
   return result;
 }
 
-test('인자 없음, help, --help의 사용법 출력이 같다', () => {
-  const outputs = [runCli(), runCli('help'), runCli('--help')];
+test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력한다', () => {
+  const outputs = [runCli(), runCli('help'), runCli('--help'), runCli('help', '--help')];
   const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help  사용법과 명령 목록을 보여 준다.\n';
   for (const { status, stdout, stderr } of outputs) {
     assert.equal(status, 0);
     assert.equal(stderr, '');
     assert.equal(stdout, expected);
+  }
+});
+
+test('help는 모르는 옵션에 오류와 사용법을 출력한다', () => {
+  for (const command of ['help', '--help']) {
+    const { status, stdout, stderr } = runCli(command, '--nope');
+    assert.equal(status, 2);
+    assert.equal(stdout, '');
+    assert.equal(stderr, '오류: 알 수 없는 옵션 --nope\n사용법: gagyebu help\n');
   }
 });
 

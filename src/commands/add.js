@@ -1,8 +1,8 @@
 import { DataError, UsageError } from '../errors.js';
-import { formatWon } from '../format.js';
 import { parseAmount, parseDate, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath, writeData } from '../store.js';
+import { describeTransaction } from '../transaction.js';
 
 export const summary = '거래 하나를 더합니다.';
 
@@ -54,12 +54,11 @@ export function run(argv) {
   if (!Number.isSafeInteger(id) || id < 1 || !Array.isArray(transactions)) {
     throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
   }
-  transactions.push({ id, date, type, amount, category, account: '현금', memo, tags: [] });
+  const transaction = { id, date, type, amount, category, account: '현금', memo, tags: [] };
+  transactions.push(transaction);
   data.nextId += 1;
   writeData(filePath, data);
 
-  const label = type === 'income' ? '수입' : '지출';
-  const description = memo ? `${category} ${memo}` : category;
-  console.log(`추가했습니다: #${id} ${date} ${label} ${formatWon(amount)} ${description}`);
+  console.log(`추가했습니다: ${describeTransaction(transaction)}`);
   return 0;
 }

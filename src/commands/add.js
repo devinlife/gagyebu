@@ -1,8 +1,7 @@
-import { UsageError } from '../errors.js';
-import { parseAmountArgument, parseDate, parseEntryOptions, today } from '../input.js';
+import { UsageError, unexpectedArgument } from '../errors.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { buildTransaction, describeTransaction } from '../transaction.js';
+import { buildTransaction, describeTransaction, parseTransactionFields } from '../transaction.js';
 
 export const name = 'add';
 export const order = 20;
@@ -23,15 +22,14 @@ export function run(argv) {
     console.log(USAGE);
     return 0;
   }
-  const amount = parseAmountArgument(args, USAGE);
+  if (args.length > 1) {
+    throw unexpectedArgument(args[1], USAGE);
+  }
+  const fields = parseTransactionFields({ amount: args[0], ...options, tags: options.tag }, USAGE);
+  validateDataOption(options, USAGE);
 
-  let date;
-  const entry = parseEntryOptions(options, USAGE, () => {
-    date = options.date === undefined ? today() : parseDate(options.date, USAGE);
-    validateDataOption(options, USAGE);
-  });
   const { filePath, data } = loadData(options, USAGE);
-  const transaction = buildTransaction(data, { ...entry, date, amount }, filePath);
+  const transaction = buildTransaction(data, fields, filePath);
   data.transactions.push(transaction);
   data.nextId += 1;
   writeData(filePath, data);

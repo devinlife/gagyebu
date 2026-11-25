@@ -1,10 +1,10 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
-import { currentMonth, parseAmountArgument, parseDay, parseEntryOptions, parseIdArgument, parseMonth } from '../input.js';
+import { currentMonth, parseAmountArgument, parseDay, parseIdArgument, parseMonth } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { addRule, applyRecurring, removeRule } from '../recurring.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { describeTransaction } from '../transaction.js';
+import { describeTransaction, parseEntryOptions } from '../transaction.js';
 import { TYPE_LABELS } from '../types.js';
 
 export const name = 'recurring';
@@ -25,7 +25,7 @@ function rulePeriod({ start, end }) {
 
 function add(args, options, usage) {
   const amount = parseAmountArgument(args, usage);
-  const entry = parseEntryOptions(options, usage);
+  const entry = parseEntryOptions({ ...options, tags: options.tag }, usage);
   const day = parseDay(options.day, usage);
   const start = options.start === undefined ? currentMonth() : parseMonth(options.start, usage, 'start');
   const end = options.end === undefined ? null : parseMonth(options.end, usage, 'end');

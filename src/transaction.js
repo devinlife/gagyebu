@@ -2,7 +2,7 @@ import { DEFAULT_ACCOUNT, requireAccount } from './account.js';
 import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { formatTag, formatWon, withParticle } from './format.js';
-import { parseAmount, parseDate, parseImportType, parseTags } from './input.js';
+import { parseAmount, parseCategory, parseDate, parseImportType, parseNonemptyOption, parseTags, parseType, today } from './input.js';
 import { readError } from './store.js';
 import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
@@ -21,6 +21,41 @@ export function describeTransaction(transaction) {
   return `#${id} ${date} ${label} ${formatWon(amount)} ${description}${tagText}`;
 }
 
+function withField(field, ErrorType, read) {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof ErrorType) {
+      error.field = field;
+    }
+    throw error;
+  }
+}
+
+export function parseEntryOptions({ type, category, account, memo = '', tags }, usage, beforeTags) {
+  const parsedType = withField('type', UsageError, () => parseType(type ?? EXPENSE, usage));
+  const parsedCategory = withField('category', UsageError, () => parseCategory(category ?? DEFAULT_CATEGORY, usage));
+  const parsedAccount = withField('account', UsageError, () => parseNonemptyOption(account ?? DEFAULT_ACCOUNT, 'account', usage));
+  beforeTags?.();
+  const parsedTags = withField('tags', UsageError, () => parseTags(tags ?? [], usage));
+  return { type: parsedType, category: parsedCategory, account: parsedAccount, memo, tags: parsedTags };
+}
+
+export function parseTransactionFields({ amount, date, ...entry }, usage) {
+  const parsedAmount = withField('amount', UsageError, () => {
+    if (amount === undefined) {
+      throw new UsageError('금액이 없습니다', usage);
+    }
+    return parseAmount(amount, usage);
+  });
+
+  let parsedDate;
+  const parsedEntry = parseEntryOptions(entry, usage, () => {
+    parsedDate = date === undefined ? today() : withField('date', UsageError, () => parseDate(date, usage));
+  });
+  return { ...parsedEntry, amount: parsedAmount, date: parsedDate };
+}
+
 export function buildTransaction(data, { date, type, amount, category, account = DEFAULT_ACCOUNT, memo, tags }, filePath) {
   const id = requireNextId(data, filePath);
   requireEntryReferences(data, { type, category, account });
@@ -28,8 +63,8 @@ export function buildTransaction(data, { date, type, amount, category, account =
 }
 
 export function requireEntryReferences(data, { type, category, account }) {
-  requireCategoryIndex(data.categories, type, category, categoryHint);
-  requireAccount(data.accounts, account);
+  withField('category', DataError, () => requireCategoryIndex(data.categories, type, category, categoryHint));
+  withField('account', DataError, () => requireAccount(data.accounts, account));
 }
 
 export function requireDistinctAccounts(from, to, usage) {

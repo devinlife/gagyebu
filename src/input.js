@@ -1,8 +1,6 @@
-import { DEFAULT_ACCOUNT } from './account.js';
-import { DEFAULT_CATEGORY } from './category.js';
 import { DataError, UsageError, unexpectedArgument } from './errors.js';
 import { formatLocalDateTime } from './format.js';
-import { EXPENSE, TYPE_LABELS, TYPES } from './types.js';
+import { TYPE_LABELS, TYPES } from './types.js';
 
 export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -168,16 +166,6 @@ export function parseType(text, usage) {
     throw new UsageError(`--type은 ${TYPES.join(' 또는 ')}이어야 합니다: ${text}`, usage);
   }
   return text;
-}
-
-export function parseEntryOptions(options, usage, beforeTags) {
-  const { memo = '' } = options;
-  const type = parseType(options.type ?? EXPENSE, usage);
-  const category = parseCategory(options.category ?? DEFAULT_CATEGORY, usage);
-  const account = parseNonemptyOption(options.account ?? DEFAULT_ACCOUNT, 'account', usage);
-  beforeTags?.();
-  const tags = parseTags(options.tag, usage);
-  return { type, category, account, memo, tags };
 }
 
 export function parseImportType(text) {

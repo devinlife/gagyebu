@@ -5,7 +5,7 @@ import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 import {
-  applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals, removeTransaction,
+  applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals, parseTransactionFields, removeTransaction,
 } from '../src/transaction.js';
 import { currentData, transaction } from './helpers.js';
 
@@ -61,6 +61,40 @@ test('기간, 구분, 분류, 태그와 검색어로 거르고 날짜와 번호 
   assert.deepEqual(entries.map(({ id }) => id), [3, 1, 4, 5, 2]);
 });
 
+test('거래 입력에 기본값을 적용하고 금액과 태그를 해석한다', (t) => {
+  const date = '2026-02-10';
+  const previous = process.env.GAGYEBU_TODAY;
+  process.env.GAGYEBU_TODAY = date;
+  t.after(() => {
+    if (previous === undefined) {
+      delete process.env.GAGYEBU_TODAY;
+    } else {
+      process.env.GAGYEBU_TODAY = previous;
+    }
+  });
+  const defaults = { amount: 12000, type: 'expense', category: '기타', account: '현금', date, memo: '', tags: [] };
+  assert.deepEqual(parseTransactionFields({ amount: '1만2천' }), defaults);
+  assert.deepEqual(parseTransactionFields({ amount: '12,000원', tags: ['a,#b', 'a'] }), {
+    ...defaults, tags: ['a', 'b'],
+  });
+});
+
+test('거래 입력 오류는 기존 문구와 오류가 난 칸을 전달한다', () => {
+  for (const [field, value, message] of [
+    ['amount', undefined, '금액이 없습니다'],
+    ['amount', '0', '금액은 양의 정수여야 합니다: 0'],
+    ['type', 'x', '--type은 expense 또는 income이어야 합니다: x'],
+    ['category', '', '--category 값이 비었습니다'],
+    ['account', '', '--account 값이 비었습니다'],
+    ['date', '2026-02-30', '날짜는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-30'],
+    ['tags', ['a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
+  ]) {
+    assert.throws(() => parseTransactionFields({ amount: '1000', date: '2026-02-10', [field]: value }, usage), {
+      constructor: UsageError, field, message, usage,
+    });
+  }
+});
+
 test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그대로 둔다', () => {
   const data = Object.freeze(currentData({ nextId: 7, transactions: Object.freeze([]) }));
   const { date, type, amount, category, account, memo, tags } = transaction({});
@@ -68,7 +102,10 @@ test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그�
   const filePath = '/data.json';
   assert.deepEqual(buildTransaction(data, fields, filePath), transaction({ id: 7 }));
   assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }, filePath), {
-    constructor: DataError, message: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)',
+    constructor: DataError, field: 'category', message: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)',
+  });
+  assert.throws(() => buildTransaction(data, { ...fields, account: '미등록' }, filePath), {
+    constructor: DataError, field: 'account', message: '없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)',
   });
   assert.throws(() => buildTransaction({ ...data, nextId: 0 }, fields, filePath), {
     constructor: DataError, message: '데이터 파일을 읽을 수 없습니다: /data.json (nextId 또는 transactions가 올바르지 않습니다)',

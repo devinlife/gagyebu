@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
 import {
-  monthEnd, parseAmount, parseChartOptions, parseDate, parseEntryOptions, parseMonth, parseOpening,
+  monthEnd, parseAmount, parseChartOptions, parseDate, parseMonth, parseOpening,
   parsePeriod, parsePort, parseType, parseYear, shiftMonth, today,
 } from '../src/input.js';
+import { parseEntryOptions } from '../src/transaction.js';
+
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };

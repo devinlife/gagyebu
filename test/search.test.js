@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { assertUsageError, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, output, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--account <이름>] [--tag <태그>] [--json] [--data <경로>]';
 
@@ -26,12 +26,6 @@ function fixture(t) {
   }
 
   return { data, run };
-}
-
-function output({ status, stdout, stderr }) {
-  assert.equal(status, 0, stderr);
-  assert.equal(stderr, '');
-  return stdout;
 }
 
 test('메모, 분류와 태그에서 대소문자를 무시해 부분 일치하는 거래를 찾는다', (t) => {

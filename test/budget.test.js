@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
+import { assertError, assertUsageError, readJson, output, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu budget set|list|rm [인자] [--옵션 값]';
 const usages = {
@@ -27,18 +27,6 @@ function fixture(t) {
   }
 
   return { directory, data, run, write };
-}
-
-function output({ status, stdout, stderr }) {
-  assert.equal(status, 0, stderr);
-  assert.equal(stderr, '');
-  return stdout;
-}
-
-function assertError({ status, stdout, stderr }, expectedStatus, expectedText) {
-  assert.equal(status, expectedStatus, stderr);
-  assert.equal(stdout, '');
-  assert.equal(stderr, expectedText);
 }
 
 test('지출 분류의 월 예산을 설정하고 새 금액으로 덮어쓴다', (t) => {

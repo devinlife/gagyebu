@@ -20,6 +20,12 @@ export function output({ status, stdout, stderr }) {
   return stdout;
 }
 
+export function assertError({ status, stdout, stderr }, expectedStatus, expectedText) {
+  assert.equal(status, expectedStatus, stderr);
+  assert.equal(stdout, '');
+  assert.equal(stderr, expectedText);
+}
+
 export function assertUsageError({ status, stdout, stderr }, message, usage) {
   assert.equal(status, 2, message);
   assert.equal(stdout, '', message);

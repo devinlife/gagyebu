@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { addCategory, listCategories, removeCategory } from '../src/category.js';
 import { DataError } from '../src/errors.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
+import { assertError, assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';
 const usages = {
@@ -38,29 +38,18 @@ function assertOutput({ status, stdout, stderr }, expected) {
   assert.equal(stdout, expected);
 }
 
-function assertError({ status, stdout, stderr }, expectedStatus, expectedText) {
-  assert.equal(status, expectedStatus, stderr);
-  assert.equal(stdout, '');
-  assert.equal(stderr, expectedText);
-}
-
 test('빈 데이터의 기본 분류를 등록 순서대로 보여 주고 파일을 만들지 않는다', (t) => {
   const { directory, run } = fixture(t);
   const rows = {
-    expense: DEFAULT_CATEGORIES.expense.map((name) => `지출 ${name} 0건`),
-    income: DEFAULT_CATEGORIES.income.map((name) => `수입 ${name} 0건`),
+    expense: DEFAULT_CATEGORIES.expense.map((name) => `지출  ${name}   0건`),
+    income: DEFAULT_CATEGORIES.income.map((name) => `수입  ${name}   0건`),
   };
   for (const [args, expected] of [
     [[], [...rows.expense, ...rows.income]],
     [['--type', 'income'], rows.income],
   ]) {
-    const { status, stdout, stderr } = run('list', ...args);
-    assert.equal(status, 0, stderr);
-    assert.equal(stderr, '');
-    assert.deepEqual(
-      stdout.trimEnd().split('\n').map((line) => line.replace(/ +/g, ' ')),
-      ['구분 분류 거래', ...expected],
-    );
+    const table = ['구분  분류  거래', ...expected, ''].join('\n');
+    assertOutput(run('list', ...args), table);
   }
   assert.deepEqual(readdirSync(directory), []);
 });

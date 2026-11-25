@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
-import { assertUsageError, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
+import { assertUsageError, output, runCli, tempDir, testEnv, writeJson, transaction, currentData } from './helpers.js';
 
 const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json | --chart [--width <10~120>]] [--data <경로>]';
 
@@ -23,12 +23,6 @@ function fixture(t, today = '2026-02-10') {
   }
 
   return { directory, data, env, run, write };
-}
-
-function output({ status, stdout, stderr }) {
-  assert.equal(status, 0, stderr);
-  assert.equal(stderr, '');
-  return stdout;
 }
 
 const february = [

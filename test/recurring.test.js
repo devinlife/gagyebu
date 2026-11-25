@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
-  assertUsageError, currentData, readJson, runCli, tempDir, testEnv, transaction, writeJson,
+  assertUsageError, currentData, output, readJson, runCli, tempDir, testEnv, transaction, writeJson,
 } from './helpers.js';
 
 const usages = {
@@ -29,12 +29,6 @@ function rule(overrides) {
     id: 1, day: 31, type: 'expense', amount: 12000, category: '식비', account: '현금',
     memo: '', tags: [], start: '2026-02', end: null, ...overrides,
   };
-}
-
-function output({ status, stdout, stderr }) {
-  assert.equal(status, 0, stderr);
-  assert.equal(stderr, '');
-  return stdout;
 }
 
 function assertDataError({ status, stdout, stderr }, message) {

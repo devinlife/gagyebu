@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu rm <번호> [--data <경로>]';
@@ -59,6 +60,8 @@ test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번�
   assert.equal(stdout, '삭제했습니다: #2 2026-03-01 지출 6,000원 식비 아침\n');
   assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
     ...original,
+    version: 2,
+    categories: DEFAULT_CATEGORIES,
     transactions: [original.transactions[0], original.transactions[2]],
   });
   assert.deepEqual(readdirSync(directory), ['override.json']);

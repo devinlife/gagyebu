@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
@@ -55,6 +56,8 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
   assert.equal(stdout, '수정했습니다: #2 2026-03-01 지출 12,000원 식비 점심\n');
   assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
     ...original,
+    version: 2,
+    categories: DEFAULT_CATEGORIES,
     transactions: [original.transactions[0], { ...original.transactions[1], amount: 12000, memo: '점심' }],
   });
   assert.deepEqual(readdirSync(directory), ['override.json']);
@@ -71,6 +74,8 @@ test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한�
   assert.equal(stdout, '수정했습니다: #1 2026-02-27 수입 40,000원 생활비 2월분\n');
   assert.deepEqual(read(), {
     ...original,
+    version: 2,
+    categories: DEFAULT_CATEGORIES,
     transactions: [{ ...original.transactions[0], category: '생활비' }, original.transactions[1]],
   });
 });

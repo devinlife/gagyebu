@@ -6,7 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { DataError } from './errors.js';
 
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
+export const DEFAULT_CATEGORIES = {
+  expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', '기타'],
+  income: ['급여', '용돈', '기타'],
+};
 
 export function resolveDataPath(dataOption, env = process.env, home = os.homedir()) {
   const candidate = dataOption || env.GAGYEBU_DATA || '~/.gagyebu/data.json';
@@ -23,13 +27,32 @@ function readError(filePath, reason) {
   return new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})`);
 }
 
+function migrateVersionOne(data) {
+  const categories = structuredClone(DEFAULT_CATEGORIES);
+  if (Array.isArray(data.transactions)) {
+    for (const transaction of data.transactions) {
+      const { type, category } = transaction ?? {};
+      if ((type === 'expense' || type === 'income')
+          && typeof category === 'string' && category !== '' && !categories[type].includes(category)) {
+        categories[type].push(category);
+      }
+    }
+  }
+  return { ...data, version: CURRENT_VERSION, categories };
+}
+
 export function readData(filePath) {
   let text;
   try {
     text = readFileSync(filePath, 'utf8');
   } catch (error) {
     if (error.code === 'ENOENT') {
-      return { version: CURRENT_VERSION, nextId: 1, transactions: [] };
+      return {
+        version: CURRENT_VERSION,
+        nextId: 1,
+        categories: structuredClone(DEFAULT_CATEGORIES),
+        transactions: [],
+      };
     }
     throw readError(filePath, error.code ?? error.message);
   }
@@ -48,6 +71,14 @@ export function readData(filePath) {
   }
   if (version > CURRENT_VERSION) {
     throw readError(filePath, `지원하지 않는 version입니다: ${version}`);
+  }
+  if (version === 1) {
+    return migrateVersionOne(data);
+  }
+  const { categories } = data;
+  if (!['expense', 'income'].every((type) =>
+    Array.isArray(categories?.[type]) && categories[type].every((name) => typeof name === 'string'))) {
+    throw readError(filePath, 'categories가 올바르지 않습니다');
   }
 
   return data;

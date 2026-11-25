@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
@@ -49,8 +50,9 @@ test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선�
   assert.equal(result.stdout, '추가했습니다: #1 2026-02-28 수입 12,300원 월급 11월분\n');
   assert.deepEqual(readdirSync(directory), ['data.json']);
   assert.deepEqual(read(), {
-    version: 1,
+    version: 2,
     nextId: 2,
+    categories: DEFAULT_CATEGORIES,
     transactions: [{
       id: 1, date: '2026-02-28', type: 'income', amount: 12300, category: '월급',
       account: '현금', memo: '11월분', tags: [],

@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { DataError } from '../src/errors.js';
-import { CURRENT_VERSION, readData, resolveDataPath, writeData } from '../src/store.js';
+import { CURRENT_VERSION, DEFAULT_CATEGORIES, readData, resolveDataPath, writeData } from '../src/store.js';
 
 function temporaryDirectory(t) {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-'));
@@ -39,12 +39,63 @@ test('데이터 파일이 없으면 폴더나 파일을 만들지 않고 새 초
   const filePath = path.join(directory, 'data.json');
   const first = readData(filePath);
   const second = readData(filePath);
-  assert.deepEqual(first, { version: 1, nextId: 1, transactions: [] });
+  assert.deepEqual(first, {
+    version: 2,
+    nextId: 1,
+    categories: {
+      expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', '기타'],
+      income: ['급여', '용돈', '기타'],
+    },
+    transactions: [],
+  });
   assert.deepEqual(second, first);
   assert.notEqual(first, second);
   assert.notEqual(first.transactions, second.transactions);
+  assert.notEqual(first.categories, second.categories);
+  for (const type of ['expense', 'income']) {
+    assert.notEqual(first.categories[type], second.categories[type]);
+    assert.notEqual(first.categories[type], DEFAULT_CATEGORIES[type]);
+  }
   assert.equal(existsSync(directory), false);
   assert.equal(existsSync(filePath), false);
+});
+
+test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 처음 나온 순서로 더한다', (t) => {
+  const filePath = path.join(temporaryDirectory(t), 'data.json');
+  const transactions = [
+    { id: 1, type: 'expense', category: '커피' },
+    { id: 2, type: 'income', category: '월급' },
+    { id: 3, type: 'expense', category: '식비' },
+    { id: 4, type: 'expense', category: '책' },
+    { id: 5, type: 'expense', category: '커피' },
+    { id: 6, type: 'transfer', category: '이체' },
+    { id: 7, type: 'income', category: '' },
+    { id: 8, type: 'expense', category: 3 },
+  ];
+  const original = JSON.stringify({ version: 1, nextId: 10, transactions });
+  writeFileSync(filePath, original);
+
+  assert.deepEqual(readData(filePath), {
+    version: 2,
+    nextId: 10,
+    categories: {
+      expense: [...DEFAULT_CATEGORIES.expense, '커피', '책'],
+      income: [...DEFAULT_CATEGORIES.income, '월급'],
+    },
+    transactions,
+  });
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+});
+
+test('버전 2의 분류 목록이 잘못되면 데이터 오류를 보고한다', (t) => {
+  const filePath = path.join(temporaryDirectory(t), 'data.json');
+  for (const categories of [undefined, [], { expense: [], income: {} }, { expense: [1], income: [] }]) {
+    writeFileSync(filePath, JSON.stringify({ version: 2, categories }));
+    assert.throws(() => readData(filePath), {
+      constructor: DataError,
+      message: `데이터 파일을 읽을 수 없습니다: ${filePath} (categories가 올바르지 않습니다)`,
+    });
+  }
 });
 
 test('깨진 JSON과 올바르지 않거나 지원하지 않는 버전을 처리 오류로 보고한다', (t) => {
@@ -58,7 +109,7 @@ test('깨진 JSON과 올바르지 않거나 지원하지 않는 버전을 처리
     ['{"version":1.5}', 'version이 올바르지 않습니다: 1.5'],
     ['{"version":0}', 'version이 올바르지 않습니다: 0'],
     ['{"version":{"toString":null}}', 'version이 올바르지 않습니다: {"toString":null}'],
-    [JSON.stringify({ version: CURRENT_VERSION + 1 }), '지원하지 않는 version입니다: 2'],
+    [JSON.stringify({ version: CURRENT_VERSION + 1 }), '지원하지 않는 version입니다: 3'],
   ]) {
     writeFileSync(filePath, text);
     assert.throws(() => readData(filePath), {
@@ -80,8 +131,8 @@ test('하위 폴더에 데이터를 쓰고 덮어써도 올바른 JSON 파일만
   const directory = path.join(temporaryDirectory(t), 'a', 'b');
   const filePath = path.join(directory, 'data.json');
   for (const data of [
-    { version: CURRENT_VERSION, nextId: 1, transactions: [] },
-    { version: CURRENT_VERSION, nextId: 2, transactions: [{ id: 1 }] },
+    { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] },
+    { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 2, transactions: [{ id: 1 }] },
   ]) {
     writeData(filePath, data);
     assert.deepEqual(readData(filePath), data);
@@ -108,7 +159,7 @@ test('데이터 교체에 실패하면 처리 오류를 던지고 임시 파일�
 test('JSON으로 변환할 수 없으면 기존 데이터 파일을 보존한다', (t) => {
   const directory = temporaryDirectory(t);
   const filePath = path.join(directory, 'data.json');
-  const data = { version: CURRENT_VERSION, nextId: 1, transactions: [] };
+  const data = { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] };
   writeData(filePath, data);
 
   assert.throws(() => writeData(filePath, undefined), {
@@ -122,7 +173,7 @@ test('JSON으로 변환할 수 없으면 기존 데이터 파일을 보존한다
 test('새 데이터 파일은 소유자만 접근할 수 있고 덮어쓸 때 기존 권한을 보존한다',
   { skip: process.platform === 'win32' }, (t) => {
     const filePath = path.join(temporaryDirectory(t), 'data.json');
-    const data = { version: CURRENT_VERSION, nextId: 1, transactions: [] };
+    const data = { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] };
     writeData(filePath, data);
     assert.equal(statSync(filePath).mode & 0o077, 0);
 
@@ -136,7 +187,7 @@ test('새 데이터 파일은 소유자만 접근할 수 있고 덮어쓸 때 �
 test('예상하지 못한 직렬화 오류는 원래 오류로 전파하고 기존 데이터를 보존한다', (t) => {
   const directory = temporaryDirectory(t);
   const filePath = path.join(directory, 'data.json');
-  const data = { version: CURRENT_VERSION, nextId: 1, transactions: [] };
+  const data = { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 1, transactions: [] };
   writeData(filePath, data);
 
   assert.throws(() => writeData(filePath, { version: CURRENT_VERSION, amount: 1n }), TypeError);

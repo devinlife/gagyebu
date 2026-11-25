@@ -69,6 +69,23 @@ test('빈 데이터의 기본 분류를 등록 순서대로 보여 주고 파일
   assert.deepEqual(readdirSync(directory), []);
 });
 
+test('지출 분류에 예산이 있으면 예산을 지운 뒤에만 분류를 지울 수 있다', (t) => {
+  const { data, run, runCli, read } = fixture(t);
+  const original = JSON.stringify({
+    version: 2, nextId: 1, categories: DEFAULT_CATEGORIES, budgets: { 식비: 12000, 기타: 30000 },
+    transactions: [],
+  });
+  writeFileSync(data, original);
+
+  assertError(run('rm', '식비'), 1, '오류: 예산이 있는 분류입니다: 식비\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
+  assertOutput(run('rm', '기타', '--type', 'income'), '분류를 지웠습니다: 수입 기타\n');
+  assertOutput(runCli('budget', 'rm', '식비'), '예산을 지웠습니다: 식비\n');
+  assertOutput(run('rm', '식비'), '분류를 지웠습니다: 지출 식비\n');
+  assert.ok(!read().categories.expense.includes('식비'));
+  assert.deepEqual(read().budgets, { 기타: 30000 });
+});
+
 test('분류의 거래 수를 구분별로 세고 버전 1 파일은 그대로 둔다', (t) => {
   const { data, run } = fixture(t);
   const transactions = [

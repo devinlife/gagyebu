@@ -2,6 +2,10 @@ export function formatWon(amount) {
   return `${amount.toLocaleString('en-US')}원`;
 }
 
+export function formatPercent(amount, total) {
+  return `${(Math.round(amount * 1000 / total) / 10).toFixed(1)}%`;
+}
+
 const wideCharacter = /[\u1100-\u115F\u2E80-\u303E\u3040-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
 
 export function displayWidth(text) {

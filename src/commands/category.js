@@ -1,4 +1,4 @@
-import { findCategoryIndex } from '../category.js';
+import { findCategoryIndex, parseName } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { formatTable } from '../format.js';
 import { parseOptions } from '../options.js';
@@ -13,21 +13,6 @@ const USAGES = {
   rm: '사용법: gagyebu category rm <이름> [--type expense|income] [--data <경로>]',
 };
 const LABELS = { expense: '지출', income: '수입' };
-
-function parseName(args, usage) {
-  if (args.length === 0) {
-    throw new UsageError('분류 이름이 없습니다', usage);
-  }
-  if (args.length > 1) {
-    throw new UsageError(`예상하지 않은 인자 ${args[1]}`, usage);
-  }
-  const [input] = args;
-  const name = input.trim();
-  if (name === '' || [...name].length > 20) {
-    throw new UsageError(`분류 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${input}`, usage);
-  }
-  return name;
-}
 
 function countCategories(transactions, type) {
   const counts = new Map();
@@ -129,6 +114,9 @@ export function run(argv) {
   const count = countCategories(data.transactions, type).get(name) ?? 0;
   if (count > 0) {
     throw new DataError(`${count}건의 거래가 쓰는 분류입니다: ${name}`);
+  }
+  if (type === 'expense' && Object.hasOwn(data.budgets, name)) {
+    throw new DataError(`예산이 있는 분류입니다: ${name}`);
   }
   data.categories[type].splice(index, 1);
   writeData(filePath, data);

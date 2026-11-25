@@ -102,7 +102,7 @@ function validateTransaction(transaction, index, invalid) {
     }
   }
   if (type === TRANSFER && (typeof transaction.toAccount !== 'string' || transaction.toAccount === '')) {
-    throw readError(filePath, `${label}: toAccount가 문자열이 아닙니다`);
+    throw invalid(`${label}: toAccount가 문자열이 아닙니다`);
   }
   if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) {
     throw invalid(`${label}: tags가 문자열 배열이 아닙니다`);

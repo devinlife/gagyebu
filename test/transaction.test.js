@@ -4,7 +4,9 @@ import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
-import { applyChanges, buildTransaction, describeTransaction, filterTransactions, listTotals, removeTransaction } from '../src/transaction.js';
+import {
+  applyChanges, buildTransaction, describeTransaction, filterTransactions, importTransactions, listTotals, removeTransaction,
+} from '../src/transaction.js';
 import { transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu edit';
@@ -73,6 +75,52 @@ test('새 거래의 번호와 계좌를 채우고 데이터는 그대로 둔다'
   });
   assert.equal(data.nextId, 7);
   assert.deepEqual(data.transactions, []);
+});
+
+test('가져올 거래를 검증해 기존 거래의 중복을 세고 새 번호를 매긴다', () => {
+  const existing = Object.freeze(transaction({ id: 5, amount: 12000 }));
+  const data = Object.freeze({ nextId: 7, categories: DEFAULT_CATEGORIES, transactions: Object.freeze([existing]) });
+  const expense = { date: existing.date, type: '지출', amount: '1만2천', category: '식비', account: '카드' };
+  const income = { date: existing.date, type: '수입', amount: '12,300원', category: '', account: '' };
+  const { added, duplicates, errors } = importTransactions(data, [
+    { line: 2, fields: expense },
+    { line: 3, fields: { ...expense, tags: ['#법인'], memo: '점심' } },
+    { line: 4, fields: income },
+    { line: 5, fields: income },
+  ], '/data.json');
+  assert.deepEqual(added, [
+    transaction({ id: 7, amount: 12000, account: '카드', tags: ['법인'], memo: '점심' }),
+    transaction({ id: 8, amount: 12300, type: 'income', category: '기타' }),
+    transaction({ id: 9, amount: 12300, type: 'income', category: '기타' }),
+  ]);
+  assert.equal(duplicates, 1);
+  assert.deepEqual(errors, []);
+  assert.equal(data.nextId, 7);
+  assert.deepEqual(data.transactions, [existing]);
+});
+
+test('가져올 각 행의 첫 오류를 모으고 중복도 검증한다', () => {
+  const data = { nextId: 2, categories: DEFAULT_CATEGORIES, transactions: [transaction({ id: 1 })] };
+  const fields = { date: '2026-02-10', type: 'expense', amount: '1000', category: '식비' };
+  assert.deepEqual(importTransactions(data, [
+    { line: 2, fields: { ...fields, category: '미등록' } },
+    { line: 4, fields: { ...fields, amount: '0' } },
+    { line: 5, fields: { ...fields, date: '2026-02-30', amount: '0' } },
+    { line: 6, fields: { ...fields, type: 'transfer' } },
+    { line: 7, fields: { ...fields, tags: ['a b'] } },
+    { line: 8, error: '칸 수가 머리 줄과 다릅니다(2개, 머리 줄 4개)' },
+  ], '/data.json'), {
+    added: [],
+    duplicates: 0,
+    errors: [
+      { line: 2, reason: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)' },
+      { line: 4, reason: '금액은 양의 정수여야 합니다: 0' },
+      { line: 5, reason: 'date는 YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-30' },
+      { line: 6, reason: 'type은 expense·income·지출·수입 중 하나여야 합니다: transfer' },
+      { line: 7, reason: '태그는 공백 없는 1~20자여야 합니다: a b' },
+      { line: 8, reason: '칸 수가 머리 줄과 다릅니다(2개, 머리 줄 4개)' },
+    ],
+  });
 });
 
 test('수정할 필드를 새 거래에 적용하고 거래와 분류를 확인한다', () => {

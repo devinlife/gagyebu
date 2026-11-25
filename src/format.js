@@ -2,6 +2,10 @@ export function formatWon(amount) {
   return `${amount.toLocaleString('en-US')}원`;
 }
 
+export function formatMonthName(month) {
+  return `${Number(month.slice(5))}월`;
+}
+
 export function formatPercent(amount, total) {
   return `${(Math.round(amount * 1000 / total) / 10).toFixed(1)}%`;
 }

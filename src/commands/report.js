@@ -1,5 +1,5 @@
 import { UsageError } from '../errors.js';
-import { formatTable, formatWon } from '../format.js';
+import { formatMonthName, formatTable, formatWon } from '../format.js';
 import { parseYear, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { summarizeYear } from '../report.js';
@@ -41,7 +41,7 @@ export function run(argv) {
   const rows = [['월', TYPE_LABELS[INCOME], TYPE_LABELS[EXPENSE], '차액', `${TYPE_LABELS[EXPENSE]} 1위`]];
   for (const { month, income, expense, net, topCategory } of months) {
     const top = topCategory ? `${topCategory.category} ${formatWon(topCategory.amount)}` : '-';
-    rows.push([`${Number(month.slice(5))}월`, formatWon(income), formatWon(expense), formatWon(net), top]);
+    rows.push([formatMonthName(month), formatWon(income), formatWon(expense), formatWon(net), top]);
   }
   rows.push(['합계', formatWon(total.income), formatWon(total.expense), formatWon(total.net), '']);
   console.log([

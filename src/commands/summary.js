@@ -1,5 +1,5 @@
 import { UsageError } from '../errors.js';
-import { formatPercent, formatTable, formatWon } from '../format.js';
+import { formatMonthName, formatPercent, formatTable, formatWon } from '../format.js';
 import { parseMonth, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData } from '../store.js';
@@ -57,7 +57,7 @@ export function run(argv) {
     return 0;
   }
 
-  const title = `${month.slice(0, 4)}년 ${Number(month.slice(5))}월`;
+  const title = `${month.slice(0, 4)}년 ${formatMonthName(month)}`;
   if (expenseByCategory.length === 0 && incomeByCategory.length === 0) {
     console.log(`${title} 거래가 없습니다.`);
     return 0;

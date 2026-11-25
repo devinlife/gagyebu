@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { addCategory, listCategories, removeCategory } from '../src/category.js';
 import { DataError } from '../src/errors.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';
 const usages = {
@@ -186,9 +186,11 @@ test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막
 
 test('잘못된 하위 명령과 옵션 및 인자를 사용법 오류로 보고한다', (t) => {
   const { directory, run } = fixture(t);
-  assertError(run(), 2, `오류: 분류 하위 명령이 없습니다\n${usage}\n`);
-  assertError(run('constructor'), 2, `오류: 알 수 없는 분류 하위 명령입니다: constructor\n${usage}\n`);
-  assertError(run('list', '남는값'), 2, `오류: 예상하지 않은 인자입니다: 남는값\n${usages.list}\n`);
+  assertUsageError(run(), '분류 하위 명령이 없습니다', usage);
+  assertUsageError(run('constructor'), '알 수 없는 분류 하위 명령입니다: constructor', usage);
+  assertUsageError(run('--help', 'extra'), '예상하지 않은 인자입니다: extra', usage);
+  assertUsageError(run('--help', '--nope'), '알 수 없는 옵션입니다: --nope', usage);
+  assertUsageError(run('list', '남는값'), '예상하지 않은 인자입니다: 남는값', usages.list);
 
   for (const [command, subUsage] of Object.entries(usages)) {
     const operands = command === 'list' ? [] : ['식비'];
@@ -199,18 +201,18 @@ test('잘못된 하위 명령과 옵션 및 인자를 사용법 오류로 보고
       [['--data'], '--data 값이 없습니다'],
       [['--data', ''], '--data 값이 비었습니다'],
     ]) {
-      assertError(run(command, ...operands, ...args), 2, `오류: ${message}\n${subUsage}\n`);
+      assertUsageError(run(command, ...operands, ...args), message, subUsage);
     }
   }
 
   for (const command of ['add', 'rm']) {
     const subUsage = usages[command];
-    assertError(run(command), 2, `오류: 분류 이름이 없습니다\n${subUsage}\n`);
-    assertError(run(command, '식비', '남는값'), 2, `오류: 예상하지 않은 인자입니다: 남는값\n${subUsage}\n`);
-    assertError(run(command, '식비', '--json'), 2, `오류: 알 수 없는 옵션입니다: --json\n${subUsage}\n`);
+    assertUsageError(run(command), '분류 이름이 없습니다', subUsage);
+    assertUsageError(run(command, '식비', '남는값'), '예상하지 않은 인자입니다: 남는값', subUsage);
+    assertUsageError(run(command, '식비', '--json'), '알 수 없는 옵션입니다: --json', subUsage);
     for (const invalid of ['', '   ', '가'.repeat(21)]) {
-      assertError(run(command, invalid), 2,
-        `오류: 분류 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${invalid}\n${subUsage}\n`);
+      assertUsageError(run(command, invalid),
+        `분류 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${invalid}`, subUsage);
     }
   }
   assert.deepEqual(readdirSync(directory), []);

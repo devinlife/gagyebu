@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu rm <번호> [--data <경로>]';
 
@@ -113,10 +113,7 @@ test('잘못된 사용법을 데이터 읽기 전에 보고하고 파일을 보�
     [['1', '--data', ''], '--data 값이 비었습니다'],
     [['1', '--data'], '--data 값이 없습니다'],
   ]) {
-    const { status, stdout, stderr } = run('rm', ...args);
-    assert.equal(status, 2, JSON.stringify(args));
-    assert.equal(stdout, '');
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`);
+    assertUsageError(run('rm', ...args), message, usage);
     assert.equal(readFileSync(data, 'utf8'), original);
   }
 });

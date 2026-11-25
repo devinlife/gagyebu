@@ -4,7 +4,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
+import { assertUsageError, runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu report [--year YYYY] [--json | --chart [--width <10~120>]] [--data <경로>]';
 const entries = [
@@ -173,10 +173,7 @@ test('연간 보고 사용법 오류는 데이터 파일을 읽기 전에 종료
       ['--chart', '--width', width], `--width는 10에서 120 사이의 정수여야 합니다: ${width}`,
     ]),
   ]) {
-    const { status, stdout, stderr } = run(...args);
-    assert.equal(status, 2, JSON.stringify(args));
-    assert.equal(stdout, '');
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`);
+    assertUsageError(run(...args), message, usage);
   }
 });
 

@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { binPath, runCli, tempDir, testEnv } from './helpers.js';
+import { assertUsageError, binPath, runCli, tempDir, testEnv } from './helpers.js';
 
 const usage = '사용법: gagyebu export [--out <파일>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--force] [--data <경로>]';
 const header = 'id,date,type,amount,category,account,memo,tags\r\n';
@@ -26,14 +26,14 @@ const sameDayRows = "2,2026-02-03,expense,50,식비,현금,'=SUM(A1),점심;'@�
   + '10,2026-02-03,income,5000,급여,현금,,\r\n';
 const laterRow = '3,2026-02-04,income,5000,급여,현금,,\r\n';
 
-function fixture(t) {
+function fixture(t, encoding = null) {
   const directory = tempDir(t, 'gagyebu-export-');
   const data = path.join(directory, 'data.json');
   const out = path.join(directory, '거래.csv');
   const env = testEnv(directory, { GAGYEBU_TODAY: '2026-02-04' });
 
   function run(...args) {
-    return runCli(['export', ...args], { env, encoding: null });
+    return runCli(['export', ...args], { env, encoding });
   }
 
   function write(transactions = [sameDayIncome, later, earlier, sameDay]) {
@@ -127,7 +127,7 @@ test('데이터 파일 자신과 그 파일을 가리키는 링크에는 내보�
 });
 
 test('사용법 오류가 있으면 파일을 만들지 않고 오류와 사용법을 표시한다', (t) => {
-  const { directory, out, run } = fixture(t);
+  const { directory, out, run } = fixture(t, 'utf8');
   const invalidDate = 'YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: 2026-02-30';
   for (const [args, message] of [
     [['--out', out, '--nope'], '알 수 없는 옵션입니다: --nope'],
@@ -140,7 +140,7 @@ test('사용법 오류가 있으면 파일을 만들지 않고 오류와 사용�
     [['--out', out, '--from', '오늘', '--to', '어제'], '--from이 --to보다 늦습니다: 2026-02-04 > 2026-02-03'],
     ...['out', 'from', 'to', 'data'].map((name) => [['--out', out, `--${name}`], `--${name} 값이 없습니다`]),
   ]) {
-    assertResult(run(...args), 2, '', `오류: ${message}\n${usage}\n`);
+    assertUsageError(run(...args), message, usage);
     assert.deepEqual(readdirSync(directory), []);
   }
 });

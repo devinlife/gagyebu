@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
@@ -115,10 +115,7 @@ test('잘못된 사용법을 데이터 읽기 전에 보고하고 파일을 보�
       (option) => [['1', `--${option}`], `--${option} 값이 없습니다`],
     ),
   ]) {
-    const { status, stdout, stderr } = run(...args);
-    assert.equal(status, 2, JSON.stringify(args));
-    assert.equal(stdout, '');
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`);
+    assertUsageError(run(...args), message, usage);
     assert.equal(readFileSync(data, 'utf8'), original);
   }
 });
@@ -215,10 +212,7 @@ test('태그 교체와 지우기를 함께 쓰거나 지우기에 값을 주면 
     [['--tag', '회식', '--clear-tags'], '--tag와 --clear-tags는 함께 쓸 수 없습니다'],
     [['--clear-tags=x'], '--clear-tags는 값을 받지 않습니다'],
   ]) {
-    const { status, stdout, stderr } = run('2', ...args);
-    assert.equal(status, 2);
-    assert.equal(stdout, '');
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`);
+    assertUsageError(run('2', ...args), message, usage);
     assert.equal(readFileSync(data, 'utf8'), saved);
   }
 });

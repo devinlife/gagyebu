@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
-import { runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
 
@@ -157,11 +157,7 @@ test('사용법 오류는 데이터 읽기 전에 종료 코드 2와 함께 출�
     [['--tag', 'a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
     ...['from', 'to', 'type', 'category', 'tag', 'data'].map((option) => [[`--${option}`], `--${option} 값이 없습니다`]),
   ]) {
-    const { status, stdout, stderr } = run(...args);
-    const invocation = args.join(' ');
-    assert.equal(status, 2, invocation);
-    assert.equal(stdout, '', invocation);
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`, invocation);
+    assertUsageError(run(...args), message, usage);
   }
   assert.equal(readFileSync(data, 'utf8'), original);
 });

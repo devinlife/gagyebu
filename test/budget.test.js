@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu budget set|list|rm [인자] [--옵션 값]';
 const usages = {
@@ -117,6 +117,8 @@ test('예산 명령의 사용법 오류는 종료 코드 2와 해당 사용법�
   const cases = [
     [[], '예산 하위 명령이 없습니다', usage],
     [['unknown'], '알 수 없는 예산 하위 명령입니다: unknown', usage],
+    [['--help', 'extra'], '예상하지 않은 인자입니다: extra', usage],
+    [['--help', '--nope'], '알 수 없는 옵션입니다: --nope', usage],
     [['set'], '분류 이름이 없습니다', usages.set],
     [['set', '식비'], '금액이 없습니다', usages.set],
     [['set', '식비', '1000', 'extra'], '예상하지 않은 인자입니다: extra', usages.set],
@@ -133,7 +135,7 @@ test('예산 명령의 사용법 오류는 종료 코드 2와 해당 사용법�
     );
   }
   for (const [args, message, expectedUsage] of cases) {
-    assertError(run(...args), 2, `오류: ${message}\n${expectedUsage}\n`);
+    assertUsageError(run(...args), message, expectedUsage);
   }
   assert.deepEqual(readdirSync(directory), []);
 });

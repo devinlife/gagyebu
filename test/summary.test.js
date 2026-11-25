@@ -4,7 +4,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
-import { runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
+import { assertUsageError, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu summary [--month YYYY-MM] [--json | --chart [--width <10~120>]] [--data <경로>]';
 
@@ -244,11 +244,7 @@ test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한�
     [['--help=1'], '--help는 값을 받지 않습니다'],
     [['--help', '--nope'], '알 수 없는 옵션입니다: --nope'],
   ]) {
-    const { status, stdout, stderr } = run(...args);
-    const invocation = JSON.stringify(args);
-    assert.equal(status, 2, invocation);
-    assert.equal(stdout, '', invocation);
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`, invocation);
+    assertUsageError(run(...args), message, usage);
   }
   assert.equal(readFileSync(data, 'utf8'), original);
 });

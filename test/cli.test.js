@@ -6,7 +6,7 @@ import pkg from '../package.json' with { type: 'json' };
 import { reportError } from '../src/cli.js';
 import { DataError, UsageError } from '../src/errors.js';
 import { commands } from '../src/registry.js';
-import { binPath, runCli } from './helpers.js';
+import { assertUsageError, binPath, runCli } from './helpers.js';
 
 function run(...args) {
   return runCli([...args]);
@@ -57,20 +57,13 @@ test('help와 --version은 모르는 옵션과 남는 인자를 거부한다', (
       ['--nope', '알 수 없는 옵션입니다: --nope'],
       ['nope', '예상하지 않은 인자입니다: nope'],
     ]) {
-      const { status, stdout, stderr } = run(command, arg);
-      const invocation = `${command} ${arg}`;
-      assert.equal(status, 2, invocation);
-      assert.equal(stdout, '', invocation);
-      assert.equal(stderr, `오류: ${message}\n사용법: ${usage}\n`, invocation);
+      assertUsageError(run(command, arg), message, `사용법: ${usage}`);
     }
   }
 });
 
 test('help 깃발은 등호로 전달한 값을 거부한다', () => {
-  const { status, stdout, stderr } = run('help', '--help=nope');
-  assert.equal(status, 2);
-  assert.equal(stdout, '');
-  assert.equal(stderr, '오류: --help는 값을 받지 않습니다\n사용법: gagyebu help\n');
+  assertUsageError(run('help', '--help=nope'), '--help는 값을 받지 않습니다', '사용법: gagyebu help');
 });
 
 test('--version은 패키지 버전을 출력한다', () => {
@@ -88,10 +81,7 @@ test('모르는 명령은 오류와 사용법 안내를 출력한다', () => {
     ['nope', '--foo'],
     ['nope', 'extra'],
   ]) {
-    const { status, stdout, stderr } = run(...args);
-    assert.equal(status, 2);
-    assert.equal(stdout, '');
-    assert.equal(stderr, `오류: 알 수 없는 명령입니다: ${args[0]}\n사용법은 gagyebu help를 보세요.\n`);
+    assertUsageError(run(...args), `알 수 없는 명령입니다: ${args[0]}`, '사용법은 gagyebu help를 보세요.');
   }
 });
 
@@ -131,8 +121,5 @@ test('예상하지 못한 오류는 스택이 있는 오류 객체를 출력한�
 });
 
 test('오류 메시지에 개행이 있어도 한 줄에 출력한다', () => {
-  const { status, stdout, stderr } = run('nope\r\nextra');
-  assert.equal(status, 2);
-  assert.equal(stdout, '');
-  assert.equal(stderr, '오류: 알 수 없는 명령입니다: nope\\r\\nextra\n사용법은 gagyebu help를 보세요.\n');
+  assertUsageError(run('nope\r\nextra'), '알 수 없는 명령입니다: nope\\r\\nextra', '사용법은 gagyebu help를 보세요.');
 });

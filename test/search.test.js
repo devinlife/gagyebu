@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { runCli, tempDir, testEnv, writeJson } from './helpers.js';
+import { assertUsageError, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
 const usage = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
 
@@ -75,10 +75,7 @@ test('검색 글과 옵션의 사용법 오류를 데이터 읽기 전에 보고
     [['a', '--tag', 'a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
     [['a', '--type', 'transfer'], '--type은 expense 또는 income이어야 합니다: transfer'],
   ]) {
-    const { status, stdout, stderr } = run('search', ...args);
-    assert.equal(status, 2, JSON.stringify(args));
-    assert.equal(stdout, '');
-    assert.equal(stderr, `오류: ${message}\n${usage}\n`);
+    assertUsageError(run('search', ...args), message, usage);
     assert.equal(readFileSync(data, 'utf8'), saved);
   }
 });

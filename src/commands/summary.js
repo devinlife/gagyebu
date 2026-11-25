@@ -1,5 +1,5 @@
 import { formatBudgetOverage, formatPercent, formatTable, formatTransferTotal, formatWon, formatYearMonth, NO_TRANSACTIONS, renderBars } from '../format.js';
-import { currentMonth, parseChartOptions, parseMonth } from '../input.js';
+import { parseChartOptions, parseMonthOrCurrent } from '../input.js';
 import { parseCommand } from '../options.js';
 import { loadData } from '../store.js';
 import { summarizeMonth } from '../report.js';
@@ -42,7 +42,7 @@ export function run(argv) {
   const { options } = parsed;
 
   const chartWidth = parseChartOptions(options, USAGE);
-  const month = parseMonth(options.month ?? currentMonth(), USAGE);
+  const month = parseMonthOrCurrent(options.month, USAGE);
   const { data: { budgets, transactions } } = loadData(options, USAGE);
 
   const result = summarizeMonth(transactions, budgets, month);

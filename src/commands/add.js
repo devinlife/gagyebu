@@ -1,6 +1,6 @@
 import { requireAmountArgument } from '../input.js';
 import { parseCommand } from '../options.js';
-import { loadData, validateDataOption, writeData } from '../store.js';
+import { loadData, writeData } from '../store.js';
 import { appendTransaction, buildTransaction, describeAddedTransaction, parseTransactionFields } from '../transaction.js';
 
 export const name = 'add';
@@ -22,7 +22,6 @@ export function run(argv) {
   const { args, options } = parsed;
   const amount = requireAmountArgument(args, USAGE);
   const fields = parseTransactionFields({ amount, ...options, tags: options.tag }, USAGE);
-  validateDataOption(options, USAGE);
 
   const { filePath, data } = loadData(options, USAGE);
   const transaction = buildTransaction(data, fields);

@@ -70,6 +70,13 @@ export function parseDate(text, usage, subject = '날짜는', env = process.env)
   throw new UsageError(`${subject} YYYY-MM-DD·MM-DD·M/D·오늘·어제·그제 중 하나의 있는 날이어야 합니다: ${text}`, usage);
 }
 
+export function parseDateOrToday(text, usage) {
+  if (text === undefined) {
+    return today();
+  }
+  return parseDate(text, usage);
+}
+
 export function parsePeriod(options, usage, { closed = false } = {}) {
   let from = options.from === undefined ? undefined : parseDate(options.from, usage, '--from은');
   let to = options.to === undefined ? undefined : parseDate(options.to, usage, '--to는');
@@ -88,6 +95,13 @@ export function parseMonth(text, usage, option = 'month') {
     throw new UsageError(`--${option}는 YYYY-MM 형식의 달이어야 합니다: ${text}`, usage);
   }
   return text;
+}
+
+export function parseMonthOrCurrent(text, usage, option = 'month') {
+  if (text === undefined) {
+    return currentMonth();
+  }
+  return parseMonth(text, usage, option);
 }
 
 export function shiftMonth(month, delta) {

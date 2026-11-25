@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer as createHttpServer } from 'node:http';
 import { accountBalances } from './account.js';
 import { DataError, UsageError } from './errors.js';
-import { currentMonth, currentYear, monthEnd, parseId, parseMonth, parseYear } from './input.js';
+import { currentYear, monthEnd, parseId, parseMonthOrCurrent, parseYear } from './input.js';
 import { parseListingFilters } from './listing.js';
 import { summarizeMonth, summarizeYear } from './report.js';
 import { describeCommand, loadData, writeData } from './store.js';
@@ -28,10 +28,6 @@ function queryOptions(params, names) {
   return Object.fromEntries(options);
 }
 
-function parseReportMonth(month) {
-  return parseMonth(month ?? currentMonth());
-}
-
 function reportPage(month, data, { token, values, error, notice }) {
   const end = monthEnd(month);
   return renderReportPage({
@@ -47,7 +43,7 @@ const reportPath = '/';
 const routes = new Map([
   [reportPath, (params, { options, token }) => {
     const query = queryOptions(params, ['month', 'added']);
-    const month = parseReportMonth(query.month);
+    const month = parseMonthOrCurrent(query.month);
     const id = query.added === undefined ? undefined : parseId(query.added);
     const { data } = loadData(options);
     const added = id === undefined ? undefined : data.transactions.find((transaction) => transaction.id === id);
@@ -60,7 +56,7 @@ const routes = new Map([
   }],
   ['/api/summary', (params, { options }) => {
     const { month } = queryOptions(params, ['month']);
-    const parsedMonth = parseReportMonth(month);
+    const parsedMonth = parseMonthOrCurrent(month);
     const { data: { transactions, budgets } } = loadData(options);
     return summarizeMonth(transactions, budgets, parsedMonth);
   }],
@@ -110,7 +106,7 @@ async function postTransaction(request, { options, token, port }, send, sendErro
   if (csrf !== token) {
     return sendError(403, '폼 토큰이 맞지 않습니다');
   }
-  const month = parseReportMonth(reportMonth);
+  const month = parseMonthOrCurrent(reportMonth);
 
   let loaded;
   let transaction;

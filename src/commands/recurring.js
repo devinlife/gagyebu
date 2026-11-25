@@ -1,6 +1,6 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
-import { currentMonth, parseAmountArgument, parseDay, parseIdArgument, parseMonth } from '../input.js';
+import { parseAmountArgument, parseDay, parseIdArgument, parseMonth, parseMonthOrCurrent } from '../input.js';
 import { parseSubcommand } from '../options.js';
 import { addRule, applyRecurring, removeRule } from '../recurring.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
@@ -27,7 +27,7 @@ function add(args, options, usage) {
   const amount = parseAmountArgument(args, usage);
   const entry = parseEntryOptions({ ...options, tags: options.tag }, usage);
   const day = parseDay(options.day, usage);
-  const start = options.start === undefined ? currentMonth() : parseMonth(options.start, usage, 'start');
+  const start = parseMonthOrCurrent(options.start, usage, 'start');
   const end = options.end === undefined ? null : parseMonth(options.end, usage, 'end');
   if (end !== null && end < start) {
     throw new UsageError(`--end가 --start보다 이릅니다: ${end} < ${start}`, usage);
@@ -76,7 +76,7 @@ function apply(args, options, usage) {
   if (args.length > 0) {
     throw unexpectedArgument(args[0], usage);
   }
-  const month = options.month === undefined ? currentMonth() : parseMonth(options.month, usage);
+  const month = parseMonthOrCurrent(options.month, usage);
   const { filePath, data } = loadData(options, usage);
   const { added, existing } = applyRecurring(data, month);
   const dryRun = options['dry-run'];

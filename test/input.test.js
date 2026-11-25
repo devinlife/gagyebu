@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
 import {
-  monthEnd, parseAmount, parseChartOptions, parseDate, parseMonth, parseOpening,
+  monthEnd, parseAmount, parseChartOptions, parseDate, parseDateOrToday, parseMonth, parseMonthOrCurrent,
+  parseOpening,
   parsePeriod, parsePort, parseType, parseYear, shiftMonth, today,
 } from '../src/input.js';
 
@@ -212,4 +213,23 @@ test('시작 잔액에 0과 양수와 음수를 받는다', () => {
       usage,
     });
   }
+});
+
+test('빠진 날짜와 달은 설정된 오늘과 이번 달로 채운다', (t) => {
+  const previousToday = process.env.GAGYEBU_TODAY;
+  t.after(() => {
+    if (previousToday === undefined) {
+      delete process.env.GAGYEBU_TODAY;
+    } else {
+      process.env.GAGYEBU_TODAY = previousToday;
+    }
+  });
+  process.env.GAGYEBU_TODAY = env.GAGYEBU_TODAY;
+
+  assert.equal(parseDateOrToday(undefined, usage), '2026-03-01');
+  assert.equal(parseDateOrToday('어제', usage), '2026-02-28');
+  assert.equal(parseMonthOrCurrent(undefined, usage), '2026-03');
+  assert.throws(() => parseMonthOrCurrent('2026-13', usage, 'start'), {
+    constructor: UsageError, message: '--start는 YYYY-MM 형식의 달이어야 합니다: 2026-13', usage,
+  });
 });

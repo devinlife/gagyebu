@@ -1,8 +1,8 @@
 import { UsageError } from '../errors.js';
 import { formatWon, withParticle } from '../format.js';
-import { parseAmountArgument, parseDate, parseNonemptyOption, today } from '../input.js';
+import { parseAmountArgument, parseDateOrToday, parseNonemptyOption } from '../input.js';
 import { parseCommand } from '../options.js';
-import { loadData, validateDataOption, writeData } from '../store.js';
+import { loadData, writeData } from '../store.js';
 import { appendTransaction, buildTransfer, categoryText } from '../transaction.js';
 
 export const name = 'transfer';
@@ -29,9 +29,7 @@ export function run(argv) {
     parseNonemptyOption(options[option], option, USAGE);
   }
   const { from, to, memo = '' } = options;
-  const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
-  validateDataOption(options, USAGE);
-
+  const date = parseDateOrToday(options.date, USAGE);
   const { filePath, data } = loadData(options, USAGE);
   const transaction = buildTransfer(data, { date, amount, from, to, memo }, USAGE);
   appendTransaction(data, transaction);

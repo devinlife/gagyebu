@@ -2,7 +2,7 @@ import { DEFAULT_ACCOUNT, requireAccount } from './account.js';
 import { DEFAULT_CATEGORY, requireCategoryIndex } from './category.js';
 import { DataError, UsageError } from './errors.js';
 import { formatTag, formatWon, withParticle } from './format.js';
-import { MISSING_AMOUNT, parseAmount, parseCategory, parseDate, parseImportType, parseNonemptyOption, parseTags, parseType, today } from './input.js';
+import { MISSING_AMOUNT, parseAmount, parseCategory, parseDate, parseDateOrToday, parseImportType, parseNonemptyOption, parseTags, parseType } from './input.js';
 import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
 
 const TRANSFER_HAS_NO_CATEGORY = '이체에는 분류가 없습니다';
@@ -55,7 +55,7 @@ export function parseTransactionFields({ amount, date, ...entry }, usage) {
 
   let parsedDate;
   const parsedEntry = parseEntryOptions(entry, usage, () => {
-    parsedDate = date === undefined ? today() : withField('date', UsageError, () => parseDate(date, usage));
+    parsedDate = withField('date', UsageError, () => parseDateOrToday(date, usage));
   });
   return { ...parsedEntry, amount: parsedAmount, date: parsedDate };
 }

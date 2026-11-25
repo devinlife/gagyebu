@@ -1,8 +1,8 @@
 import { accountBalances } from '../account.js';
 import { formatBalanceDate, formatTable, formatWon } from '../format.js';
-import { parseDate, today } from '../input.js';
+import { parseDateOrToday } from '../input.js';
 import { parseCommand } from '../options.js';
-import { loadData, validateDataOption } from '../store.js';
+import { loadData } from '../store.js';
 
 export const name = 'balance';
 export const order = 77;
@@ -21,8 +21,7 @@ export function run(argv) {
   }
   const { options } = parsed;
 
-  const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
-  validateDataOption(options, USAGE);
+  const date = parseDateOrToday(options.date, USAGE);
   const { data } = loadData(options, USAGE);
   const balances = accountBalances(data, date);
   if (options.json) {

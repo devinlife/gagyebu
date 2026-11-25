@@ -71,35 +71,35 @@ export function loadData(options, usage) {
   return { filePath, data: readData(filePath) };
 }
 
-function validateTransaction(transaction, index, filePath) {
+function validateTransaction(transaction, index, invalid) {
   const position = `거래 ${index + 1}번째`;
   if (transaction === null || typeof transaction !== 'object' || Array.isArray(transaction)) {
-    throw readError(filePath, `${position}: 객체가 아닙니다`);
+    throw invalid(`${position}: 객체가 아닙니다`);
   }
 
   const { id, date, type, amount, tags = [] } = transaction;
   if (!Number.isInteger(id) || id < 1) {
-    throw readError(filePath, `${position}: id가 양의 정수가 아닙니다`);
+    throw invalid(`${position}: id가 양의 정수가 아닙니다`);
   }
 
   const label = `거래 #${id}`;
   if (!isValidDate(date)) {
-    throw readError(filePath, `${label}: date가 있는 날이 아닙니다`);
+    throw invalid(`${label}: date가 있는 날이 아닙니다`);
   }
   if (!RECORD_TYPES.includes(type)) {
     const value = typeof type === 'string' ? type : typeof type;
-    throw readError(filePath, `${label}: type을 알 수 없습니다: ${value}`);
+    throw invalid(`${label}: type을 알 수 없습니다: ${value}`);
   }
   if (!Number.isInteger(amount) || amount < 1) {
-    throw readError(filePath, `${label}: amount가 양의 정수가 아닙니다`);
+    throw invalid(`${label}: amount가 양의 정수가 아닙니다`);
   }
   for (const field of ['category', 'account', 'memo']) {
     if (typeof transaction[field] !== 'string') {
-      throw readError(filePath, `${label}: ${withParticle(field, '이/가')} 문자열이 아닙니다`);
+      throw invalid(`${label}: ${withParticle(field, '이/가')} 문자열이 아닙니다`);
     }
   }
   if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) {
-    throw readError(filePath, `${label}: tags가 문자열 배열이 아닙니다`);
+    throw invalid(`${label}: tags가 문자열 배열이 아닙니다`);
   }
   return { ...transaction, tags };
 }
@@ -129,13 +129,17 @@ export function readData(filePath) {
     throw readError(filePath, 'JSON 형식이 잘못되었습니다');
   }
 
+  return validateData(data, (reason) => readError(filePath, reason));
+}
+
+function validateData(data, invalid) {
   const version = data?.version;
   if (!Number.isInteger(version) || version < 1) {
     const value = typeof version === 'object' ? JSON.stringify(version) : String(version);
-    throw readError(filePath, `version이 올바르지 않습니다: ${value}`);
+    throw invalid(`version이 올바르지 않습니다: ${value}`);
   }
   if (version > CURRENT_VERSION) {
-    throw readError(filePath, `지원하지 않는 version입니다: ${version}`);
+    throw invalid(`지원하지 않는 version입니다: ${version}`);
   }
   for (let v = version; v < CURRENT_VERSION; v += 1) {
     data = { ...MIGRATIONS[v](data), version: v + 1 };
@@ -143,13 +147,13 @@ export function readData(filePath) {
   const { categories } = data;
   if (!TYPES.every((type) =>
     Array.isArray(categories?.[type]) && categories[type].every((name) => typeof name === 'string'))) {
-    throw readError(filePath, 'categories가 올바르지 않습니다');
+    throw invalid('categories가 올바르지 않습니다');
   }
 
   const { budgets = {} } = data;
   if (budgets === null || typeof budgets !== 'object' || Array.isArray(budgets)
       || !Object.values(budgets).every((amount) => Number.isSafeInteger(amount) && amount > 0)) {
-    throw readError(filePath, 'budgets가 올바르지 않습니다');
+    throw invalid('budgets가 올바르지 않습니다');
   }
 
   const { accounts } = data;
@@ -160,9 +164,9 @@ export function readData(filePath) {
   }
 
   if (!Array.isArray(data.transactions)) {
-    throw readError(filePath, 'transactions가 올바르지 않습니다');
+    throw invalid('transactions가 올바르지 않습니다');
   }
-  const transactions = data.transactions.map((transaction, index) => validateTransaction(transaction, index, filePath));
+  const transactions = data.transactions.map((transaction, index) => validateTransaction(transaction, index, invalid));
 
   return { ...data, budgets, transactions };
 }
@@ -187,12 +191,15 @@ function isHistoryEntry(entry) {
     && entry.data !== null && typeof entry.data === 'object' && !Array.isArray(entry.data);
 }
 
-class InvalidHistoryError extends DataError {
-  constructor(details) {
+class HistoryReadError extends DataError {
+  constructor(filePath, reason) {
+    const details = `${filePath} (${reason})`;
     super(`이력 파일을 읽을 수 없습니다: ${details}`);
     this.details = details;
   }
 }
+
+class InvalidHistoryError extends HistoryReadError {}
 
 export function readHistory(filePath) {
   const target = historyPath(filePath);
@@ -203,19 +210,24 @@ export function readHistory(filePath) {
     if (error.code === 'ENOENT') {
       return [];
     }
-    throw new DataError(`이력 파일을 읽을 수 없습니다: ${target} (${error.code ?? error.message})`);
+    throw new HistoryReadError(target, error.code ?? error.message);
   }
 
   let entries;
   try {
     entries = JSON.parse(text);
   } catch {
-    throw new InvalidHistoryError(`${target} (JSON 형식이 잘못되었습니다)`);
+    throw new InvalidHistoryError(target, 'JSON 형식이 잘못되었습니다');
   }
   if (!Array.isArray(entries) || !entries.every(isHistoryEntry)) {
-    throw new InvalidHistoryError(`${target} (이력 항목 형식이 올바르지 않습니다)`);
+    throw new InvalidHistoryError(target, '이력 항목 형식이 올바르지 않습니다');
   }
   return entries;
+}
+
+export function restoreData(filePath, data) {
+  validateData(data, (reason) => new InvalidHistoryError(historyPath(filePath), reason));
+  writeJsonFile(filePath, data, '데이터 파일');
 }
 
 export function popHistory(filePath, entries = readHistory(filePath)) {
@@ -246,7 +258,7 @@ export function writeData(filePath, data) {
   writeJsonFile(filePath, data, '데이터 파일');
 }
 
-export function writeJsonFile(filePath, value, label) {
+function writeJsonFile(filePath, value, label) {
   const json = JSON.stringify(value, null, 2);
   if (json === undefined) {
     throw new DataError(`${label}을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`);

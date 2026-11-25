@@ -115,6 +115,26 @@ test('데이터 복원에 실패하면 이력 항목을 남긴다', (t) => {
   assert.equal(readFileSync(historyPath, 'utf8'), original);
 });
 
+test('이력 항목의 데이터가 올바르지 않으면 현재 거래와 이력을 보존한다', (t) => {
+  const env = testEnv(tempDir(t));
+  const filePath = env.GAGYEBU_DATA;
+  const historyPath = `${filePath}.history.json`;
+  for (const amount of ['1000', '2000']) {
+    assert.equal(runCli(['add', amount], { env }).status, 0);
+  }
+  const originalData = readFileSync(filePath, 'utf8');
+  const entries = readJson(historyPath);
+  entries.at(-1).data = {};
+  const originalHistory = writeJson(historyPath, entries);
+
+  const { status, stdout, stderr } = runCli(['undo'], { env });
+  assert.equal(status, 1);
+  assert.equal(stdout, '');
+  assert.equal(stderr, `오류: 이력 파일을 읽을 수 없습니다: ${historyPath} (version이 올바르지 않습니다: undefined)\n`);
+  assert.equal(readFileSync(filePath, 'utf8'), originalData);
+  assert.equal(readFileSync(historyPath, 'utf8'), originalHistory);
+});
+
 test('잘못된 인자는 사용법 오류로 보고하고 도움말은 성공한다', (t) => {
   const env = testEnv(tempDir(t));
   for (const [args, message] of [

@@ -1,7 +1,7 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatTable } from '../format.js';
 import { parseOptions } from '../options.js';
-import { popHistory, readHistory, resolveDataPath, validateDataOption, writeJsonFile } from '../store.js';
+import { popHistory, readHistory, resolveDataPath, restoreData, validateDataOption } from '../store.js';
 
 export const name = 'undo';
 export const order = 105;
@@ -41,7 +41,7 @@ export function run(argv) {
     console.log(formatTable([['번호', '시각', '명령'], ...rows], { right: [0] }));
   } else {
     const { at, command, data } = entries.at(-1);
-    writeJsonFile(filePath, data, '데이터 파일');
+    restoreData(filePath, data);
     popHistory(filePath, entries);
     console.log(`되돌렸습니다: ${command} (${at})`);
   }

@@ -3,7 +3,7 @@ import { formatWon } from '../format.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath, writeData } from '../store.js';
 
-export const summary = '거래 하나를 더한다.';
+export const summary = '거래 하나를 더합니다.';
 
 const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
 
@@ -41,7 +41,7 @@ export function run(argv) {
     return 0;
   }
   if (args.length === 0) {
-    throw new UsageError('금액이 없다', USAGE);
+    throw new UsageError('금액이 없습니다', USAGE);
   }
   if (args.length > 1) {
     throw new UsageError(`예상하지 않은 인자 ${args[1]}`, USAGE);
@@ -50,21 +50,21 @@ export function run(argv) {
   const [input] = args;
   const amount = Number(input);
   if (!/^[0-9]+$/.test(input) || !Number.isSafeInteger(amount) || amount <= 0) {
-    throw new UsageError(`금액은 양의 정수여야 한다: ${input}`, USAGE);
+    throw new UsageError(`금액은 양의 정수여야 합니다: ${input}`, USAGE);
   }
 
   const { type = 'expense', category = '기타', date = localToday(), memo = '' } = options;
   if (type !== 'expense' && type !== 'income') {
-    throw new UsageError(`--type은 expense 또는 income이어야 한다: ${type}`, USAGE);
+    throw new UsageError(`--type은 expense 또는 income이어야 합니다: ${type}`, USAGE);
   }
   if (category === '') {
-    throw new UsageError('--category 값이 비었다', USAGE);
+    throw new UsageError('--category 값이 비었습니다', USAGE);
   }
   if (!isValidDate(date)) {
-    throw new UsageError(`날짜는 YYYY-MM-DD 형식의 있는 날이어야 한다: ${date}`, USAGE);
+    throw new UsageError(`날짜는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${date}`, USAGE);
   }
   if (options.data === '') {
-    throw new UsageError('--data 값이 비었다', USAGE);
+    throw new UsageError('--data 값이 비었습니다', USAGE);
   }
 
   const filePath = resolveDataPath(options.data);

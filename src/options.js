@@ -19,14 +19,14 @@ export function parseOptions(argv, { values = [], flags = [] }) {
       }
       const value = argv[index + 1];
       if (value === undefined || value.startsWith('--')) {
-        error = `--${name} 값이 없다`;
+        error = `--${name} 값이 없습니다`;
         break;
       }
       options.set(name, value);
       index += 1;
     } else if (flags.includes(name)) {
       if (equals !== -1) {
-        error = `--${name}은 값을 받지 않는다`;
+        error = `--${name}은 값을 받지 않습니다`;
         break;
       }
       options.set(name, true);

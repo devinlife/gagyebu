@@ -18,7 +18,7 @@ function runCli(...args) {
 
 test('인자 없음과 help의 각 호출 형식은 같은 사용법을 출력한다', () => {
   const outputs = [runCli(), runCli('help'), runCli('--help'), runCli('help', '--help')];
-  const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help  사용법과 명령 목록을 보여 준다.\n  add   거래 하나를 더한다.\n';
+  const expected = '사용법: gagyebu <명령> [인자] [--옵션 값]\n\n  help  사용법과 명령 목록을 보여 줍니다.\n  add   거래 하나를 더합니다.\n';
   for (const { status, stdout, stderr } of outputs) {
     assert.equal(status, 0);
     assert.equal(stderr, '');
@@ -49,7 +49,7 @@ test('help 깃발은 등호로 전달한 값을 거부한다', () => {
   const { status, stdout, stderr } = runCli('help', '--help=nope');
   assert.equal(status, 2);
   assert.equal(stdout, '');
-  assert.equal(stderr, '오류: --help은 값을 받지 않는다\n사용법: gagyebu help\n');
+  assert.equal(stderr, '오류: --help은 값을 받지 않습니다\n사용법: gagyebu help\n');
 });
 
 test('--version은 패키지 버전을 출력한다', () => {

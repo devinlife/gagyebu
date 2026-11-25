@@ -35,10 +35,10 @@ test('모르는 옵션의 이름과 첫 오류만 돌려준다', () => {
 });
 
 test('값 옵션 뒤에 값이 필요하다', () => {
-  assert.equal(parseOptions(['--data'], spec).error, '--data 값이 없다');
-  assert.equal(parseOptions(['--data', '--json'], spec).error, '--data 값이 없다');
+  assert.equal(parseOptions(['--data'], spec).error, '--data 값이 없습니다');
+  assert.equal(parseOptions(['--data', '--json'], spec).error, '--data 값이 없습니다');
 });
 
 test('깃발은 등호로 값을 받지 않는다', () => {
-  assert.equal(parseOptions(['--json=true'], spec).error, '--json은 값을 받지 않는다');
+  assert.equal(parseOptions(['--json=true'], spec).error, '--json은 값을 받지 않습니다');
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { binPath, runCli, tempDir, testEnv } from './helpers.js';
@@ -113,6 +113,17 @@ test('파일 쓰기가 실패하면 오류를 표시한다', (t) => {
   const { directory, run } = fixture(t);
   const out = path.join(directory, 'missing', 'export.csv');
   assertResult(run('--out', out), 1, '', `오류: 파일을 쓸 수 없습니다: ${out} (ENOENT)\n`);
+});
+
+test('데이터 파일 자신과 그 파일을 가리키는 링크에는 내보내지 않는다', (t) => {
+  const { data, out, run, write } = fixture(t);
+  const original = write();
+  symlinkSync(data, out);
+
+  for (const [target, ...flags] of [[data, '--force'], [out, '--force'], [data]]) {
+    assertResult(run('--out', target, ...flags), 1, '', `오류: 데이터 파일에는 내보낼 수 없습니다: ${target}\n`);
+    assert.deepEqual(readFileSync(data), original);
+  }
 });
 
 test('사용법 오류가 있으면 파일을 만들지 않고 오류와 사용법을 표시한다', (t) => {

@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { statSync, writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
 import { DataError, UsageError, unexpectedArgument } from '../errors.js';
 import { parsePeriod } from '../input.js';
@@ -37,7 +37,7 @@ export function run(argv) {
   }
 
   const { from, to } = parsePeriod(options, USAGE);
-  const { data } = loadData(options, USAGE);
+  const { data, filePath } = loadData(options, USAGE);
   const transactions = filterTransactions(data.transactions, { from, to });
   const csv = toCsv(transactions);
   if (out === undefined) {
@@ -47,8 +47,18 @@ export function run(argv) {
   }
 
   try {
+    const outputFile = statSync(out, { throwIfNoEntry: false });
+    if (outputFile !== undefined) {
+      const dataFile = statSync(filePath, { throwIfNoEntry: false });
+      if (dataFile?.dev === outputFile.dev && dataFile.ino === outputFile.ino) {
+        throw new DataError(`데이터 파일에는 내보낼 수 없습니다: ${out}`);
+      }
+    }
     writeFileSync(out, `\uFEFF${csv}`, { flag: force ? 'w' : 'wx' });
   } catch (error) {
+    if (error instanceof DataError) {
+      throw error;
+    }
     if (error.code === 'EEXIST') {
       throw new DataError(`이미 있는 파일입니다: ${out}`);
     }

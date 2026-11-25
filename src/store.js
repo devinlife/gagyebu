@@ -51,6 +51,7 @@ export function readData(filePath) {
         version: CURRENT_VERSION,
         nextId: 1,
         categories: structuredClone(DEFAULT_CATEGORIES),
+        budgets: {},
         transactions: [],
       };
     }
@@ -73,7 +74,7 @@ export function readData(filePath) {
     throw readError(filePath, `지원하지 않는 version입니다: ${version}`);
   }
   if (version === 1) {
-    return migrateVersionOne(data);
+    data = migrateVersionOne(data);
   }
   const { categories } = data;
   if (!['expense', 'income'].every((type) =>
@@ -81,7 +82,13 @@ export function readData(filePath) {
     throw readError(filePath, 'categories가 올바르지 않습니다');
   }
 
-  return data;
+  const { budgets = {} } = data;
+  if (budgets === null || typeof budgets !== 'object' || Array.isArray(budgets)
+      || !Object.values(budgets).every((amount) => Number.isSafeInteger(amount) && amount > 0)) {
+    throw readError(filePath, 'budgets가 올바르지 않습니다');
+  }
+
+  return { ...data, budgets };
 }
 
 export function writeData(filePath, data) {

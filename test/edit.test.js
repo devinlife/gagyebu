@@ -57,6 +57,7 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
   assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
     ...original,
     version: 2,
+    budgets: {},
     categories: DEFAULT_CATEGORIES,
     transactions: [original.transactions[0], { ...original.transactions[1], amount: 12000, memo: '점심' }],
   });
@@ -75,6 +76,7 @@ test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한�
   assert.deepEqual(read(), {
     ...original,
     version: 2,
+    budgets: {},
     categories: DEFAULT_CATEGORIES,
     transactions: [{ ...original.transactions[0], category: '급여' }, original.transactions[1]],
   });

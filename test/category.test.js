@@ -106,6 +106,7 @@ test('분류를 등록 순서 끝에 더하고 거래에 쓸 수 있게 한다',
   assertOutput(run('add', '  커피  '), '분류를 더했습니다: 지출 커피\n');
   assert.deepEqual(read(), {
     version: 2,
+    budgets: {},
     nextId: 1,
     categories: { ...DEFAULT_CATEGORIES, expense: [...DEFAULT_CATEGORIES.expense, '커피'] },
     transactions: [],
@@ -158,6 +159,7 @@ test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막
   assertOutput(run('rm', '  기타  '), '분류를 지웠습니다: 지출 기타\n');
   assert.deepEqual(read(), {
     version: 2,
+    budgets: {},
     nextId: 2,
     categories: { ...DEFAULT_CATEGORIES, expense: DEFAULT_CATEGORIES.expense.slice(0, -1) },
     transactions,

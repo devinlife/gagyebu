@@ -46,11 +46,13 @@ test('데이터 파일이 없으면 폴더나 파일을 만들지 않고 새 초
       expense: ['식비', '교통', '주거', '통신', '생활', '의료', '문화', '기타'],
       income: ['급여', '용돈', '기타'],
     },
+    budgets: {},
     transactions: [],
   });
   assert.deepEqual(second, first);
   assert.notEqual(first, second);
   assert.notEqual(first.transactions, second.transactions);
+  assert.notEqual(first.budgets, second.budgets);
   assert.notEqual(first.categories, second.categories);
   for (const type of ['expense', 'income']) {
     assert.notEqual(first.categories[type], second.categories[type]);
@@ -83,6 +85,7 @@ test('버전 1의 거래와 다음 번호를 보존하고 거래의 분류를 �
       income: [...DEFAULT_CATEGORIES.income, '월급'],
     },
     transactions,
+    budgets: {},
   });
   assert.equal(readFileSync(filePath, 'utf8'), original);
 });
@@ -95,6 +98,32 @@ test('버전 2의 분류 목록이 잘못되면 데이터 오류를 보고한다
       constructor: DataError,
       message: `데이터 파일을 읽을 수 없습니다: ${filePath} (categories가 올바르지 않습니다)`,
     });
+  }
+});
+
+test('버전 2에 예산이 없으면 빈 객체를 쓰고 등록된 예산은 그대로 읽는다', (t) => {
+  const filePath = path.join(temporaryDirectory(t), 'data.json');
+  for (const budgets of [undefined, { 식비: 12000, 교통: 30000 }]) {
+    const original = JSON.stringify({ version: 2, categories: DEFAULT_CATEGORIES, budgets });
+    writeFileSync(filePath, original);
+    const data = readData(filePath);
+    assert.equal(data.version, 2);
+    assert.deepEqual(data.budgets, budgets ?? {});
+    assert.equal(readFileSync(filePath, 'utf8'), original);
+  }
+});
+
+test('버전 1과 2의 예산 형식이 잘못되면 데이터 오류를 보고한다', (t) => {
+  const filePath = path.join(temporaryDirectory(t), 'data.json');
+  const invalidBudgets = [[], null, 1, ...[0, -1, 1.5, '1000', 2 ** 53].map((amount) => ({ 식비: amount }))];
+  for (const version of [1, 2]) {
+    for (const budgets of invalidBudgets) {
+      writeFileSync(filePath, JSON.stringify({ version, categories: DEFAULT_CATEGORIES, budgets }));
+      assert.throws(() => readData(filePath), {
+        constructor: DataError,
+        message: `데이터 파일을 읽을 수 없습니다: ${filePath} (budgets가 올바르지 않습니다)`,
+      });
+    }
   }
 });
 
@@ -135,7 +164,7 @@ test('하위 폴더에 데이터를 쓰고 덮어써도 올바른 JSON 파일만
     { version: CURRENT_VERSION, categories: DEFAULT_CATEGORIES, nextId: 2, transactions: [{ id: 1 }] },
   ]) {
     writeData(filePath, data);
-    assert.deepEqual(readData(filePath), data);
+    assert.deepEqual(readData(filePath), { ...data, budgets: {} });
     assert.equal(readFileSync(filePath, 'utf8'), JSON.stringify(data, null, 2) + '\n');
     assert.deepEqual(readdirSync(directory), ['data.json']);
   }
@@ -166,7 +195,7 @@ test('JSON으로 변환할 수 없으면 기존 데이터 파일을 보존한다
     constructor: DataError,
     message: `데이터 파일을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`,
   });
-  assert.deepEqual(readData(filePath), data);
+  assert.deepEqual(readData(filePath), { ...data, budgets: {} });
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });
 
@@ -191,6 +220,6 @@ test('예상하지 못한 직렬화 오류는 원래 오류로 전파하고 기�
   writeData(filePath, data);
 
   assert.throws(() => writeData(filePath, { version: CURRENT_VERSION, amount: 1n }), TypeError);
-  assert.deepEqual(readData(filePath), data);
+  assert.deepEqual(readData(filePath), { ...data, budgets: {} });
   assert.deepEqual(readdirSync(directory), ['data.json']);
 });

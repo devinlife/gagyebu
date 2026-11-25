@@ -61,6 +61,7 @@ test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번�
   assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
     ...original,
     version: 2,
+    budgets: {},
     categories: DEFAULT_CATEGORIES,
     transactions: [original.transactions[0], original.transactions[2]],
   });

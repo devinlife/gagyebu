@@ -51,6 +51,7 @@ test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선�
   assert.deepEqual(readdirSync(directory), ['data.json']);
   assert.deepEqual(read(), {
     version: 2,
+    budgets: {},
     nextId: 2,
     categories: DEFAULT_CATEGORIES,
     transactions: [{

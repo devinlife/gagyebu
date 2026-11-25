@@ -42,7 +42,7 @@ const february = [
   { date: '2026-02-28', type: 'transfer', category: '', toAccount: '통장', amount: 80000 },
 ];
 
-test('지정한 달의 수입과 지출 및 분류별 집계를 JSON으로 출력한다', (t) => {
+test('지정한 달의 수입과 지출, 이체 및 분류별 집계를 JSON으로 출력한다', (t) => {
   const { data, run, write } = fixture(t);
   const original = write([...february, {
     date: '2028-02-29', type: 'income', category: '급여', amount: 10,
@@ -53,6 +53,8 @@ test('지정한 달의 수입과 지출 및 분류별 집계를 JSON으로 출�
     income: 3000000,
     expense: 52500,
     net: 2947500,
+    transferCount: 1,
+    transfer: 80000,
     expenseByCategory: [
       { category: '식비', amount: 40000, ratio: 40000 / 52500, count: 3, budget: null, over: 0 },
       { category: '교통', amount: 12500, ratio: 12500 / 52500, count: 1, budget: null, over: 0 },
@@ -72,6 +74,7 @@ test('기본 달은 오늘을 따르고 요약 표의 한글 폭과 숫자 칸�
     '수입 3,000,000원',
     '지출 52,500원',
     '차액 2,947,500원',
+    '이체 1건 80,000원',
     '',
     '지출 분류      금액   비율  건수',
     '식비       40,000원  76.2%     3',
@@ -125,6 +128,7 @@ test('지출 차트는 한글과 영문 분류의 막대를 맞추고 금액과 
     '수입 3,000,000원',
     '지출 52,500원',
     '차액 2,947,500원',
+    '이체 1건 80,000원',
     '',
     `식비  ${'█'.repeat(40)}  40,000원  76.2%`,
     `Cafe  ${'█'.repeat(12)}▌${' '.repeat(29)}12,500원  23.8%`,
@@ -134,9 +138,9 @@ test('지출 차트는 한글과 영문 분류의 막대를 맞추고 금액과 
     '급여       3,000,000원  100.0%     1',
     '',
   ].join('\n'));
-  const chartRows = chart.split('\n').slice(5, 7);
+  const chartRows = chart.split('\n').slice(6, 8);
   assert.deepEqual(chartRows.map((line) => displayWidth(line.slice(0, line.indexOf('█')))), [6, 6]);
-  assert.equal(output(run('--chart', '--width', '20')).split('\n')[5], `식비  ${'█'.repeat(20)}  40,000원  76.2%`);
+  assert.equal(output(run('--chart', '--width', '20')).split('\n')[6], `식비  ${'█'.repeat(20)}  40,000원  76.2%`);
   env.NO_COLOR = '1';
   assert.equal(output(run('--chart')), chart);
   assert.doesNotMatch(chart, /\x1b/);
@@ -156,6 +160,7 @@ test('지출 예산과 초과액을 표와 JSON에 표시하고 반올림 전 �
     '수입 3,000,000원',
     '지출 85,501원',
     '차액 2,914,499원',
+    '이체 1건 80,000원',
     '',
     '지출 분류      금액   비율  건수',
     '식비       40,000원  46.8%     3  예산 35,000원 (114.3%) 초과 5,000원',
@@ -170,7 +175,7 @@ test('지출 예산과 초과액을 표와 JSON에 표시하고 반올림 전 �
     '',
   ].join('\n'));
   assert.deepEqual(JSON.parse(output(run('--json'))), {
-    month: '2026-02', income: 3000000, expense: 85501, net: 2914499,
+    month: '2026-02', income: 3000000, expense: 85501, net: 2914499, transferCount: 1, transfer: 80000,
     expenseByCategory: [
       { category: '식비', amount: 40000, ratio: 40000 / 85501, count: 3, budget: 35000, over: 5000 },
       { category: '문화', amount: 20000, ratio: 20000 / 85501, count: 1, budget: 20000, over: 0 },
@@ -204,7 +209,7 @@ test('거래가 있는 구분의 표만 출력하고 음수 차액에 쉼표를 
 test('집계할 거래가 없는 달은 안내 한 줄 또는 빈 JSON 집계를 출력한다', (t) => {
   const { directory, run, write } = fixture(t);
   const empty = {
-    month: '2026-02', income: 0, expense: 0, net: 0, expenseByCategory: [], incomeByCategory: [],
+    month: '2026-02', income: 0, expense: 0, net: 0, transferCount: 0, transfer: 0, expenseByCategory: [], incomeByCategory: [],
   };
   const assertEmpty = () => {
     assert.equal(output(run()), '2026년 2월 거래가 없습니다.\n');
@@ -215,8 +220,12 @@ test('집계할 거래가 없는 달은 안내 한 줄 또는 빈 JSON 집계를
   assert.deepEqual(readdirSync(directory), []);
   write([{ date: '2026-03-01', type: 'expense', category: '식비', amount: 1000 }]);
   assertEmpty();
+});
+
+test('이체만 있는 달도 요약과 이체 합계를 출력한다', (t) => {
+  const { run, write } = fixture(t);
   write([{ date: '2026-02-10', type: 'transfer', category: '', toAccount: '통장', amount: 1000 }]);
-  assertEmpty();
+  assert.equal(output(run()), '2026년 2월\n수입 0원\n지출 0원\n차액 0원\n이체 1건 1,000원\n');
 });
 
 test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한다', (t) => {

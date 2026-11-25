@@ -1,3 +1,5 @@
+import { TRANSFER, TYPE_LABELS } from './types.js';
+
 export const NO_TRANSACTIONS = '거래가 없습니다.';
 
 export function formatLocalDateTime(date) {
@@ -16,6 +18,10 @@ export function formatFileStamp(date) {
 
 export function formatWon(amount) {
   return `${amount.toLocaleString('en-US')}원`;
+}
+
+export function formatTransferTotal(count, amount) {
+  return `${TYPE_LABELS[TRANSFER]} ${count}건 ${formatWon(amount)}`;
 }
 
 export function formatMonthName(month) {

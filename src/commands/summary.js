@@ -1,5 +1,5 @@
 import { UsageError, unexpectedArgument } from '../errors.js';
-import { formatBudgetOverage, formatPercent, formatTable, formatWon, formatYearMonth, NO_TRANSACTIONS, renderBars } from '../format.js';
+import { formatBudgetOverage, formatPercent, formatTable, formatTransferTotal, formatWon, formatYearMonth, NO_TRANSACTIONS, renderBars } from '../format.js';
 import { currentMonth, parseChartOptions, parseMonth } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData } from '../store.js';
@@ -52,19 +52,22 @@ export function run(argv) {
   const { data: { budgets, transactions } } = loadData(options, USAGE);
 
   const result = summarizeMonth(transactions, budgets, month);
-  const { income, expense, net, expenseByCategory, incomeByCategory } = result;
+  const { income, expense, net, transferCount, transfer, expenseByCategory, incomeByCategory } = result;
   if (options.json) {
     console.log(JSON.stringify(result, null, 2));
     return 0;
   }
 
   const title = formatYearMonth(month);
-  if (expenseByCategory.length === 0 && incomeByCategory.length === 0) {
+  if (expenseByCategory.length === 0 && incomeByCategory.length === 0 && transferCount === 0) {
     console.log(`${title} ${NO_TRANSACTIONS}`);
     return 0;
   }
 
   const lines = [title, `${TYPE_LABELS[INCOME]} ${formatWon(income)}`, `${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}`, `차액 ${formatWon(net)}`];
+  if (transferCount > 0) {
+    lines.push(formatTransferTotal(transferCount, transfer));
+  }
   if (expenseByCategory.length > 0) {
     if (chartWidth === null) {
       lines.push('', categoryTable(`${TYPE_LABELS[EXPENSE]} 분류`, expenseByCategory, expense, true));

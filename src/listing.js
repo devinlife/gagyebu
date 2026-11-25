@@ -1,10 +1,10 @@
 import { UsageError } from './errors.js';
-import { formatTable, formatTag, formatWon, NO_TRANSACTIONS } from './format.js';
+import { formatTable, formatTag, formatTransferTotal, formatWon, NO_TRANSACTIONS } from './format.js';
 import { parseCategory, parseNonemptyOption, parsePeriod, parseTags, parseType } from './input.js';
 import { parseOptions } from './options.js';
 import { validateDataOption } from './store.js';
 import { categoryText, listTotals } from './transaction.js';
-import { EXPENSE, INCOME, TRANSFER, TYPE_LABELS } from './types.js';
+import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
 
 export function parseListingArgs(argv, usage, parseQuery) {
   const { args, options, error } = parseOptions(argv, {
@@ -56,7 +56,7 @@ export function printTransactions(list, { json }) {
   }
 
   const { count, income, expense, transferCount, transfer } = listTotals(list);
-  const transferText = transferCount > 0 ? `, ${TYPE_LABELS[TRANSFER]} ${transferCount}건 ${formatWon(transfer)}` : '';
+  const transferText = transferCount > 0 ? `, ${formatTransferTotal(transferCount, transfer)}` : '';
   console.log(formatTable(rows, { right: [0, 3] }));
   console.log(`${count}건, ${TYPE_LABELS[INCOME]} ${formatWon(income)}, ${TYPE_LABELS[EXPENSE]} ${formatWon(expense)}${transferText}`);
 }

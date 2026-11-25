@@ -15,9 +15,9 @@ const entries = Object.freeze([
 ].map(Object.freeze));
 const budgets = Object.freeze({ 식비: 2000, 교통: 2000, 문화: 5000 });
 
-test('월 집계는 이체와 다른 달을 제외하고 분류별 비율과 예산 초과를 돌려준다', () => {
+test('월 집계는 해당 달의 이체 합계와 분류별 비율 및 예산 초과를 돌려준다', () => {
   assert.deepEqual(summarizeMonth(entries, budgets, '2026-02'), {
-    month: '2026-02', income: 10000, expense: 8000, net: 2000,
+    month: '2026-02', income: 10000, expense: 8000, net: 2000, transferCount: 1, transfer: 8000,
     expenseByCategory: [
       { category: '교통', amount: 4000, ratio: 0.5, count: 1, budget: 2000, over: 2000 },
       { category: '식비', amount: 4000, ratio: 0.5, count: 2, budget: 2000, over: 2000 },
@@ -25,7 +25,7 @@ test('월 집계는 이체와 다른 달을 제외하고 분류별 비율과 예
     incomeByCategory: [{ category: '급여', amount: 10000, ratio: 1, count: 1 }],
   });
   assert.deepEqual(summarizeMonth(entries, budgets, '2026-04'), {
-    month: '2026-04', income: 0, expense: 0, net: 0, expenseByCategory: [], incomeByCategory: [],
+    month: '2026-04', income: 0, expense: 0, net: 0, transferCount: 0, transfer: 0, expenseByCategory: [], incomeByCategory: [],
   });
 });
 

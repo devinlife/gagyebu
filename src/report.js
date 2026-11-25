@@ -1,7 +1,7 @@
 import { requireCategoryIndex } from './category.js';
 import { DataError } from './errors.js';
-import { filterTransactions } from './transaction.js';
-import { EXPENSE, TYPES } from './types.js';
+import { filterTransactions, listTotals } from './transaction.js';
+import { EXPENSE, RECORD_TYPES } from './types.js';
 
 export function groupByCategory(transactions) {
   const categories = new Map();
@@ -15,22 +15,22 @@ export function groupByCategory(transactions) {
 }
 
 function monthlyTotals(transactions, month, types) {
-  const totals = { expense: 0, income: 0 };
+  const monthly = [];
   const entries = { expense: [], income: [] };
   for (const transaction of transactions) {
-    const { date, type, amount } = transaction;
+    const { date, type } = transaction;
     if (!types.includes(type) || date.slice(0, 7) !== month) {
       continue;
     }
-    totals[type] += amount;
-    entries[type].push(transaction);
+    monthly.push(transaction);
+    entries[type]?.push(transaction);
   }
 
   const categories = {
     expense: groupByCategory(entries.expense),
     income: groupByCategory(entries.income),
   };
-  return { totals, categories };
+  return { totals: listTotals(monthly), categories };
 }
 
 function categoryBreakdown(categories, total) {
@@ -40,8 +40,8 @@ function categoryBreakdown(categories, total) {
 }
 
 export function summarizeMonth(transactions, budgets, month) {
-  const { totals, categories } = monthlyTotals(transactions, month, TYPES);
-  const { income, expense } = totals;
+  const { totals, categories } = monthlyTotals(transactions, month, RECORD_TYPES);
+  const { income, expense, transferCount, transfer } = totals;
   const net = income - expense;
   const expenseByCategory = categoryBreakdown(categories.expense, expense).map((entry) => {
     const { category, amount } = entry;
@@ -50,7 +50,7 @@ export function summarizeMonth(transactions, budgets, month) {
     return { ...entry, budget, over };
   });
   const incomeByCategory = categoryBreakdown(categories.income, income);
-  return { month, income, expense, net, expenseByCategory, incomeByCategory };
+  return { month, income, expense, net, transferCount, transfer, expenseByCategory, incomeByCategory };
 }
 
 export function summarizeYear(transactions, year) {

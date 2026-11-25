@@ -91,6 +91,14 @@ export function parseYear(text, usage) {
   return Number(text);
 }
 
+export function parsePort(text, usage) {
+  const port = Number(text);
+  if (!/^[0-9]+$/.test(text) || port > 65535) {
+    throw new UsageError(`--port는 0에서 65535 사이의 정수여야 합니다: ${text}`, usage);
+  }
+  return port;
+}
+
 export function parseChartOptions({ chart, json, width }, usage) {
   if (!chart) {
     if (width !== undefined) {

@@ -1,10 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
-import { parseAmount, parseChartOptions, parseDate, parseMonth, parsePeriod, parseType, parseYear, today } from '../src/input.js';
+import { parseAmount, parseChartOptions, parseDate, parseMonth, parsePeriod, parsePort, parseType, parseYear, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
+
+test('포트는 0에서 65535 사이의 십진 정수만 받는다', () => {
+  for (const [text, port] of [['0', 0], ['04780', 4780], ['65535', 65535]]) {
+    assert.equal(parsePort(text, usage), port);
+  }
+  for (const text of ['', ' 0', '-1', '1.5', '1e3', '65536']) {
+    assert.throws(() => parsePort(text, usage), {
+      constructor: UsageError,
+      message: `--port는 0에서 65535 사이의 정수여야 합니다: ${text}`,
+    });
+  }
+});
 
 test('금액 입력을 양의 정수로 해석한다', () => {
   for (const [input, expected] of [

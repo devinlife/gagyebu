@@ -218,6 +218,15 @@ export function readHistory(filePath) {
   return entries;
 }
 
+export function popHistory(filePath, entries = readHistory(filePath)) {
+  const latest = entries.at(-1);
+  if (latest === undefined) {
+    return null;
+  }
+  writeJsonFile(historyPath(filePath), entries.slice(0, -1), '이력 파일');
+  return latest;
+}
+
 export function writeData(filePath, data) {
   if (commandSummary !== undefined) {
     const before = readData(filePath);
@@ -237,7 +246,7 @@ export function writeData(filePath, data) {
   writeJsonFile(filePath, data, '데이터 파일');
 }
 
-function writeJsonFile(filePath, value, label) {
+export function writeJsonFile(filePath, value, label) {
   const json = JSON.stringify(value, null, 2);
   if (json === undefined) {
     throw new DataError(`${label}을 쓸 수 없습니다: ${filePath} (JSON으로 변환할 수 없습니다)`);

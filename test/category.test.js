@@ -1,0 +1,211 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
+
+const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
+const usage = '사용법: gagyebu category list|add|rm [인자] [--옵션 값]';
+const usages = {
+  list: '사용법: gagyebu category list [--type expense|income] [--json] [--data <경로>]',
+  add: '사용법: gagyebu category add <이름> [--type expense|income] [--data <경로>]',
+  rm: '사용법: gagyebu category rm <이름> [--type expense|income] [--data <경로>]',
+};
+
+function fixture(t) {
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-category-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const data = path.join(directory, 'data.json');
+  const env = { ...process.env, GAGYEBU_DATA: data, GAGYEBU_TODAY: '2026-03-01' };
+
+  function runCli(...args) {
+    const result = spawnSync(process.execPath, [binPath, ...args], { encoding: 'utf8', env });
+    assert.ifError(result.error);
+    return result;
+  }
+
+  return {
+    data,
+    directory,
+    runCli,
+    run: (...args) => runCli('category', ...args),
+    read: () => JSON.parse(readFileSync(data, 'utf8')),
+  };
+}
+
+function assertOutput({ status, stdout, stderr }, expected) {
+  assert.equal(status, 0, stderr);
+  assert.equal(stderr, '');
+  assert.equal(stdout, expected);
+}
+
+function assertError({ status, stdout, stderr }, expectedStatus, expectedText) {
+  assert.equal(status, expectedStatus, stderr);
+  assert.equal(stdout, '');
+  assert.equal(stderr, expectedText);
+}
+
+test('빈 데이터의 기본 분류를 등록 순서대로 보여 주고 파일을 만들지 않는다', (t) => {
+  const { directory, run } = fixture(t);
+  const rows = {
+    expense: DEFAULT_CATEGORIES.expense.map((name) => `지출 ${name} 0건`),
+    income: DEFAULT_CATEGORIES.income.map((name) => `수입 ${name} 0건`),
+  };
+  for (const [args, expected] of [
+    [[], [...rows.expense, ...rows.income]],
+    [['--type', 'income'], rows.income],
+  ]) {
+    const { status, stdout, stderr } = run('list', ...args);
+    assert.equal(status, 0, stderr);
+    assert.equal(stderr, '');
+    assert.deepEqual(
+      stdout.trimEnd().split('\n').map((line) => line.replace(/ +/g, ' ')),
+      ['구분 분류 거래', ...expected],
+    );
+  }
+  assert.deepEqual(readdirSync(directory), []);
+});
+
+test('분류의 거래 수를 구분별로 세고 버전 1 파일은 그대로 둔다', (t) => {
+  const { data, run } = fixture(t);
+  const transactions = [
+    { id: 1, type: 'expense', category: '기타' },
+    { id: 2, type: 'expense', category: '기타' },
+    { id: 3, type: 'income', category: '기타' },
+    { id: 4, type: 'expense', category: '커피' },
+  ];
+  const original = JSON.stringify({ version: 1, nextId: 5, transactions });
+  writeFileSync(data, original);
+
+  const expected = {
+    expense: [
+      ...DEFAULT_CATEGORIES.expense.map((name) => ({ name, count: name === '기타' ? 2 : 0 })),
+      { name: '커피', count: 1 },
+    ],
+    income: DEFAULT_CATEGORIES.income.map((name) => ({ name, count: name === '기타' ? 1 : 0 })),
+  };
+  for (const [args, list] of [
+    [[], expected],
+    [['--type', 'income'], { income: expected.income }],
+  ]) {
+    const { status, stdout, stderr } = run('list', '--json', ...args);
+    assert.equal(status, 0, stderr);
+    assert.equal(stderr, '');
+    assert.deepEqual(JSON.parse(stdout), list);
+  }
+  assert.equal(readFileSync(data, 'utf8'), original);
+});
+
+test('분류를 등록 순서 끝에 더하고 거래에 쓸 수 있게 한다', (t) => {
+  const { data, run, runCli, read } = fixture(t);
+  writeFileSync(data, JSON.stringify({ version: 1, nextId: 1, transactions: [] }));
+
+  assertOutput(run('add', '  커피  '), '분류를 더했습니다: 지출 커피\n');
+  assert.deepEqual(read(), {
+    version: 2,
+    nextId: 1,
+    categories: { ...DEFAULT_CATEGORIES, expense: [...DEFAULT_CATEGORIES.expense, '커피'] },
+    transactions: [],
+  });
+  assertOutput(run('add', '커피', '--type', 'income'), '분류를 더했습니다: 수입 커피\n');
+  assert.deepEqual(read().categories.income, [...DEFAULT_CATEGORIES.income, '커피']);
+  assertOutput(runCli('add', '1000', '--category', '커피'),
+    '추가했습니다: #1 2026-03-01 지출 1,000원 커피\n');
+  assert.equal(read().transactions[0].category, '커피');
+});
+
+test('이미 있는 분류를 다시 더하면 파일을 보존한다', (t) => {
+  const { data, run } = fixture(t);
+  const original = JSON.stringify({ version: 1, nextId: 1, transactions: [] });
+  writeFileSync(data, original);
+
+  assertError(run('add', '  식비  '), 1, '오류: 이미 있는 분류입니다: 식비\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
+});
+
+test('이름 길이는 공백을 뺀 코드 포인트 수로 센다', (t) => {
+  const { run, read } = fixture(t);
+  const name = '🍎'.repeat(20);
+  assertOutput(run('add', ` ${name} `), `분류를 더했습니다: 지출 ${name}\n`);
+  assert.equal(read().categories.expense.at(-1), name);
+  assertOutput(run('rm', ` ${name} `), `분류를 지웠습니다: 지출 ${name}\n`);
+  assert.deepEqual(read().categories, DEFAULT_CATEGORIES);
+});
+
+test('쓰는 거래가 있거나 없는 분류를 지우려 하면 파일을 보존한다', (t) => {
+  const { data, run } = fixture(t);
+  const transactions = [
+    { id: 1, type: 'expense', category: '식비' },
+    { id: 2, type: 'expense', category: '식비' },
+  ];
+  const original = JSON.stringify({ version: 1, nextId: 3, transactions });
+  writeFileSync(data, original);
+
+  assertError(run('rm', '식비'), 1, '오류: 2건의 거래가 쓰는 분류입니다: 식비\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
+  assertError(run('rm', '커피'), 1, '오류: 없는 분류입니다: 커피\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
+});
+
+test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막지 않는다', (t) => {
+  const { data, run, runCli, read } = fixture(t);
+  const transactions = [{ id: 1, type: 'income', category: '기타' }];
+  writeFileSync(data, JSON.stringify({ version: 1, nextId: 2, transactions }));
+
+  assertOutput(run('rm', '  기타  '), '분류를 지웠습니다: 지출 기타\n');
+  assert.deepEqual(read(), {
+    version: 2,
+    nextId: 2,
+    categories: { ...DEFAULT_CATEGORIES, expense: DEFAULT_CATEGORIES.expense.slice(0, -1) },
+    transactions,
+  });
+  assertError(runCli('add', '1000'), 1,
+    '오류: 없는 분류입니다: 기타 (gagyebu category add로 더하세요)\n');
+  assertError(run('rm', '기타', '--type', 'income'), 1, '오류: 1건의 거래가 쓰는 분류입니다: 기타\n');
+  assertOutput(run('rm', '급여', '--type', 'income'), '분류를 지웠습니다: 수입 급여\n');
+  assert.deepEqual(read().categories.income, ['용돈', '기타']);
+});
+
+test('잘못된 하위 명령과 옵션 및 인자를 사용법 오류로 보고한다', (t) => {
+  const { directory, run } = fixture(t);
+  assertError(run(), 2, `오류: 분류 하위 명령이 없습니다\n${usage}\n`);
+  assertError(run('constructor'), 2, `오류: 알 수 없는 분류 하위 명령 constructor\n${usage}\n`);
+  assertError(run('list', '남는값'), 2, `오류: 예상하지 않은 인자 남는값\n${usages.list}\n`);
+
+  for (const [command, subUsage] of Object.entries(usages)) {
+    const operands = command === 'list' ? [] : ['식비'];
+    for (const [args, message] of [
+      [['--nope'], '알 수 없는 옵션 --nope'],
+      [['--type', 'transfer'], '--type은 expense 또는 income이어야 합니다: transfer'],
+      [['--type'], '--type 값이 없습니다'],
+      [['--data'], '--data 값이 없습니다'],
+      [['--data', ''], '--data 값이 비었습니다'],
+    ]) {
+      assertError(run(command, ...operands, ...args), 2, `오류: ${message}\n${subUsage}\n`);
+    }
+  }
+
+  for (const command of ['add', 'rm']) {
+    const subUsage = usages[command];
+    assertError(run(command), 2, `오류: 분류 이름이 없습니다\n${subUsage}\n`);
+    assertError(run(command, '식비', '남는값'), 2, `오류: 예상하지 않은 인자 남는값\n${subUsage}\n`);
+    assertError(run(command, '식비', '--json'), 2, `오류: 알 수 없는 옵션 --json\n${subUsage}\n`);
+    for (const invalid of ['', '   ', '가'.repeat(21)]) {
+      assertError(run(command, invalid), 2,
+        `오류: 분류 이름은 앞뒤 공백을 뺀 1~20자여야 합니다: ${invalid}\n${subUsage}\n`);
+    }
+  }
+  assert.deepEqual(readdirSync(directory), []);
+});
+
+test('category와 하위 명령의 도움말은 사용법을 출력한다', (t) => {
+  const { directory, run } = fixture(t);
+  assertOutput(run('--help'), `${Object.values(usages).join('\n')}\n`);
+  for (const [command, subUsage] of Object.entries(usages)) {
+    assertOutput(run(command, '--help'), `${subUsage}\n`);
+  }
+  assert.deepEqual(readdirSync(directory), []);
+});

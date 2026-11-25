@@ -56,7 +56,7 @@ test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번�
     accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     transactions: [original.transactions[0], original.transactions[2]],
   }));
-  assert.deepEqual(readdirSync(directory), ['override.json']);
+  assert.deepEqual(readdirSync(directory).sort(), ['override.json', 'override.json.history.json']);
 });
 
 test('가장 큰 번호를 지운 뒤 추가한 거래는 다음 번호를 쓴다', (t) => {

@@ -32,7 +32,7 @@ test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선�
   assert.equal(result.status, 0);
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, '추가했습니다: #1 2026-02-28 수입 12,300원 급여 11월분\n');
-  assert.deepEqual(readdirSync(directory), ['data.json']);
+  assert.deepEqual(readdirSync(directory).sort(), ['data.json', 'data.json.history.json']);
   assert.deepEqual(read(), currentData({
     nextId: 2,
     transactions: [{

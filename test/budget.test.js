@@ -47,7 +47,7 @@ test('지출 분류의 월 예산을 설정하고 새 금액으로 덮어쓴다'
   assert.deepEqual(readJson(data).budgets, { 식비: 12000 });
   assert.equal(output(run('set', '식비', '30,000원', '--data', data)), '설정했습니다: 식비 월 30,000원\n');
   assert.deepEqual(readJson(data).budgets, { 식비: 30000 });
-  assert.deepEqual(readdirSync(directory), ['data.json']);
+  assert.deepEqual(readdirSync(directory).sort(), ['data.json', 'data.json.history.json']);
 });
 
 test('등록되지 않은 분류와 수입 분류에는 예산을 설정할 수 없다', (t) => {

@@ -2,6 +2,7 @@ import pkg from '../package.json' with { type: 'json' };
 import { DataError, UsageError, singleLineMessage, unexpectedArgument } from './errors.js';
 import { parseOptions } from './options.js';
 import { commands } from './registry.js';
+import { describeCommand, setCommandSummary } from './store.js';
 
 export function reportError(error) {
   if (error instanceof UsageError || error instanceof DataError) {
@@ -37,8 +38,11 @@ export async function run(argv) {
       throw new UsageError(`알 수 없는 명령입니다: ${command}`, '사용법은 gagyebu help를 보세요.');
     }
 
+    setCommandSummary(describeCommand([command, ...args]));
     return await commands[command].run(args, { commands });
   } catch (error) {
     return reportError(error);
+  } finally {
+    setCommandSummary(undefined);
   }
 }

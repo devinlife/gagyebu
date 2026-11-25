@@ -53,7 +53,7 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
     accounts: [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }],
     transactions: [original.transactions[0], { ...original.transactions[1], amount: 12000, memo: '점심' }],
   }));
-  assert.deepEqual(readdirSync(directory), ['override.json']);
+  assert.deepEqual(readdirSync(directory).sort(), ['override.json', 'override.json.history.json']);
 });
 
 test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한다', (t) => {

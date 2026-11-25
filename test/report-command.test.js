@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { displayWidth } from '../src/format.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
 import { runCli, tempDir, testEnv, transaction, writeJson } from './helpers.js';
 
-const usage = '사용법: gagyebu report [--year YYYY] [--json] [--data <경로>]';
+const usage = '사용법: gagyebu report [--year YYYY] [--json | --chart [--width <10~120>]] [--data <경로>]';
 const entries = [
   { amount: 4000 },
   { category: '교통', amount: 4000 },
@@ -116,6 +117,35 @@ test('빈 해도 열두 달, 합계, 월평균 지출을 0원으로 보여 준�
   ]);
 });
 
+test('연간 차트는 열두 달을 표시하고 지출 0원은 빈 막대, 소액은 최소 조각으로 표시한다', (t) => {
+  const { run, write } = fixture(t);
+  write([
+    { date: '2026-01-01', amount: 1 },
+    { date: '2026-10-01', amount: 8000 },
+    { date: '2026-10-01', type: 'income', category: '급여', amount: 20000 },
+  ]);
+
+  const { status, stdout, stderr } = run('--year', '2026', '--chart');
+  assert.equal(status, 0, stderr);
+  assert.equal(stderr, '');
+  const lines = stdout.split('\n');
+  assert.equal(lines[0], '2026년');
+  const months = lines.slice(1, -2);
+  assert.deepEqual(months.map((line) => line.split(' ')[0]),
+    Array.from({ length: 12 }, (_, index) => `${index + 1}월`));
+  assert.equal(months[0], `1월   ▏${' '.repeat(45)}1원`);
+  assert.equal(months[1], `2월${' '.repeat(49)}0원`);
+  assert.equal(months[9], `10월  ${'█'.repeat(40)}  8,000원`);
+  assert.equal(displayWidth(months[0].slice(0, months[0].indexOf('▏'))), 6);
+  assert.equal(displayWidth(months[9].slice(0, months[9].indexOf('█'))), 6);
+  assert.deepEqual(lines.slice(-2), ['월평균 지출 4,001원', '']);
+  assert.doesNotMatch(stdout, /\x1b| $/m);
+
+  const narrow = run('--year', '2026', '--chart', '--width', '10');
+  assert.equal(narrow.status, 0, narrow.stderr);
+  assert.equal(narrow.stdout.split('\n')[10], `10월  ${'█'.repeat(10)}  8,000원`);
+});
+
 test('연도를 생략하면 기준일의 연도를 사용한다', (t) => {
   const { run, write } = fixture(t);
   write(entries);
@@ -136,6 +166,12 @@ test('연간 보고 사용법 오류는 데이터 파일을 읽기 전에 종료
     [['extra'], '예상하지 않은 인자 extra'],
     [['--year'], '--year 값이 없습니다'],
     [['--data'], '--data 값이 없습니다'],
+    [['--chart', '--width'], '--width 값이 없습니다'],
+    [['--chart', '--json'], '--chart와 --json은 함께 쓸 수 없습니다'],
+    [['--width', '20'], '--width는 --chart와 함께 써야 합니다'],
+    ...['9', '121', '10.5'].map((width) => [
+      ['--chart', '--width', width], `--width는 10에서 120 사이의 정수여야 합니다: ${width}`,
+    ]),
   ]) {
     const { status, stdout, stderr } = run(...args);
     assert.equal(status, 2, JSON.stringify(args));

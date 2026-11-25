@@ -8,11 +8,11 @@ export const name = 'edit';
 export const order = 50;
 export const summary = '거래의 값 일부를 바꿉니다.';
 
-const USAGE = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--account <이름>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
+const USAGE = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--account <이름>] [--to <계좌>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['amount', 'type', 'category', 'account', 'date', 'memo', 'tag', 'data'],
+    values: ['amount', 'type', 'category', 'account', 'to', 'date', 'memo', 'tag', 'data'],
     flags: ['help', 'clear-tags'],
     repeatable: ['tag'],
   });
@@ -33,7 +33,7 @@ export function run(argv) {
   const id = parseId(args[0], USAGE);
 
   const changes = {};
-  const { amount, type, category, account, date, memo } = options;
+  const { amount, type, category, account, to, date, memo } = options;
   if (amount !== undefined) {
     changes.amount = parseAmount(amount, USAGE);
   }
@@ -45,6 +45,9 @@ export function run(argv) {
   }
   if (account !== undefined) {
     changes.account = parseNonemptyOption(account, 'account', USAGE);
+  }
+  if (to !== undefined) {
+    changes.toAccount = parseNonemptyOption(to, 'to', USAGE);
   }
   if (date !== undefined) {
     changes.date = parseDate(date, USAGE);
@@ -65,7 +68,7 @@ export function run(argv) {
 
   const { filePath, data } = loadData(options, USAGE);
 
-  const transaction = applyChanges(data, id, changes);
+  const transaction = applyChanges(data, id, changes, USAGE);
   const index = findTransactionIndex(data.transactions, id);
   data.transactions[index] = transaction;
   writeData(filePath, data);

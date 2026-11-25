@@ -100,14 +100,35 @@ export function removeTransaction(transactions, id) {
   return { removed: transactions[index], transactions: transactions.toSpliced(index, 1) };
 }
 
-export function applyChanges(data, id, changes) {
+export function applyChanges(data, id, changes, usage) {
   const transaction = data.transactions[findTransactionIndex(data.transactions, id)];
   const updated = { ...transaction, ...changes };
-  if (changes.type !== undefined || changes.category !== undefined) {
-    requireCategoryIndex(data.categories, updated.type, updated.category, categoryHint);
+  if (transaction.type === TRANSFER) {
+    if (updated.type !== TRANSFER) {
+      throw new UsageError('이체의 구분은 바꿀 수 없습니다', usage);
+    }
+    if (changes.category !== undefined) {
+      throw new UsageError('이체에는 분류가 없습니다', usage);
+    }
+  } else {
+    if (updated.type === TRANSFER) {
+      throw new UsageError('이체로 구분을 바꿀 수 없습니다', usage);
+    }
+    if (changes.toAccount !== undefined) {
+      throw new UsageError('--to는 이체에만 쓸 수 있습니다', usage);
+    }
+    if (changes.type !== undefined || changes.category !== undefined) {
+      requireCategoryIndex(data.categories, updated.type, updated.category, categoryHint);
+    }
   }
   if (changes.account !== undefined) {
     requireAccount(data.accounts, updated.account);
+  }
+  if (changes.toAccount !== undefined) {
+    requireAccount(data.accounts, updated.toAccount);
+  }
+  if (updated.type === TRANSFER) {
+    requireDistinctAccounts(updated.account, updated.toAccount, usage);
   }
   return updated;
 }

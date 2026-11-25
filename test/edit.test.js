@@ -3,9 +3,9 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
-import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData } from './helpers.js';
+import { assertUsageError, readJson, runCli, tempDir, testEnv, writeJson, currentData, transaction } from './helpers.js';
 
-const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--account <이름>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
+const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--account <이름>] [--to <계좌>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
 function fixture(t) {
   const directory = tempDir(t, 'gagyebu-edit-');
@@ -228,4 +228,55 @@ test('계좌 옵션만으로 거래를 수정하고 없는 계좌를 거부한�
   assertUsageError(run('1', '--account', ''), '--account 값이 비었습니다', usage);
   assertUsageError(run('1', '--account'), '--account 값이 없습니다', usage);
   assert.equal(readFileSync(data, 'utf8'), saved);
+});
+
+function transferFixture(t) {
+  const { data, run } = fixture(t);
+  const transfer = transaction({
+    id: 1, date: '2026-02-09', type: 'transfer', category: '', account: '카드', toAccount: '예금',
+  });
+  const expense = transaction({ id: 2 });
+  const accounts = ['현금', '통장', '카드', '예금'].map((name) => ({ name, opening: 0 }));
+  const saved = currentData({ accounts, transactions: [transfer, expense], nextId: 3 });
+  const original = writeJson(data, saved);
+  return { data, run, saved, original };
+}
+
+test('이체의 금액·날짜·메모·양쪽 계좌를 바꾸고 이체 경로를 표시한다', (t) => {
+  const { data, run, saved } = transferFixture(t);
+  const { status, stdout, stderr } = run(
+    '1', '--amount', '1만', '--date', '2026-02-10', '--memo', '메모',
+    '--account', '현금', '--to', '통장',
+  );
+  assert.equal(status, 0, stderr);
+  assert.equal(stderr, '');
+  assert.equal(stdout, '수정했습니다: #1 2026-02-10 이체 10,000원 현금→통장 메모\n');
+  Object.assign(saved.transactions[0], {
+    amount: 10000, date: '2026-02-10', memo: '메모', account: '현금', toAccount: '통장',
+  });
+  assert.deepEqual(readJson(data), saved);
+});
+
+test('이체 수정의 사용법 오류와 없는 계좌 오류는 파일을 바꾸지 않는다', (t) => {
+  const { data, original, run } = transferFixture(t);
+  for (const [args, message] of [
+    [['1', '--type', 'expense'], '이체의 구분은 바꿀 수 없습니다'],
+    [['1', '--category', '식비'], '이체에는 분류가 없습니다'],
+    [['2', '--to', '통장'], '--to는 이체에만 쓸 수 있습니다'],
+    [['2', '--type', 'transfer'], '--type은 expense 또는 income이어야 합니다: transfer'],
+    [['1', '--account', '예금'], '보내는 계좌와 받는 계좌는 달라야 합니다'],
+    [['1', '--to', '카드'], '보내는 계좌와 받는 계좌는 달라야 합니다'],
+    [['1', '--to', ''], '--to 값이 비었습니다'],
+    [['1', '--to'], '--to 값이 없습니다'],
+  ]) {
+    assertUsageError(run(...args), message, usage);
+    assert.equal(readFileSync(data, 'utf8'), original);
+  }
+  for (const option of ['--account', '--to']) {
+    const { status, stdout, stderr } = run('1', option, '미등록');
+    assert.equal(status, 1, stderr);
+    assert.equal(stdout, '');
+    assert.equal(stderr, '오류: 없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)\n');
+    assert.equal(readFileSync(data, 'utf8'), original);
+  }
 });

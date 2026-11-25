@@ -2,7 +2,7 @@ import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatTable, formatWon } from '../format.js';
 import { currentMonth, parseAmount, parseEntryOptions, parseId, parseMonth } from '../input.js';
 import { parseSubcommand } from '../options.js';
-import { addRule, removeRule } from '../recurring.js';
+import { addRule, applyRecurring, removeRule } from '../recurring.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { describeTransaction } from '../transaction.js';
 import { TYPE_LABELS } from '../types.js';
@@ -11,11 +11,12 @@ export const name = 'recurring';
 export const order = 26;
 export const summary = '매달 반복할 거래 규칙을 관리합니다.';
 
-const USAGE = '사용법: gagyebu recurring add|list|rm [인자] [--옵션 값]';
+const USAGE = '사용법: gagyebu recurring add|list|rm|apply [인자] [--옵션 값]';
 const USAGES = {
   add: '사용법: gagyebu recurring add <금액> --day <일> [--type expense|income] [--category <분류>] [--account <이름>] [--memo <글>] [--tag <태그>] [--start YYYY-MM] [--end YYYY-MM] [--data <경로>]',
   list: '사용법: gagyebu recurring list [--json] [--data <경로>]',
   rm: '사용법: gagyebu recurring rm <번호> [--data <경로>]',
+  apply: '사용법: gagyebu recurring apply [--month YYYY-MM] [--dry-run] [--data <경로>]',
 };
 
 function parseDay(text, usage) {
@@ -94,12 +95,37 @@ function remove(args, options, usage) {
   console.log(`반복 규칙을 지웠습니다: #${removed.id}`);
 }
 
-const commands = { add, list, rm: remove };
+function apply(args, options, usage) {
+  if (args.length > 0) {
+    throw unexpectedArgument(args[0], usage);
+  }
+  const month = options.month === undefined ? currentMonth() : parseMonth(options.month, usage);
+  const { filePath, data } = loadData(options, usage);
+  const { added, existing } = applyRecurring(data, month, filePath);
+  const dryRun = options['dry-run'];
+  if (!dryRun && added.length > 0) {
+    writeData(filePath, {
+      ...data,
+      transactions: [...data.transactions, ...added],
+      nextId: data.nextId + added.length,
+    });
+  }
+
+  const prefix = dryRun ? '만들 거래' : '추가했습니다';
+  for (const transaction of added) {
+    console.log(`${prefix}: ${describeTransaction(transaction)}`);
+  }
+  const result = dryRun ? '만들 예정입니다' : '만들었습니다';
+  console.log(`${added.length}건을 ${result}(이미 있음 ${existing}건).`);
+}
+
+const commands = { add, list, rm: remove, apply };
 
 export function run(argv) {
   const parsed = parseSubcommand(argv, {
     label: '반복 규칙', usage: USAGE, usages: USAGES,
-    values: { add: ['day', 'type', 'category', 'account', 'memo', 'tag', 'start', 'end'] },
+    values: { add: ['day', 'type', 'category', 'account', 'memo', 'tag', 'start', 'end'], apply: ['month'] },
+    flags: { apply: ['dry-run'] },
     repeatable: { add: ['tag'] },
   });
   if (parsed === null) {

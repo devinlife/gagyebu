@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   assertUsageError, currentData, readJson, runCli, tempDir, testEnv, transaction, writeJson,
@@ -9,6 +9,7 @@ const usages = {
   add: '사용법: gagyebu recurring add <금액> --day <일> [--type expense|income] [--category <분류>] [--account <이름>] [--memo <글>] [--tag <태그>] [--start YYYY-MM] [--end YYYY-MM] [--data <경로>]',
   list: '사용법: gagyebu recurring list [--json] [--data <경로>]',
   rm: '사용법: gagyebu recurring rm <번호> [--data <경로>]',
+  apply: '사용법: gagyebu recurring apply [--month YYYY-MM] [--dry-run] [--data <경로>]',
 };
 
 function fixture(t) {
@@ -17,6 +18,7 @@ function fixture(t) {
   return {
     env,
     filePath,
+    historyPath: `${filePath}.history.json`,
     run: (...args) => runCli(['recurring', ...args], { env }),
     write: (overrides) => writeJson(filePath, currentData(overrides)),
   };
@@ -142,5 +144,105 @@ test('잘못된 규칙 배열과 다음 규칙 번호는 데이터 읽기 오류
   for (const nextRecurringId of [1, 1.5, null, '2']) {
     write({ recurring: [rule()], nextRecurringId });
     assertDataError(run('list'), `데이터 파일을 읽을 수 없습니다: ${filePath} (nextRecurringId가 올바르지 않습니다)`);
+  }
+});
+
+test('없는 날을 말일로 옮기고 규칙 번호 순으로 거래 번호와 반복 정보를 매긴다', (t) => {
+  const { filePath, run, write } = fixture(t);
+  write({
+    recurring: [rule({ id: 2, day: 30 }), rule({ tags: ['정기'], memo: '월말' })],
+    nextRecurringId: 3,
+    transactions: [transaction({ id: 5 })],
+    nextId: 6,
+  });
+
+  assert.equal(output(run('apply')), [
+    '추가했습니다: #6 2026-02-28 지출 12,000원 식비 월말 #정기',
+    '추가했습니다: #7 2026-02-28 지출 12,000원 식비',
+    '2건을 만들었습니다(이미 있음 0건).',
+    '',
+  ].join('\n'));
+  for (const month of ['2028-02', '2026-04']) {
+    assert.match(output(run('apply', '--month', month)), /2건을 만들었습니다\(이미 있음 0건\)\.$/m);
+  }
+  const saved = readJson(filePath);
+  assert.equal(saved.nextId, 12);
+  assert.deepEqual(saved.transactions.slice(1), [
+    [6, '2026-02-28', 1, '2026-02'], [7, '2026-02-28', 2, '2026-02'],
+    [8, '2028-02-29', 1, '2028-02'], [9, '2028-02-29', 2, '2028-02'],
+    [10, '2026-04-30', 1, '2026-04'], [11, '2026-04-30', 2, '2026-04'],
+  ].map(([id, date, recurringId, recurringMonth]) => transaction({
+    id, date, recurringId, recurringMonth, amount: 12000,
+    memo: recurringId === 1 ? '월말' : '', tags: recurringId === 1 ? ['정기'] : [],
+  })));
+});
+
+test('시작 달과 끝 달에 적용하고 기간 밖에는 기록을 만들지 않는다', (t) => {
+  const { filePath, historyPath, run, write } = fixture(t);
+  const original = write({ recurring: [rule({ day: 10, end: '2026-03' })], nextRecurringId: 2 });
+  for (const month of ['2026-01', '2026-04']) {
+    assert.equal(output(run('apply', '--month', month)), '0건을 만들었습니다(이미 있음 0건).\n');
+  }
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+  assert.equal(existsSync(historyPath), false);
+  for (const month of ['2026-02', '2026-03']) {
+    assert.match(output(run('apply', '--month', month)), /1건을 만들었습니다\(이미 있음 0건\)\.$/m);
+  }
+  assert.deepEqual(readJson(filePath).transactions.map(({ date }) => date), ['2026-02-10', '2026-03-10']);
+});
+
+test('재적용할 때 중복 거래와 이력을 쓰지 않고 삭제한 규칙의 거래는 남긴다', (t) => {
+  const { filePath, historyPath, run, write } = fixture(t);
+  write({ recurring: [rule(), rule({ id: 2 })], nextRecurringId: 3 });
+  output(run('apply'));
+  const original = readFileSync(filePath, 'utf8');
+  const originalHistory = readFileSync(historyPath, 'utf8');
+
+  assert.equal(output(run('apply')), '0건을 만들었습니다(이미 있음 2건).\n');
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+  assert.equal(readFileSync(historyPath, 'utf8'), originalHistory);
+
+  output(run('rm', '1'));
+  assert.equal(output(run('apply')), '0건을 만들었습니다(이미 있음 1건).\n');
+  assert.deepEqual(readJson(filePath).transactions, JSON.parse(original).transactions);
+});
+
+test('미리보기는 새 거래와 중복 건수를 보여 주고 데이터와 이력을 보존한다', (t) => {
+  const { filePath, historyPath, run, write } = fixture(t);
+  write({ recurring: [rule()], nextRecurringId: 2 });
+  output(run('apply'));
+  output(run('add', '1000', '--day', '1', '--type', 'income', '--category', '급여'));
+  const original = readFileSync(filePath, 'utf8');
+  const originalHistory = readFileSync(historyPath, 'utf8');
+
+  assert.equal(output(run('apply', '--dry-run')), [
+    '만들 거래: #2 2026-02-01 수입 1,000원 급여',
+    '1건을 만들 예정입니다(이미 있음 1건).',
+    '',
+  ].join('\n'));
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+  assert.equal(readFileSync(historyPath, 'utf8'), originalHistory);
+  assertUsageError(run('apply', '--month', '2026-13'), '--month는 YYYY-MM 형식의 달이어야 합니다: 2026-13', usages.apply);
+});
+
+test('다음 거래 번호가 정수가 아니면 반복 거래를 저장하지 않는다', (t) => {
+  const { filePath, historyPath, run, write } = fixture(t);
+  const original = write({ recurring: [rule()], nextRecurringId: 2, nextId: true });
+  assertDataError(run('apply'), `데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
+  assert.equal(readFileSync(filePath, 'utf8'), original);
+  assert.equal(existsSync(historyPath), false);
+});
+
+test('규칙의 분류나 계좌가 없어지면 적용과 미리보기 모두 아무 거래도 저장하지 않는다', (t) => {
+  const { filePath, historyPath, run, write } = fixture(t);
+  for (const [overrides, message] of [
+    [{ category: '미등록' }, '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)'],
+    [{ account: '미등록' }, '없는 계좌입니다: 미등록 (gagyebu account add로 더하세요)'],
+  ]) {
+    const original = write({ recurring: [rule(), rule({ id: 2, ...overrides })], nextRecurringId: 3 });
+    assertDataError(run('apply'), message);
+    assertDataError(run('apply', '--dry-run'), message);
+    assert.equal(readFileSync(filePath, 'utf8'), original);
+    assert.equal(existsSync(historyPath), false);
   }
 });

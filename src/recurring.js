@@ -1,6 +1,6 @@
 import { DataError } from './errors.js';
 import { withParticle } from './format.js';
-import { requireEntryReferences } from './transaction.js';
+import { buildTransaction, requireEntryReferences } from './transaction.js';
 
 export function addRule(data, rule) {
   requireEntryReferences(data, rule);
@@ -20,4 +20,37 @@ export function removeRule(recurring, id) {
     throw new DataError(`반복 규칙 #${withParticle(String(id), '이/가')} 없습니다`);
   }
   return { removed: recurring[index], recurring: recurring.toSpliced(index, 1) };
+}
+
+export function ruleDate(day, month) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year, monthNumber, 0);
+  const dayText = String(Math.min(day, date.getUTCDate())).padStart(2, '0');
+  return `${month}-${dayText}`;
+}
+
+export function applyRecurring(data, month, filePath) {
+  const rules = data.recurring
+    .filter(({ start, end }) => start <= month && (end === null || month <= end))
+    .sort((a, b) => a.id - b.id);
+  const alreadyApplied = new Set(data.transactions
+    .filter(({ recurringMonth }) => recurringMonth === month)
+    .map(({ recurringId }) => recurringId));
+
+  const added = [];
+  const entryData = { ...data };
+  let existing = 0;
+  for (const rule of rules) {
+    if (alreadyApplied.has(rule.id)) {
+      existing += 1;
+      continue;
+    }
+
+    const date = ruleDate(rule.day, month);
+    const transaction = buildTransaction(entryData, { ...rule, date }, filePath);
+    added.push({ ...transaction, recurringId: rule.id, recurringMonth: month });
+    entryData.nextId += 1;
+  }
+  return { added, existing };
 }

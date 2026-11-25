@@ -1,7 +1,6 @@
-import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { parsePeriod } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { summarizeSpending } from '../report.js';
 import { loadData } from '../store.js';
 
@@ -12,20 +11,15 @@ export const summary = '기간의 지출 통계를 보여 줍니다.';
 const USAGE = '사용법: gagyebu stats [--from <날짜>] [--to <날짜>] [--json] [--data <경로>]';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['from', 'to', 'data'],
-    flags: ['json', 'help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['from', 'to'],
+    flags: ['json'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
 
   const { from, to } = parsePeriod(options, USAGE, { closed: true });
   const { data: { transactions } } = loadData(options, USAGE);

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseOptions, parseSubcommand } from '../src/options.js';
+import { UsageError } from '../src/errors.js';
+import { parseCommand, parseOptions, parseSubcommand } from '../src/options.js';
 
 const subcommands = {
   label: '규칙',
@@ -74,4 +75,29 @@ test('반복 옵션은 공백과 등호 형식의 값을 순서대로 모은다'
   assert.deepEqual(parseOptions(['--tag=a'], repeatableSpec).options, { tag: ['a'] });
   assert.deepEqual(parseOptions([], repeatableSpec).options, {});
   assert.equal(parseOptions(['--tag'], repeatableSpec).error, '--tag 값이 없습니다');
+});
+
+test('단일 명령은 옵션 오류와 남는 인자를 사용법과 함께 알린다', () => {
+  const usage = '명령 사용법';
+  assert.throws(() => parseCommand(['--help', '--x'], {}, usage), {
+    constructor: UsageError, message: '알 수 없는 옵션입니다: --x', usage,
+  });
+  assert.throws(() => parseCommand(['x'], {}, usage), {
+    constructor: UsageError, message: '예상하지 않은 인자입니다: x', usage,
+  });
+});
+
+test('단일 명령은 지정된 위치 인자와 공통 데이터 옵션을 받는다', () => {
+  assert.deepEqual(parseCommand(['x', '--data', 'p'], { positional: true }, '명령 사용법'), {
+    args: ['x'], options: { data: 'p' },
+  });
+});
+
+test('단일 명령과 하위 명령의 도움말은 출력 없이 돌려준다', (t) => {
+  const log = t.mock.method(console, 'log', () => {});
+  const usage = '명령 사용법';
+  assert.deepEqual(parseCommand(['x', '--help'], {}, usage), { help: usage });
+  assert.deepEqual(parseSubcommand(['--help'], subcommands), { help: '추가 사용법\n목록 사용법' });
+  assert.deepEqual(parseSubcommand(['add', '--help'], subcommands), { help: '추가 사용법' });
+  assert.equal(log.mock.callCount(), 0);
 });

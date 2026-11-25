@@ -1,7 +1,6 @@
-import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatBudgetOverage, formatPercent, formatTable, formatTransferTotal, formatWon, formatYearMonth, NO_TRANSACTIONS, renderBars } from '../format.js';
 import { currentMonth, parseChartOptions, parseMonth } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { loadData } from '../store.js';
 import { summarizeMonth } from '../report.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from '../types.js';
@@ -32,20 +31,15 @@ function categoryTable(heading, entries, total, showBudget = false) {
 }
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['month', 'data', 'width'],
-    flags: ['json', 'help', 'chart'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['month', 'width'],
+    flags: ['json', 'chart'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
 
   const chartWidth = parseChartOptions(options, USAGE);
   const month = parseMonth(options.month ?? currentMonth(), USAGE);

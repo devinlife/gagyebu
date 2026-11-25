@@ -1,8 +1,7 @@
 import { accountBalances } from '../account.js';
-import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatBalanceDate, formatTable, formatWon } from '../format.js';
 import { parseDate, today } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
 
 export const name = 'balance';
@@ -12,20 +11,15 @@ export const summary = '계좌별 잔액과 합계를 보여 줍니다.';
 const USAGE = '사용법: gagyebu balance [--date YYYY-MM-DD] [--json] [--data <경로>]';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['date', 'data'],
-    flags: ['json', 'help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['date'],
+    flags: ['json'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
 
   const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
   validateDataOption(options, USAGE);

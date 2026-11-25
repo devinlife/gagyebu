@@ -1,23 +1,21 @@
-import { UsageError } from './errors.js';
 import { formatTable, formatTag, formatTransferTotal, formatWon, NO_TRANSACTIONS } from './format.js';
 import { parseCategory, parseNonemptyOption, parsePeriod, parseTags, parseType } from './input.js';
-import { parseOptions } from './options.js';
+import { parseCommand } from './options.js';
 import { validateDataOption } from './store.js';
 import { categoryText, listTotals } from './transaction.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
 
 export function parseListingArgs(argv, usage, parseQuery) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['from', 'to', 'type', 'category', 'account', 'tag', 'data'],
-    flags: ['json', 'help'],
+  const parsed = parseCommand(argv, {
+    values: ['from', 'to', 'type', 'category', 'account', 'tag'],
+    flags: ['json'],
     repeatable: ['tag'],
-  });
-  if (error) {
-    throw new UsageError(error, usage);
+    positional: true,
+  }, usage);
+  if (parsed.help) {
+    return parsed;
   }
-  if (options.help) {
-    return { options };
-  }
+  const { args, options } = parsed;
   const query = parseQuery(args);
   return { options, filters: { ...parseListingFilters(options, usage), query } };
 }

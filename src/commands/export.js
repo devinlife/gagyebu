@@ -1,8 +1,8 @@
 import { statSync, writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
-import { DataError, UsageError, unexpectedArgument } from '../errors.js';
+import { DataError, UsageError } from '../errors.js';
 import { parseNonemptyOption, parsePeriod } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { loadData, validateDataOption } from '../store.js';
 import { filterTransactions } from '../transaction.js';
 
@@ -13,20 +13,15 @@ export const summary = '거래를 CSV로 내보냅니다.';
 const USAGE = '사용법: gagyebu export [--out <파일>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--force] [--data <경로>]';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['out', 'from', 'to', 'data'],
-    flags: ['force', 'help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['out', 'from', 'to'],
+    flags: ['force'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
   const { out, force } = options;
   parseNonemptyOption(out, 'out', USAGE);
   validateDataOption(options, USAGE);

@@ -36,7 +36,8 @@ export function run(argv) {
     label: '분류', usage: USAGE, usages: USAGES,
     values: { list: ['type'], add: ['type'], rm: ['type'] },
   });
-  if (parsed === null) {
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
   const { command, args, options, usage } = parsed;

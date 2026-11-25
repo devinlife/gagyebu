@@ -1,6 +1,5 @@
-import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatLocalDateTime, formatTable } from '../format.js';
-import { parseOptions, validateListJson } from '../options.js';
+import { parseCommand, validateListJson } from '../options.js';
 import { dataPath, popHistory, readHistory, restoreData } from '../store.js';
 
 export const name = 'undo';
@@ -15,20 +14,14 @@ function formatHistoryTime(at) {
 }
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['data'],
-    flags: ['help', 'list', 'json'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    flags: ['list', 'json'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
   validateListJson(options, USAGE);
   const filePath = dataPath(options, USAGE);
   const entries = readHistory(filePath);

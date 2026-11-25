@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parseCsv, readCsvRows } from '../csv.js';
 import { DataError, UsageError, singleLineMessage, unexpectedArgument } from '../errors.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { importTransactions } from '../transaction.js';
 
@@ -13,17 +13,15 @@ const USAGE = '사용법: gagyebu import <파일> [--dry-run] [--data <경로>]'
 const MAX_ROW_ERRORS = 20;
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['data'],
-    flags: ['dry-run', 'help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    flags: ['dry-run'],
+    positional: true,
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
+  const { args, options } = parsed;
   const [inputFile, extra] = args;
   if (inputFile === undefined) {
     throw new UsageError('파일이 없습니다', USAGE);

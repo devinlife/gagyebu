@@ -105,7 +105,8 @@ export function run(argv) {
     flags: { apply: ['dry-run'] },
     repeatable: { add: ['tag'] },
   });
-  if (parsed === null) {
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
   const { command, args, options, usage } = parsed;

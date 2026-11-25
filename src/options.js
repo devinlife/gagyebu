@@ -47,6 +47,24 @@ export function parseOptions(argv, { values = [], flags = [], repeatable = [] })
   return { args, options: Object.fromEntries(options), error };
 }
 
+export function parseCommand(argv, { values = [], flags = [], repeatable = [], positional = false }, usage) {
+  const { args, options, error } = parseOptions(argv, {
+    values: ['data', ...values],
+    flags: ['help', ...flags],
+    repeatable,
+  });
+  if (error) {
+    throw new UsageError(error, usage);
+  }
+  if (options.help) {
+    return { help: usage };
+  }
+  if (!positional && args.length > 0) {
+    throw unexpectedArgument(args[0], usage);
+  }
+  return { args, options };
+}
+
 export function validateListJson(options, usage) {
   if (options.json && !options.list) {
     throw new UsageError('--json은 --list와 함께 써야 합니다', usage);
@@ -65,8 +83,7 @@ export function parseSubcommand(argv, {
     if (parsed.args.length > 0) {
       throw unexpectedArgument(parsed.args[0], usage);
     }
-    console.log(Object.values(usages).join('\n'));
-    return null;
+    return { help: Object.values(usages).join('\n') };
   }
   if (command === undefined) {
     throw new UsageError(`${label} 하위 명령이 없습니다`, usage);
@@ -76,17 +93,14 @@ export function parseSubcommand(argv, {
   }
 
   const commandUsage = usages[command];
-  const { args, options, error } = parseOptions(operands, {
-    values: ['data', ...(values[command] ?? [])],
-    flags: ['help', ...(command === 'list' ? ['json'] : []), ...(flags[command] ?? [])],
-    repeatable: repeatable[command] ?? [],
-  });
-  if (error) {
-    throw new UsageError(error, commandUsage);
+  const parsed = parseCommand(operands, {
+    values: values[command],
+    flags: [...(command === 'list' ? ['json'] : []), ...(flags[command] ?? [])],
+    repeatable: repeatable[command],
+    positional: true,
+  }, commandUsage);
+  if (parsed.help) {
+    return parsed;
   }
-  if (options.help) {
-    console.log(commandUsage);
-    return null;
-  }
-  return { command, usage: commandUsage, args, options };
+  return { command, usage: commandUsage, ...parsed };
 }

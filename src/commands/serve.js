@@ -1,7 +1,7 @@
-import { DataError, UsageError, unexpectedArgument } from '../errors.js';
+import { DataError } from '../errors.js';
 import { withParticle } from '../format.js';
 import { parsePort } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { createServer } from '../server.js';
 import { validateDataOption } from '../store.js';
 
@@ -14,20 +14,14 @@ const DEFAULT_PORT = 4780;
 const HOST = '127.0.0.1';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['port', 'data'],
-    flags: ['help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['port'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
   const port = options.port === undefined ? DEFAULT_PORT : parsePort(options.port, USAGE);
   validateDataOption(options, USAGE);
 

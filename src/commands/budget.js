@@ -39,7 +39,8 @@ export function run(argv) {
   const parsed = parseSubcommand(argv, {
     label: '예산', usage: USAGE, usages: USAGES,
   });
-  if (parsed === null) {
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
   const { command, args, options, usage } = parsed;

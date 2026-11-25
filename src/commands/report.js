@@ -1,7 +1,6 @@
-import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatMonthName, formatTable, formatWon, renderBars } from '../format.js';
 import { currentYear, parseChartOptions, parseYear } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { summarizeYear } from '../report.js';
 import { loadData } from '../store.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from '../types.js';
@@ -23,20 +22,15 @@ function yearTable(months, total) {
 }
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['year', 'data', 'width'],
-    flags: ['json', 'help', 'chart'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['year', 'width'],
+    flags: ['json', 'chart'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
 
   const chartWidth = parseChartOptions(options, USAGE);
   const yearText = options.year ?? currentYear();

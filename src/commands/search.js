@@ -10,7 +10,7 @@ export const summary = '글이나 태그로 거래를 찾습니다.';
 const USAGE = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--account <이름>] [--tag <태그>] [--json] [--data <경로>]';
 
 export function run(argv) {
-  const { options, filters } = parseListingArgs(argv, USAGE, (args) => {
+  const parsed = parseListingArgs(argv, USAGE, (args) => {
     if (args.length === 0) {
       throw new UsageError('검색할 글이 없습니다', USAGE);
     }
@@ -25,10 +25,11 @@ export function run(argv) {
 
     return query;
   });
-  if (options.help) {
-    console.log(USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
+  const { options, filters } = parsed;
   const { data } = loadData(options, USAGE);
   printTransactions(filterTransactions(data.transactions, filters), options);
   return 0;

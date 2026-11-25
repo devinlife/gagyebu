@@ -1,7 +1,7 @@
 import { currentCount, restoreBackup } from '../backup.js';
 import { DataError, UsageError, unexpectedArgument } from '../errors.js';
 import { UNREADABLE } from '../format.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { dataPath, readBackup } from '../store.js';
 
 export const name = 'restore';
@@ -11,17 +11,15 @@ export const summary = '백업에서 데이터를 복원합니다.';
 const USAGE = '사용법: gagyebu restore <백업 파일> [--yes] [--data <경로>]';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['data'],
-    flags: ['yes', 'help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    flags: ['yes'],
+    positional: true,
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
+  const { args, options } = parsed;
   if (!args[0]) {
     throw new UsageError('백업 파일이 없습니다', USAGE);
   }

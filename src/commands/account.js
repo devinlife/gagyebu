@@ -35,7 +35,8 @@ export function run(argv) {
     label: '계좌', usage: USAGE, usages: USAGES,
     values: { add: ['opening'] },
   });
-  if (parsed === null) {
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
   const { command, args, options, usage } = parsed;

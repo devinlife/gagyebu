@@ -1,8 +1,7 @@
 import { backupDirectory, createBackup, listBackups } from '../backup.js';
-import { UsageError, unexpectedArgument } from '../errors.js';
 import { formatTable, UNREADABLE } from '../format.js';
 import { parseNonemptyOption } from '../input.js';
-import { parseOptions, validateListJson } from '../options.js';
+import { parseCommand, validateListJson } from '../options.js';
 import { dataPath } from '../store.js';
 
 export const name = 'backup';
@@ -12,20 +11,15 @@ export const summary = '데이터를 백업하거나 백업 목록을 보여 줍
 const USAGE = '사용법: gagyebu backup [--list] [--json] [--dir <폴더>] [--data <경로>]';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['dir', 'data'],
-    flags: ['list', 'json', 'help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, {
+    values: ['dir'],
+    flags: ['list', 'json'],
+  }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
-  if (args.length > 0) {
-    throw unexpectedArgument(args[0], USAGE);
-  }
+  const { options } = parsed;
   validateListJson(options, USAGE);
   parseNonemptyOption(options.dir, 'dir', USAGE);
   const filePath = dataPath(options, USAGE);

@@ -1,6 +1,5 @@
-import { UsageError } from '../errors.js';
 import { parseIdArgument } from '../input.js';
-import { parseOptions } from '../options.js';
+import { parseCommand } from '../options.js';
 import { loadData, writeData } from '../store.js';
 import { describeTransaction, removeTransaction } from '../transaction.js';
 
@@ -11,17 +10,12 @@ export const summary = '거래 하나를 지웁니다.';
 const USAGE = '사용법: gagyebu rm <번호> [--data <경로>]';
 
 export function run(argv) {
-  const { args, options, error } = parseOptions(argv, {
-    values: ['data'],
-    flags: ['help'],
-  });
-  if (error) {
-    throw new UsageError(error, USAGE);
-  }
-  if (options.help) {
-    console.log(USAGE);
+  const parsed = parseCommand(argv, { positional: true }, USAGE);
+  if (parsed.help) {
+    console.log(parsed.help);
     return 0;
   }
+  const { args, options } = parsed;
   const id = parseIdArgument(args, USAGE);
   const { filePath, data } = loadData(options, USAGE);
 

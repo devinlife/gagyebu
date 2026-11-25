@@ -2,11 +2,11 @@ import { UsageError } from './errors.js';
 import { formatTable, formatWon } from './format.js';
 import { parseCategory, parsePeriod, parseTags, parseType } from './input.js';
 import { parseOptions } from './options.js';
-import { loadData, validateDataOption } from './store.js';
-import { filterTransactions, listTotals } from './transaction.js';
+import { validateDataOption } from './store.js';
+import { listTotals } from './transaction.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
 
-export function showTransactions(argv, usage, parseQuery) {
+export function parseListingArgs(argv, usage, parseQuery) {
   const { args, options, error } = parseOptions(argv, {
     values: ['from', 'to', 'type', 'category', 'tag', 'data'],
     flags: ['json', 'help'],
@@ -16,8 +16,7 @@ export function showTransactions(argv, usage, parseQuery) {
     throw new UsageError(error, usage);
   }
   if (options.help) {
-    console.log(usage);
-    return 0;
+    return { options };
   }
   const query = parseQuery(args);
 
@@ -30,10 +29,7 @@ export function showTransactions(argv, usage, parseQuery) {
   validateDataOption(options, usage);
 
   const tags = parseTags(options.tag, usage);
-  const { data } = loadData(options, usage);
-  const list = filterTransactions(data.transactions, { from, to, type, category, tags, query });
-  printTransactions(list, options);
-  return 0;
+  return { options, filters: { from, to, type, category, tags, query } };
 }
 
 export function printTransactions(list, { json }) {
@@ -48,8 +44,7 @@ export function printTransactions(list, { json }) {
 
   const rows = [['번호', '날짜', '구분', '금액', '분류', '메모']];
   for (const transaction of list) {
-    const tags = Array.isArray(transaction.tags) ? transaction.tags : [];
-    const memo = [transaction.memo, ...tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
+    const memo = [transaction.memo, ...transaction.tags.map((tag) => `#${tag}`)].filter(Boolean).join(' ');
     rows.push([
       String(transaction.id), transaction.date, TYPE_LABELS[transaction.type],
       formatWon(transaction.amount), transaction.category, memo,

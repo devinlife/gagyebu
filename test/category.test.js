@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { addCategory, listCategories, removeCategory } from '../src/category.js';
+import { DataError } from '../src/errors.js';
 import { CURRENT_VERSION, DEFAULT_CATEGORIES } from '../src/store.js';
 import { readJson, runCli, tempDir, testEnv, writeJson, transaction } from './helpers.js';
 
@@ -221,4 +223,51 @@ test('category와 하위 명령의 도움말은 사용법을 출력한다', (t) 
     assertOutput(run(command, '--help'), `${subUsage}\n`);
   }
   assert.deepEqual(readdirSync(directory), []);
+});
+
+test('공용 분류 목록은 등록 순서와 같은 구분의 거래 건수를 돌려준다', () => {
+  const categories = Object.freeze({ expense: Object.freeze(['기타', '식비']), income: Object.freeze(['기타']) });
+  const transactions = Object.freeze([
+    transaction({ id: 1, category: '기타' }),
+    transaction({ id: 2, category: '기타', type: 'income' }),
+    transaction({ id: 3, category: '기타', type: 'transfer' }),
+    transaction({ id: 4, category: '미등록' }),
+  ].map(Object.freeze));
+  const data = Object.freeze({ categories, transactions });
+
+  assert.deepEqual(listCategories(data), {
+    expense: [{ name: '기타', count: 1 }, { name: '식비', count: 0 }],
+    income: [{ name: '기타', count: 1 }],
+  });
+  assert.deepEqual(listCategories(data, 'income'), { income: [{ name: '기타', count: 1 }] });
+});
+
+test('공용 분류 추가는 원본을 보존하고 같은 구분에서 중복을 거부한다', () => {
+  const categories = Object.freeze({ expense: Object.freeze(['식비']), income: Object.freeze(['기타']) });
+  assert.deepEqual(addCategory(categories, 'expense', '기타'), { expense: ['식비', '기타'], income: ['기타'] });
+  assert.throws(() => addCategory(categories, 'income', '기타'), {
+    constructor: DataError, message: '이미 있는 분류입니다: 기타',
+  });
+  assert.deepEqual(categories.expense, ['식비']);
+});
+
+test('공용 분류 삭제는 등록, 거래, 예산을 순서대로 검사하며 원본을 보존한다', () => {
+  const categories = Object.freeze({ expense: Object.freeze(['식비', '교통']), income: Object.freeze(['식비']) });
+  const data = Object.freeze({
+    categories,
+    transactions: Object.freeze([transaction({ id: 1, category: '식비' })]),
+    budgets: Object.freeze({ 식비: 1000, 교통: 2000 }),
+  });
+
+  assert.throws(() => removeCategory(data, 'expense', '기타'), {
+    constructor: DataError, message: '없는 분류입니다: 기타',
+  });
+  assert.throws(() => removeCategory(data, 'expense', '식비'), {
+    constructor: DataError, message: '1건의 거래가 쓰는 분류입니다: 식비',
+  });
+  assert.throws(() => removeCategory(data, 'expense', '교통'), {
+    constructor: DataError, message: '예산이 있는 분류입니다: 교통',
+  });
+  assert.deepEqual(removeCategory(data, 'income', '식비'), { expense: ['식비', '교통'], income: [] });
+  assert.deepEqual(categories.income, ['식비']);
 });

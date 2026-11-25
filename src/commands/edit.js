@@ -2,7 +2,7 @@ import { UsageError } from '../errors.js';
 import { parseAmount, parseCategory, parseDate, parseId, parseTags, parseType } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { applyChanges, describeTransaction } from '../transaction.js';
+import { applyChanges, describeTransaction, findTransactionIndex } from '../transaction.js';
 
 export const name = 'edit';
 export const order = 50;
@@ -63,7 +63,7 @@ export function run(argv) {
   const { filePath, data } = loadData(options, USAGE);
 
   const transaction = applyChanges(data, id, changes);
-  const index = data.transactions.findIndex((entry) => entry.id === id);
+  const index = findTransactionIndex(data.transactions, id);
   data.transactions[index] = transaction;
   writeData(filePath, data);
   console.log(`수정했습니다: ${describeTransaction(transaction)}`);

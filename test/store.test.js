@@ -229,7 +229,7 @@ test('거래 필드가 잘못되면 위치와 원인을 한 줄로 보고하고 
     ...['2026-02-30', undefined, ['2026-02-10']].map((date) =>
       [{ ...valid, date }, '거래 #1: date가 있는 날이 아닙니다']),
     [{ ...valid, type: 'refund' }, '거래 #1: type을 알 수 없습니다: refund'],
-    [{ ...valid, type: { toString: null } }, '거래 #1: type을 알 수 없습니다: {"toString":null}'],
+    [{ ...valid, type: { toString: null } }, '거래 #1: type을 알 수 없습니다: object'],
     ...[0, -1, '1000'].map((amount) => [{ ...valid, amount }, '거래 #1: amount가 양의 정수가 아닙니다']),
     ...['category', 'account', 'memo'].map((field) =>
       [{ ...valid, [field]: 3 }, `거래 #1: ${field}가 문자열이 아닙니다`]),
@@ -264,16 +264,5 @@ test('loadData는 빈 데이터 옵션에 명령 사용법을 붙인다', () => 
   const usage = '사용법: gagyebu list';
   assert.throws(() => loadData({ data: '' }, usage), {
     constructor: UsageError, message: '--data 값이 비었습니다', usage,
-  });
-});
-
-test('중첩이 깊은 잘못된 구분도 데이터 오류로 보고한다', (t) => {
-  const filePath = path.join(tempDir(t), 'data.json');
-  const record = JSON.stringify(transaction({ id: 1, type: 'invalid' }));
-  const deeplyNested = '['.repeat(10000) + '0' + ']'.repeat(10000);
-  writeFileSync(filePath, `{"version":1,"transactions":[${record.replace('"invalid"', deeplyNested)}]}`);
-  assert.throws(() => readData(filePath), {
-    constructor: DataError,
-    message: `데이터 파일을 읽을 수 없습니다: ${filePath} (거래 #1: type을 알 수 없습니다: [배열])`,
   });
 });

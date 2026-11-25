@@ -29,20 +29,6 @@ export function readError(filePath, reason) {
   return new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (${reason})`);
 }
 
-function describeInvalidValue(value) {
-  if (value === null || typeof value !== 'object') {
-    return String(value);
-  }
-  try {
-    return JSON.stringify(value);
-  } catch (error) {
-    if (!(error instanceof RangeError)) {
-      throw error;
-    }
-    return Array.isArray(value) ? '[배열]' : '[객체]';
-  }
-}
-
 function migrateVersionOne(data) {
   const categories = structuredClone(DEFAULT_CATEGORIES);
   if (Array.isArray(data.transactions)) {
@@ -87,7 +73,7 @@ function validateTransaction(transaction, index, filePath) {
     throw readError(filePath, `${label}: date가 있는 날이 아닙니다`);
   }
   if (!RECORD_TYPES.includes(type)) {
-    const value = describeInvalidValue(type);
+    const value = typeof type === 'string' ? type : typeof type;
     throw readError(filePath, `${label}: type을 알 수 없습니다: ${value}`);
   }
   if (!Number.isInteger(amount) || amount < 1) {
@@ -130,7 +116,7 @@ export function readData(filePath) {
 
   const version = data?.version;
   if (!Number.isInteger(version) || version < 1) {
-    const value = describeInvalidValue(version);
+    const value = typeof version === 'object' ? JSON.stringify(version) : String(version);
     throw readError(filePath, `version이 올바르지 않습니다: ${value}`);
   }
   if (version > CURRENT_VERSION) {

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
 import { parseId, parseTags } from '../src/input.js';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
-import { applyChanges, buildTransaction, describeTransaction, filterTransactions, listTotals } from '../src/transaction.js';
+import { applyChanges, buildTransaction, describeTransaction, filterTransactions, listTotals, removeTransaction } from '../src/transaction.js';
 import { transaction } from './helpers.js';
 
 const usage = '사용법: gagyebu edit';
@@ -63,11 +63,12 @@ test('새 거래의 번호와 계좌를 채우고 데이터는 그대로 둔다'
   const data = Object.freeze({ nextId: 7, categories: DEFAULT_CATEGORIES, transactions: Object.freeze([]) });
   const { date, type, amount, category, memo, tags } = transaction({});
   const fields = { date, type, amount, category, memo, tags };
-  assert.deepEqual(buildTransaction(data, fields), transaction({ id: 7 }));
-  assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }), {
+  const filePath = '/data.json';
+  assert.deepEqual(buildTransaction(data, fields, filePath), transaction({ id: 7 }));
+  assert.throws(() => buildTransaction(data, { ...fields, category: '미등록' }, filePath), {
     constructor: DataError, message: '없는 분류입니다: 미등록 (gagyebu category add로 더하세요)',
   });
-  assert.throws(() => buildTransaction({ ...data, nextId: 0 }, fields, '/data.json'), {
+  assert.throws(() => buildTransaction({ ...data, nextId: 0 }, fields, filePath), {
     constructor: DataError, message: '데이터 파일을 읽을 수 없습니다: /data.json (nextId 또는 transactions가 올바르지 않습니다)',
   });
   assert.equal(data.nextId, 7);
@@ -94,4 +95,16 @@ test('목록 합계에서 이체는 건수에만 포함한다', () => {
     transaction({ id: 2, type: 'income', amount: 3000 }),
     transaction({ id: 3, type: 'transfer', amount: 5000 }),
   ]), { count: 3, income: 3000, expense: 700 });
+});
+
+test('거래 삭제는 첫 일치 거래와 나머지를 돌려주고 입력을 보존한다', () => {
+  const removed = Object.freeze(transaction({ id: 2 }));
+  const sameId = Object.freeze(transaction({ id: 2, memo: '다른 거래' }));
+  const other = Object.freeze(transaction({ id: 1 }));
+  const transactions = Object.freeze([other, removed, sameId]);
+  assert.deepEqual(removeTransaction(transactions, 2), { removed, transactions: [other, sameId] });
+  assert.deepEqual(transactions, [other, removed, sameId]);
+  assert.throws(() => removeTransaction(transactions, 3), {
+    constructor: DataError, message: '거래 #3가 없습니다',
+  });
 });

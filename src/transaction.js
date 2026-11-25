@@ -1,8 +1,10 @@
-import { findCategoryIndex } from './category.js';
+import { requireCategoryIndex } from './category.js';
 import { DataError } from './errors.js';
 import { formatWon } from './format.js';
 import { readError } from './store.js';
 import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
+
+const categoryHint = ' (gagyebu category add로 더하세요)';
 
 export function describeTransaction({ id, date, type, amount, category, memo, tags }) {
   const label = TYPE_LABELS[type];
@@ -11,31 +13,33 @@ export function describeTransaction({ id, date, type, amount, category, memo, ta
   return `#${id} ${date} ${label} ${formatWon(amount)} ${description}${tagText}`;
 }
 
-function requireCategory(categories, type, category) {
-  if (findCategoryIndex(categories, type, category) === -1) {
-    throw new DataError(`없는 분류입니다: ${category} (gagyebu category add로 더하세요)`);
-  }
-}
-
 export function buildTransaction(data, { date, type, amount, category, memo, tags }, filePath) {
   const { nextId: id } = data;
   if (!Number.isSafeInteger(id) || id < 1) {
-    const reason = 'nextId 또는 transactions가 올바르지 않습니다';
-    throw filePath === undefined ? new DataError(reason) : readError(filePath, reason);
+    throw readError(filePath, 'nextId 또는 transactions가 올바르지 않습니다');
   }
-  requireCategory(data.categories, type, category);
+  requireCategoryIndex(data.categories, type, category, categoryHint);
   return { id, date, type, amount, category, account: '현금', memo, tags };
 }
 
-export function applyChanges(data, id, changes) {
-  const transaction = data.transactions.find((entry) => entry.id === id);
-  if (!transaction) {
+export function findTransactionIndex(transactions, id) {
+  const index = transactions.findIndex((entry) => entry.id === id);
+  if (index === -1) {
     throw new DataError(`거래 #${id}가 없습니다`);
   }
+  return index;
+}
 
+export function removeTransaction(transactions, id) {
+  const index = findTransactionIndex(transactions, id);
+  return { removed: transactions[index], transactions: transactions.toSpliced(index, 1) };
+}
+
+export function applyChanges(data, id, changes) {
+  const transaction = data.transactions[findTransactionIndex(data.transactions, id)];
   const updated = { ...transaction, ...changes };
   if (changes.type !== undefined || changes.category !== undefined) {
-    requireCategory(data.categories, updated.type, updated.category);
+    requireCategoryIndex(data.categories, updated.type, updated.category, categoryHint);
   }
   return updated;
 }
@@ -47,7 +51,7 @@ export function filterTransactions(transactions, { from, to, type, category, tag
     && (to === undefined || transaction.date <= to)
     && (type === undefined || type === transaction.type)
     && (category === undefined || category === transaction.category)
-    && tags.every((tag) => transaction.tags?.includes(tag))
+    && tags.every((tag) => transaction.tags.includes(tag))
     && (search === undefined || matchesQuery(transaction, search))).sort((a, b) => {
     if (a.date === b.date) {
       return a.id - b.id;
@@ -56,7 +60,7 @@ export function filterTransactions(transactions, { from, to, type, category, tag
   });
 }
 
-function matchesQuery({ memo, category, tags = [] }, search) {
+function matchesQuery({ memo, category, tags }, search) {
   return [memo, category, ...tags.map((tag) => `#${tag}`)]
     .some((text) => text.toLowerCase().includes(search));
 }

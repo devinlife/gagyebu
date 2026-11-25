@@ -1,3 +1,5 @@
+import { requireCategoryIndex } from './category.js';
+import { DataError } from './errors.js';
 import { EXPENSE, TYPES } from './types.js';
 
 function monthlyTotals(transactions, month, types) {
@@ -46,4 +48,18 @@ export function budgetUsage(transactions, budgets, month) {
   });
   entries.sort((a, b) => b.ratio - a.ratio || (a.category < b.category ? -1 : 1));
   return entries;
+}
+
+export function setBudget({ categories, budgets }, category, amount) {
+  requireCategoryIndex(categories, EXPENSE, category);
+  return { ...budgets, [category]: amount };
+}
+
+export function removeBudget(budgets, category) {
+  if (!Object.hasOwn(budgets, category)) {
+    throw new DataError(`예산이 없는 분류입니다: ${category}`);
+  }
+  const updated = { ...budgets };
+  delete updated[category];
+  return updated;
 }

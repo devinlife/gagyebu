@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { budgetUsage, summarizeMonth } from '../src/report.js';
+import { DataError } from '../src/errors.js';
+import { budgetUsage, removeBudget, setBudget, summarizeMonth } from '../src/report.js';
+import { DEFAULT_CATEGORIES } from '../src/store.js';
 import { transaction } from './helpers.js';
 
 const entries = Object.freeze([
@@ -33,4 +35,22 @@ test('예산 사용은 등록된 분류의 월 지출을 사용률과 이름 순
     { category: '식비', budget: 2000, spent: 4000, ratio: 2, remaining: -2000 },
     { category: '문화', budget: 5000, spent: 0, ratio: 0, remaining: 5000 },
   ]);
+});
+
+test('공용 예산 설정은 지출 분류에만 추가하고 기존 예산을 덮어쓴다', () => {
+  const data = Object.freeze({ categories: DEFAULT_CATEGORIES, budgets });
+  assert.deepEqual(setBudget(data, '생활', 3000), { ...budgets, 생활: 3000 });
+  assert.deepEqual(setBudget(data, '식비', 3000), { ...budgets, 식비: 3000 });
+  assert.equal(budgets.식비, 2000);
+  assert.throws(() => setBudget(data, '급여', 3000), {
+    constructor: DataError, message: '없는 분류입니다: 급여',
+  });
+});
+
+test('공용 예산 삭제는 등록된 예산을 뺀 새 객체를 돌려준다', () => {
+  assert.deepEqual(removeBudget(budgets, '식비'), { 교통: 2000, 문화: 5000 });
+  assert.equal(budgets.식비, 2000);
+  assert.throws(() => removeBudget(budgets, '생활'), {
+    constructor: DataError, message: '예산이 없는 분류입니다: 생활',
+  });
 });

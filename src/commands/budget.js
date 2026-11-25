@@ -1,11 +1,10 @@
-import { findCategoryIndex, parseName } from '../category.js';
-import { DataError, UsageError } from '../errors.js';
+import { parseName } from '../category.js';
+import { UsageError } from '../errors.js';
 import { formatPercent, formatTable, formatWon } from '../format.js';
 import { parseAmount, today } from '../input.js';
 import { parseOptions } from '../options.js';
-import { budgetUsage } from '../report.js';
+import { budgetUsage, removeBudget, setBudget } from '../report.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
-import { EXPENSE } from '../types.js';
 
 export const name = 'budget';
 export const order = 100;
@@ -87,22 +86,16 @@ export function run(argv) {
     }
     const amount = parseAmount(args[1], usage);
     const { filePath, data } = loadData(options, usage);
-    if (findCategoryIndex(data.categories, EXPENSE, name) === -1) {
-      throw new DataError(`없는 분류입니다: ${name}`);
-    }
-    data.budgets = { ...data.budgets, [name]: amount };
-    writeData(filePath, data);
+    const budgets = setBudget(data, name, amount);
+    writeData(filePath, { ...data, budgets });
     console.log(`설정했습니다: ${name} 월 ${formatWon(amount)}`);
     return 0;
   }
 
   const name = parseName(args, usage);
   const { filePath, data } = loadData(options, usage);
-  if (!Object.hasOwn(data.budgets, name)) {
-    throw new DataError(`예산이 없는 분류입니다: ${name}`);
-  }
-  delete data.budgets[name];
-  writeData(filePath, data);
+  const budgets = removeBudget(data.budgets, name);
+  writeData(filePath, { ...data, budgets });
   console.log(`예산을 지웠습니다: ${name}`);
   return 0;
 }

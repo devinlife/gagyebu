@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { linkSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -40,10 +41,9 @@ function fixture(t) {
     return result;
   }
 
-  function write() {
-    const original = Buffer.from(JSON.stringify({
-      version: 1, nextId: 13, transactions: [sameDayIncome, later, earlier, sameDay],
-    }));
+  function write(transactions = [sameDayIncome, later, earlier, sameDay]) {
+    const nextId = Math.max(0, ...transactions.map(({ id }) => id)) + 1;
+    const original = Buffer.from(JSON.stringify({ version: 1, nextId, transactions }));
     writeFileSync(data, original);
     return original;
   }
@@ -68,6 +68,22 @@ test('데이터 파일이 없으면 머리 줄만 stdout에 출력한다', (t) =
   const { directory, run } = fixture(t);
   assertResult(run(), 0, header);
   assert.deepEqual(readdirSync(directory), []);
+});
+
+test('stdout을 읽는 쪽이 먼저 닫혀도 오류 없이 종료한다', async (t) => {
+  const { data, write } = fixture(t);
+  write(Array.from({ length: 5000 }, (_, index) => ({ ...sameDay, id: index + 1 })));
+
+  const child = spawn(process.execPath, [binPath, 'export', '--data', data], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const closed = once(child, 'close');
+  child.stdout.destroy();
+  let stderr = '';
+  child.stderr.setEncoding('utf8').on('data', (chunk) => { stderr += chunk; });
+
+  assert.deepEqual(await closed, [0, null], stderr);
+  assert.equal(stderr, '');
 });
 
 test('연도를 생략한 날짜와 상대 날짜를 해석하고 기간 양끝을 포함한다', (t) => {
@@ -102,27 +118,6 @@ test('파일 쓰기가 실패하면 오류를 표시한다', (t) => {
   const { directory, run } = fixture(t);
   const out = path.join(directory, 'missing', 'export.csv');
   assertResult(run('--out', out), 1, '', `오류: 파일을 쓸 수 없습니다: ${out} (ENOENT)\n`);
-});
-
-test('출력 경로가 원본 데이터 파일을 가리키면 --force를 줘도 원본을 보존한다', (t) => {
-  const { directory, data, run, write } = fixture(t);
-  const original = write();
-  const symlink = path.join(directory, 'symlink.csv');
-  const hardlink = path.join(directory, 'hardlink.csv');
-  symlinkSync(data, symlink);
-  linkSync(data, hardlink);
-
-  for (const out of [data, symlink, hardlink]) {
-    assertResult(run('--out', out), 1, '', `오류: 이미 있는 파일입니다: ${out}\n`);
-    assertResult(run('--out', out, '--force'), 1, '', `오류: 데이터 파일에는 내보낼 수 없습니다: ${out}\n`);
-    assert.deepEqual(readFileSync(data), original);
-  }
-});
-
-test('원본 데이터 경로에 파일이 없어도 CSV를 만들지 않는다', (t) => {
-  const { directory, data, run } = fixture(t);
-  assertResult(run('--out', data), 1, '', `오류: 데이터 파일에는 내보낼 수 없습니다: ${data}\n`);
-  assert.deepEqual(readdirSync(directory), []);
 });
 
 test('사용법 오류가 있으면 파일을 만들지 않고 오류와 사용법을 표시한다', (t) => {

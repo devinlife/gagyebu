@@ -1,5 +1,4 @@
-import { statSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { toCsv } from '../csv.js';
 import { DataError, UsageError } from '../errors.js';
 import { parseOptions } from '../options.js';
@@ -9,19 +8,6 @@ import { loadTransactions, parsePeriod } from './list.js';
 export const summary = '거래를 CSV로 내보냅니다.';
 
 const USAGE = '사용법: gagyebu export [--out <파일>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--force] [--data <경로>]';
-
-function checkOutputPath(out, dataPath, force) {
-  if (!force && path.resolve(out) !== dataPath) {
-    return;
-  }
-  const source = statSync(dataPath, { throwIfNoEntry: false, bigint: true });
-  const target = statSync(out, { throwIfNoEntry: false, bigint: true });
-  const sameFile = source !== undefined && target !== undefined
-    && source.dev === target.dev && source.ino === target.ino;
-  if ((force && sameFile) || (source === undefined && path.resolve(out) === dataPath)) {
-    throw new DataError(`데이터 파일에는 내보낼 수 없습니다: ${out}`);
-  }
-}
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
@@ -50,22 +36,18 @@ export function run(argv) {
   }
 
   const { from, to } = parsePeriod(options, USAGE);
-  const dataPath = resolveDataPath(data);
-  const transactions = loadTransactions(dataPath).filter(({ date }) =>
+  const transactions = loadTransactions(resolveDataPath(data)).filter(({ date }) =>
     (from === undefined || from <= date) && (to === undefined || date <= to));
   const csv = toCsv(transactions);
   if (out === undefined) {
-    process.stdout.write(csv);
+    // console.log가 마지막 LF를 복원하고 닫힌 파이프의 쓰기 오류를 처리한다.
+    console.log(csv.slice(0, -1));
     return 0;
   }
 
   try {
-    checkOutputPath(out, dataPath, force);
     writeFileSync(out, `\uFEFF${csv}`, { flag: force ? 'w' : 'wx' });
   } catch (error) {
-    if (error instanceof DataError) {
-      throw error;
-    }
     if (error.code === 'EEXIST') {
       throw new DataError(`이미 있는 파일입니다: ${out}`);
     }

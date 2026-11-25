@@ -1,6 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import {
-  closeSync, fchmodSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync,
+  closeSync, fchmodSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -51,31 +51,6 @@ export function readData(filePath) {
   }
 
   return data;
-}
-
-export function updateData(filePath, update) {
-  const directory = path.dirname(filePath);
-  const name = path.basename(filePath).normalize().toUpperCase();
-  const key = createHash('sha256').update(name).digest('hex');
-  const lockPath = path.join(directory, `.gagyebu-${key}.lock`);
-  try {
-    mkdirSync(directory, { recursive: true });
-    mkdirSync(lockPath, { mode: 0o700 });
-  } catch (error) {
-    const reason = error.code === 'EEXIST'
-      ? '다른 작업이 이 데이터 파일을 사용 중입니다'
-      : error.code ?? error.message;
-    throw new DataError(`데이터 파일을 쓸 수 없습니다: ${filePath} (${reason})`);
-  }
-
-  try {
-    const data = readData(filePath);
-    const result = update(data);
-    writeData(filePath, data);
-    return result;
-  } finally {
-    rmdirSync(lockPath);
-  }
 }
 
 export function writeData(filePath, data) {

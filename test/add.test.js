@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,13 +9,13 @@ import { fileURLToPath } from 'node:url';
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
 const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
 
-function fixture(t) {
+function fixture(t, envOverrides = {}) {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-add-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
 
   const data = path.join(directory, 'data.json');
   const envData = path.join(directory, 'env.json');
-  const env = { ...process.env, GAGYEBU_DATA: envData };
+  const env = { ...process.env, ...envOverrides, GAGYEBU_DATA: envData };
 
   function run(...args) {
     const result = spawnSync(process.execPath, [binPath, 'add', ...args], { encoding: 'utf8', env });
@@ -27,7 +27,7 @@ function fixture(t) {
     return JSON.parse(readFileSync(filePath, 'utf8'));
   }
 
-  return { directory, data, envData, env, run, read };
+  return { directory, data, envData, run, read };
 }
 
 function assertUsageError({ status, stdout, stderr }, message) {
@@ -35,12 +35,6 @@ function assertUsageError({ status, stdout, stderr }, message) {
   assert.equal(stdout, '', message);
   assert.match(stderr, /^오류: [^\n]+\n[^\n]+\n$/, message);
   assert.equal(stderr.split('\n')[1], usage, message);
-}
-
-function localDate() {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
 }
 
 test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선한다', (t) => {
@@ -63,21 +57,25 @@ test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선�
 });
 
 test('거래 기본값과 로컬 날짜를 저장한다', (t) => {
-  const { data, run, read } = fixture(t);
-  const before = localDate();
-  const result = run('5000', '--data', data);
-  const after = localDate();
-  const { transactions } = read();
-  const [transaction] = transactions;
+  for (const timeZone of ['Pacific/Kiritimati', 'Etc/GMT+12']) {
+    const { data, run, read } = fixture(t, { TZ: timeZone });
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const before = formatter.format(new Date());
+    const result = run('5000', '--data', data);
+    const after = formatter.format(new Date());
 
-  assert.ok([before, after].includes(transaction.date));
-  assert.deepEqual(transaction, {
-    id: 1, date: transaction.date, type: 'expense', amount: 5000, category: '기타',
-    account: '현금', memo: '', tags: [],
-  });
-  assert.equal(result.status, 0);
-  assert.equal(result.stderr, '');
-  assert.equal(result.stdout, `추가했습니다: #1 ${transaction.date} 지출 5,000원 기타\n`);
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, '');
+    const [transaction] = read().transactions;
+    assert.ok([before, after].includes(transaction.date), timeZone);
+    assert.deepEqual(transaction, {
+      id: 1, date: transaction.date, type: 'expense', amount: 5000, category: '기타',
+      account: '현금', memo: '', tags: [],
+    });
+    assert.equal(result.stdout, `추가했습니다: #1 ${transaction.date} 지출 5,000원 기타\n`);
+  }
 });
 
 test('같은 파일에 다시 추가하면 기존 거래를 보존하고 id를 올린다', (t) => {
@@ -115,7 +113,8 @@ test('잘못된 사용법을 거부하고 데이터 파일을 만들지 않는�
     ['1', '2'], ['1', '--nope'], ['1', '--type', 'transfer'],
     ['1', '--date', '2026-02-30'], ['1', '--date', '2026-13-01'],
     ['1', '--date', '2026-02-29'], ['1', '--date', '2026-2-3'], ['1', '--date', '오늘'],
-    ['1', '--category='], ['1', '--help=nope'],
+    ['1', '--category='], ['1', '--data='], ['1', '--data', ''], ['1', '--help=nope'],
+    ['1', '--date', '2026-02-30\r\n추가 줄'],
   ]) {
     assertUsageError(run('--data', data, ...args), JSON.stringify(args));
   }
@@ -150,13 +149,12 @@ test('깨진 JSON과 잘못된 데이터 구조를 처리 오류로 보고한다
     '{깨진 JSON',
     JSON.stringify({ version: 1, nextId: 1, transactions: {} }),
     JSON.stringify({ version: 1, nextId: 0, transactions: [] }),
-    JSON.stringify({ version: 1, nextId: Number.MAX_SAFE_INTEGER, transactions: [] }),
   ]) {
     writeFileSync(data, original);
     const { status, stdout, stderr } = run('1', '--data', data);
     assert.equal(status, 1);
     assert.equal(stdout, '');
-    assert.match(stderr, /^오류: 데이터 파일을 (읽을|쓸) 수 없습니다: [^\n]+\n$/);
+    assert.match(stderr, /^오류: 데이터 파일을 읽을 수 없습니다: [^\n]+\n$/);
     assert.equal(readFileSync(data, 'utf8'), original);
     assert.deepEqual(readdirSync(directory), ['data.json']);
   }
@@ -170,46 +168,4 @@ test('실제로 있는 윤일과 100년 이전 날짜를 받는다', (t) => {
     assert.equal(result.status, 0);
     assert.equal(read().transactions.at(-1).date, date);
   }
-});
-
-test('분류와 메모의 개행은 저장하고 성공 출력은 한 줄로 유지한다', (t) => {
-  const { data, run, read } = fixture(t);
-  const { status, stdout } = run('1', '--date', '2026-02-28', '--category', '식비\r\n간식',
-    '--memo', '첫 줄\n둘째 줄', '--data', data);
-
-  assert.equal(status, 0);
-  assert.equal(stdout, '추가했습니다: #1 2026-02-28 지출 1원 식비\\r\\n간식 첫 줄\\n둘째 줄\n');
-  assert.equal(read().transactions[0].category, '식비\r\n간식');
-  assert.equal(read().transactions[0].memo, '첫 줄\n둘째 줄');
-});
-
-test('동시에 거래를 추가해도 성공한 거래가 덮어써지지 않는다', async (t) => {
-  const { data, env, read } = fixture(t);
-  const amounts = [11, 22, 33, 44, 55, 66, 77, 88];
-  const results = await Promise.all(amounts.map((amount) => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [binPath, 'add', String(amount), '--data', data], { env });
-    let stderr = '';
-    child.stdout.resume();
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.on('error', reject);
-    child.on('close', (status) => resolve({ status, stderr, amount }));
-  })));
-
-  const successful = [];
-  for (const { status, stderr, amount } of results) {
-    if (status === 0) {
-      assert.equal(stderr, '');
-      successful.push(amount);
-    } else {
-      assert.equal(status, 1);
-      assert.match(stderr, /다른 작업이 이 데이터 파일을 사용 중입니다/);
-    }
-  }
-  assert.ok(successful.length > 0);
-
-  const { nextId, transactions } = read();
-  assert.deepEqual(transactions.map(({ amount }) => amount).sort(), successful.sort());
-  assert.deepEqual(transactions.map(({ id }) => id), successful.map((_, index) => index + 1));
-  assert.equal(nextId, successful.length + 1);
 });

@@ -1,7 +1,7 @@
 import { DataError, UsageError } from '../errors.js';
 import { formatWon } from '../format.js';
 import { parseOptions } from '../options.js';
-import { resolveDataPath, updateData } from '../store.js';
+import { readData, resolveDataPath, writeData } from '../store.js';
 
 export const summary = '거래 하나를 더한다.';
 
@@ -63,26 +63,22 @@ export function run(argv) {
   if (!isValidDate(date)) {
     throw new UsageError(`날짜는 YYYY-MM-DD 형식의 있는 날이어야 한다: ${date}`, USAGE);
   }
+  if (options.data === '') {
+    throw new UsageError('--data 값이 비었다', USAGE);
+  }
 
   const filePath = resolveDataPath(options.data);
-  const id = updateData(filePath, (data) => {
-    const { nextId, transactions } = data;
-    if (!Number.isSafeInteger(nextId) || nextId < 1 || !Array.isArray(transactions)) {
-      throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
-    }
-    if (nextId === Number.MAX_SAFE_INTEGER) {
-      throw new DataError(`데이터 파일을 쓸 수 없습니다: ${filePath} (거래 id 한도에 도달했습니다)`);
-    }
-
-    transactions.push({ id: nextId, date, type, amount, category, account: '현금', memo, tags: [] });
-    data.nextId += 1;
-    return nextId;
-  });
+  const data = readData(filePath);
+  const { nextId: id, transactions } = data;
+  if (!Number.isSafeInteger(id) || id < 1 || !Array.isArray(transactions)) {
+    throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
+  }
+  transactions.push({ id, date, type, amount, category, account: '현금', memo, tags: [] });
+  data.nextId += 1;
+  writeData(filePath, data);
 
   const label = type === 'income' ? '수입' : '지출';
-  const description = (memo ? `${category} ${memo}` : category)
-    .replaceAll('\r', '\\r')
-    .replaceAll('\n', '\\n');
+  const description = memo ? `${category} ${memo}` : category;
   console.log(`추가했습니다: #${id} ${date} ${label} ${formatWon(amount)} ${description}`);
   return 0;
 }

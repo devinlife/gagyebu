@@ -253,13 +253,14 @@ test('사용법 오류를 데이터 읽기 전에 종료 코드 2로 출력한�
   assert.equal(readFileSync(data, 'utf8'), original);
 });
 
-test('명시한 달이 없으면 잘못된 오늘 설정을 사용법 오류로 돌려준다', (t) => {
+test('명시한 달이 없으면 잘못된 오늘 설정을 처리 오류로 돌려준다', (t) => {
   const { data, run } = fixture(t, '2026-02-30');
   writeFileSync(data, '{깨진 JSON');
   const { status, stdout, stderr } = run();
-  assert.equal(status, 2);
+  assert.equal(status, 1);
   assert.equal(stdout, '');
-  assert.equal(stderr, '오류: GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-02-30\n사용법은 gagyebu help를 보세요.\n');
+  assert.equal(stderr, '오류: GAGYEBU_TODAY가 YYYY-MM-DD가 아닙니다: 2026-02-30\n');
+  assert.equal(readFileSync(data, 'utf8'), '{깨진 JSON');
 });
 
 test('깨진 JSON과 배열이 아닌 거래 목록은 종료 코드 1로 보고한다', (t) => {

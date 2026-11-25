@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { UsageError } from '../src/errors.js';
+import { DataError, UsageError } from '../src/errors.js';
 import { parseAmount, parseChartOptions, parseDate, parseMonth, parseType, parseYear, today } from '../src/input.js';
 
 const usage = '사용법: gagyebu';
@@ -88,9 +88,8 @@ test('설정된 기준일을 검사하고 완전한 날짜는 기준일 없이 �
   assert.equal(today(env), '2026-03-01');
   for (const input of ['2026-02-30', '오늘', '2026-3-1']) {
     assert.throws(() => today({ GAGYEBU_TODAY: input }), {
-      constructor: UsageError,
-      message: `GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${input}`,
-      usage: '사용법은 gagyebu help를 보세요.',
+      constructor: DataError,
+      message: `GAGYEBU_TODAY가 YYYY-MM-DD가 아닙니다: ${input}`,
     });
   }
   assert.equal(parseDate('2026-03-05', usage, undefined, { GAGYEBU_TODAY: 'x' }), '2026-03-05');

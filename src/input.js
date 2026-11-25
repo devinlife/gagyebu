@@ -1,4 +1,4 @@
-import { UsageError } from './errors.js';
+import { DataError, UsageError } from './errors.js';
 import { TYPES } from './types.js';
 
 export const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -24,10 +24,7 @@ export function today(env = process.env) {
   const override = env.GAGYEBU_TODAY;
   if (override) {
     if (!isValidDate(override)) {
-      throw new UsageError(
-        `GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: ${override}`,
-        '사용법은 gagyebu help를 보세요.',
-      );
+      throw new DataError(`GAGYEBU_TODAY가 YYYY-MM-DD가 아닙니다: ${override}`);
     }
     return override;
   }

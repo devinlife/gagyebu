@@ -108,14 +108,13 @@ test('연도를 생략한 날짜와 설정한 기본 날짜를 저장한다', (t
   ]);
 });
 
-test('설정한 기준일이 잘못되면 공용 사용법을 출력하고 저장하지 않는다', (t) => {
-  const { directory, data, run } = fixture(t, { GAGYEBU_TODAY: '2026-02-30' });
-  const { status, stdout, stderr } = run('1', '--data', data);
+test('설정한 기준일이 잘못되면 처리 오류를 보고하고 저장하지 않는다', (t) => {
+  const { directory, run } = fixture(t, { GAGYEBU_TODAY: '2026-13-01' });
+  const { status, stdout, stderr } = run('1');
 
-  assert.equal(status, 2);
+  assert.equal(status, 1);
   assert.equal(stdout, '');
-  assert.equal(stderr, '오류: GAGYEBU_TODAY는 YYYY-MM-DD 형식의 있는 날이어야 합니다: 2026-02-30\n'
-    + '사용법은 gagyebu help를 보세요.\n');
+  assert.equal(stderr, '오류: GAGYEBU_TODAY가 YYYY-MM-DD가 아닙니다: 2026-13-01\n');
   assert.deepEqual(readdirSync(directory), []);
 });
 

@@ -20,5 +20,5 @@
 - 데이터는 `src/store.js`의 `loadData`로 읽는다.
 - 거래 구분과 표시 이름은 `src/types.js`에 둔다.
 - 거래 생성·수정·필터는 `src/transaction.js`에 둔다.
-- 월 집계와 예산 사용 계산은 `src/report.js`에 둔다.
+- 월 집계, 예산 사용 계산, 예산 설정·삭제는 `src/report.js`에 둔다.
 - 새 명령은 `src/commands/<이름>.js`에서 `name`, `summary`, `order`, `run`을 내보내면 등록된다.

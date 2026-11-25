@@ -23,9 +23,13 @@ export function describeTransaction(transaction) {
 
 export function buildTransaction(data, { date, type, amount, category, account = DEFAULT_ACCOUNT, memo, tags }, filePath) {
   const id = requireNextId(data, filePath);
+  requireEntryReferences(data, { type, category, account });
+  return { id, date, type, amount, category, account, memo, tags };
+}
+
+export function requireEntryReferences(data, { type, category, account }) {
   requireCategoryIndex(data.categories, type, category, categoryHint);
   requireAccount(data.accounts, account);
-  return { id, date, type, amount, category, account, memo, tags };
 }
 
 export function requireDistinctAccounts(from, to, usage) {

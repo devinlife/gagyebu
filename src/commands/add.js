@@ -1,11 +1,8 @@
-import { DEFAULT_ACCOUNT } from '../account.js';
-import { DEFAULT_CATEGORY } from '../category.js';
 import { UsageError, unexpectedArgument } from '../errors.js';
-import { parseAmount, parseCategory, parseDate, parseNonemptyOption, parseTags, parseType, today } from '../input.js';
+import { parseAmount, parseDate, parseEntryOptions, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { loadData, validateDataOption, writeData } from '../store.js';
 import { buildTransaction, describeTransaction } from '../transaction.js';
-import { EXPENSE } from '../types.js';
 
 export const name = 'add';
 export const order = 20;
@@ -36,16 +33,13 @@ export function run(argv) {
   const [input] = args;
   const amount = parseAmount(input, USAGE);
 
-  const { memo = '' } = options;
-  const type = parseType(options.type ?? EXPENSE, USAGE);
-  const category = parseCategory(options.category ?? DEFAULT_CATEGORY, USAGE);
-  const account = parseNonemptyOption(options.account ?? DEFAULT_ACCOUNT, 'account', USAGE);
-  const date = options.date === undefined ? today() : parseDate(options.date, USAGE);
-  validateDataOption(options, USAGE);
-
-  const tags = parseTags(options.tag, USAGE);
+  let date;
+  const entry = parseEntryOptions(options, USAGE, () => {
+    date = options.date === undefined ? today() : parseDate(options.date, USAGE);
+    validateDataOption(options, USAGE);
+  });
   const { filePath, data } = loadData(options, USAGE);
-  const transaction = buildTransaction(data, { date, type, amount, category, account, memo, tags }, filePath);
+  const transaction = buildTransaction(data, { ...entry, date, amount }, filePath);
   data.transactions.push(transaction);
   data.nextId += 1;
   writeData(filePath, data);

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DataError, UsageError } from '../src/errors.js';
-import { monthEnd, parseAmount, parseChartOptions, parseDate, parseMonth, parseOpening, parsePeriod, parsePort, parseType, parseYear, shiftMonth, today } from '../src/input.js';
+import {
+  monthEnd, parseAmount, parseChartOptions, parseDate, parseEntryOptions, parseMonth, parseOpening,
+  parsePeriod, parsePort, parseType, parseYear, shiftMonth, today,
+} from '../src/input.js';
 
 const usage = '사용법: gagyebu';
 const env = { GAGYEBU_TODAY: '2026-03-01' };
@@ -127,6 +130,24 @@ test('말일 계산은 윤년과 12월을 반영한다', () => {
   assert.equal(monthEnd('2026-02'), '2026-02-28');
   assert.equal(monthEnd('2028-02'), '2028-02-29');
   assert.equal(monthEnd('2026-12'), '2026-12-31');
+});
+
+test('월 파서는 지정한 옵션 이름으로 오류를 표시한다', () => {
+  assert.throws(() => parseMonth('2026-13', usage, 'start'), {
+    constructor: UsageError, message: '--start는 YYYY-MM 형식의 달이어야 합니다: 2026-13', usage,
+  });
+});
+
+test('거래 옵션의 기본값과 잘못된 구분 및 빈 분류를 검사한다', () => {
+  assert.deepEqual(parseEntryOptions({}, usage), {
+    type: 'expense', category: '기타', account: '현금', memo: '', tags: [],
+  });
+  assert.throws(() => parseEntryOptions({ type: 'transfer' }, usage), {
+    constructor: UsageError, message: '--type은 expense 또는 income이어야 합니다: transfer', usage,
+  });
+  assert.throws(() => parseEntryOptions({ category: '' }, usage), {
+    constructor: UsageError, message: '--category 값이 비었습니다', usage,
+  });
 });
 
 test('연도 파서는 YYYY 형식만 받아 숫자로 돌려준다', () => {

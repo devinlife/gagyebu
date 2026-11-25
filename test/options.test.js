@@ -1,6 +1,27 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseOptions } from '../src/options.js';
+import { parseOptions, parseSubcommand } from '../src/options.js';
+
+const subcommands = {
+  label: '규칙',
+  usage: '규칙 사용법',
+  usages: { add: '추가 사용법', list: '목록 사용법' },
+  values: { add: ['tag'] },
+  flags: { add: ['dry-run'] },
+  repeatable: { add: ['tag'] },
+};
+
+test('하위 명령에 지정한 깃발과 반복 옵션만 받는다', () => {
+  assert.deepEqual(parseSubcommand(['add', '--dry-run', '--tag=a', '--tag', 'b'], subcommands), {
+    command: 'add', usage: subcommands.usages.add, args: [], options: { 'dry-run': true, tag: ['a', 'b'] },
+  });
+  assert.deepEqual(parseSubcommand(['list', '--json'], subcommands).options, { json: true });
+  for (const option of ['--dry-run', '--tag']) {
+    assert.throws(() => parseSubcommand(['list', option], subcommands), {
+      message: `알 수 없는 옵션입니다: ${option}`, usage: subcommands.usages.list,
+    });
+  }
+});
 
 const spec = { values: ['data'], flags: ['json'] };
 

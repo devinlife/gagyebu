@@ -53,7 +53,9 @@ export function validateListJson(options, usage) {
   }
 }
 
-export function parseSubcommand(argv, { label, usage, usages, values = {} }) {
+export function parseSubcommand(argv, {
+  label, usage, usages, values = {}, flags = {}, repeatable = {},
+}) {
   const [command, ...operands] = argv;
   if (command === '--help') {
     const parsed = parseOptions(operands, {});
@@ -76,7 +78,8 @@ export function parseSubcommand(argv, { label, usage, usages, values = {} }) {
   const commandUsage = usages[command];
   const { args, options, error } = parseOptions(operands, {
     values: ['data', ...(values[command] ?? [])],
-    flags: command === 'list' ? ['help', 'json'] : ['help'],
+    flags: ['help', ...(command === 'list' ? ['json'] : []), ...(flags[command] ?? [])],
+    repeatable: repeatable[command] ?? [],
   });
   if (error) {
     throw new UsageError(error, commandUsage);

@@ -84,13 +84,14 @@ export function applyChanges(data, id, changes) {
   return updated;
 }
 
-export function filterTransactions(transactions, { from, to, type, category, tags = [], query } = {}) {
+export function filterTransactions(transactions, { from, to, type, category, account, tags = [], query } = {}) {
   const search = query?.toLowerCase();
   return transactions.filter((transaction) =>
     (from === undefined || from <= transaction.date)
     && (to === undefined || transaction.date <= to)
     && (type === undefined || type === transaction.type)
     && (category === undefined || category === transaction.category)
+    && (account === undefined || account === transaction.account)
     && tags.every((tag) => transaction.tags.includes(tag))
     && (search === undefined || matchesQuery(transaction, search))).sort((a, b) => {
     if (a.date === b.date) {

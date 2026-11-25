@@ -1,6 +1,6 @@
 import { UsageError } from './errors.js';
 import { formatTable, formatWon } from './format.js';
-import { parseCategory, parsePeriod, parseTags, parseType } from './input.js';
+import { parseCategory, parseNonemptyOption, parsePeriod, parseTags, parseType } from './input.js';
 import { parseOptions } from './options.js';
 import { validateDataOption } from './store.js';
 import { listTotals } from './transaction.js';
@@ -8,7 +8,7 @@ import { EXPENSE, INCOME, TYPE_LABELS } from './types.js';
 
 export function parseListingArgs(argv, usage, parseQuery) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['from', 'to', 'type', 'category', 'tag', 'data'],
+    values: ['from', 'to', 'type', 'category', 'account', 'tag', 'data'],
     flags: ['json', 'help'],
     repeatable: ['tag'],
   });
@@ -19,17 +19,21 @@ export function parseListingArgs(argv, usage, parseQuery) {
     return { options };
   }
   const query = parseQuery(args);
+  return { options, filters: { ...parseListingFilters(options, usage), query } };
+}
 
+export function parseListingFilters(options, usage) {
   const { type } = options;
   const { from, to } = parsePeriod(options, usage);
   if (type !== undefined) {
     parseType(type, usage);
   }
   const category = parseCategory(options.category, usage);
+  const account = parseNonemptyOption(options.account, 'account', usage);
   validateDataOption(options, usage);
 
   const tags = parseTags(options.tag, usage);
-  return { options, filters: { from, to, type, category, tags, query } };
+  return { from, to, type, category, account, tags };
 }
 
 export function printTransactions(list, { json }) {

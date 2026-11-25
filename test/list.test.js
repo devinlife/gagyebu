@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { displayWidth } from '../src/format.js';
 import { assertUsageError, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
+const usage = '사용법: gagyebu list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--account <계좌>] [--tag <태그>] [--json] [--data <경로>]';
 
 const sameDayIncome = {
   id: 10, date: '2026-02-10', type: 'income', amount: 1234567, category: '월급',
@@ -82,6 +82,16 @@ test('날짜 경계를 포함하고 구분과 분류 필터를 조합한다', (t
   assertOutput(run('--category', '교통비', '--json'), '[]\n');
 });
 
+test('계좌가 일치하는 거래만 날짜와 번호 순으로 출력한다', (t) => {
+  const { run, write } = fixture(t);
+  const cardTransactions = [sameDayIncome, first, sameDayExpense]
+    .map((entry) => ({ ...entry, account: '카드' }));
+  write([last, ...cardTransactions]);
+
+  assert.deepEqual(readJson(run('--account', '카드', '--json')),
+    [cardTransactions[1], cardTransactions[2], cardTransactions[0]]);
+});
+
 test('연도를 생략한 날짜와 상대 날짜로 거래를 거른다', (t) => {
   const { run, write } = fixture(t, { GAGYEBU_TODAY: '2026-02-10' });
   const previousDay = { ...first, id: 11, date: '2026-02-09' };
@@ -152,10 +162,11 @@ test('사용법 오류는 데이터 읽기 전에 종료 코드 2와 함께 출�
     [['--json=1'], '--json은 값을 받지 않습니다'],
     [['--help=1'], '--help는 값을 받지 않습니다'],
     [['--category='], '--category 값이 비었습니다'],
+    [['--account', ''], '--account 값이 비었습니다'],
     [['--data='], '--data 값이 비었습니다'],
     [['--tag='], '태그는 공백 없는 1~20자여야 합니다: '],
     [['--tag', 'a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
-    ...['from', 'to', 'type', 'category', 'tag', 'data'].map((option) => [[`--${option}`], `--${option} 값이 없습니다`]),
+    ...['from', 'to', 'type', 'category', 'account', 'tag', 'data'].map((option) => [[`--${option}`], `--${option} 값이 없습니다`]),
   ]) {
     assertUsageError(run(...args), message, usage);
   }

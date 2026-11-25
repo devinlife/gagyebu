@@ -113,8 +113,12 @@ export function parseChartOptions({ chart, json, width }, usage) {
 }
 
 export function parseCategory(text, usage) {
+  return parseNonemptyOption(text, 'category', usage);
+}
+
+export function parseNonemptyOption(text, option, usage) {
   if (text === '') {
-    throw new UsageError('--category 값이 비었습니다', usage);
+    throw new UsageError(`--${option} 값이 비었습니다`, usage);
   }
   return text;
 }

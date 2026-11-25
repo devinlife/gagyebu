@@ -4,7 +4,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { assertUsageError, runCli, tempDir, testEnv, writeJson } from './helpers.js';
 
-const usage = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--tag <태그>] [--json] [--data <경로>]';
+const usage = '사용법: gagyebu search <글> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--type expense|income] [--category <분류>] [--account <계좌>] [--tag <태그>] [--json] [--data <경로>]';
 
 const meal = {
   id: 1, date: '2026-02-10', type: 'expense', amount: 1000, category: '식비',
@@ -53,11 +53,12 @@ test('메모, 분류와 태그에서 대소문자를 무시해 부분 일치하�
 
 test('검색에 목록 필터를 적용하고 목록과 같은 표와 합계를 출력한다', (t) => {
   const { run } = fixture(t);
-  const filters = ['--type', 'expense', '--tag', ' #법인,회식 ', '--tag', '법인'];
+  const filters = ['--type', 'expense', '--account', '현금', '--tag', ' #법인,회식 ', '--tag', '법인'];
   assert.deepEqual(JSON.parse(output(run('search', 'coupon', ...filters, '--json'))), [meal]);
   assert.equal(output(run('search', 'coupon', ...filters)), output(run('list', ...filters)));
   assert.equal(output(run('search', 'coupon', '--type', 'income', '--tag', '법인')), '거래가 없습니다.\n');
   assert.equal(output(run('search', 'x', '--json')), '[]\n');
+  assert.equal(output(run('search', 'coupon', '--account', '카드', '--json')), '[]\n');
 });
 
 test('검색 글과 옵션의 사용법 오류를 데이터 읽기 전에 보고한다', (t) => {
@@ -72,6 +73,7 @@ test('검색 글과 옵션의 사용법 오류를 데이터 읽기 전에 보고
     [['a', 'b'], '예상하지 않은 인자입니다: b'],
     [['a', '--nope'], '알 수 없는 옵션입니다: --nope'],
     [['a', '--tag'], '--tag 값이 없습니다'],
+    [['a', '--account'], '--account 값이 없습니다'],
     [['a', '--tag', 'a b'], '태그는 공백 없는 1~20자여야 합니다: a b'],
     [['a', '--type', 'transfer'], '--type은 expense 또는 income이어야 합니다: transfer'],
   ]) {

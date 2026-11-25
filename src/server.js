@@ -1,10 +1,12 @@
 import { createServer as createHttpServer } from 'node:http';
+import { accountBalances } from './account.js';
 import { DataError, UsageError } from './errors.js';
-import { currentMonth, currentYear, parseMonth, parseYear } from './input.js';
+import { currentMonth, currentYear, monthEnd, parseMonth, parseYear } from './input.js';
 import { parseListingFilters } from './listing.js';
 import { summarizeMonth, summarizeYear } from './report.js';
 import { loadData } from './store.js';
 import { filterTransactions } from './transaction.js';
+import { renderErrorPage, renderReportPage } from './web.js';
 
 function queryOptions(params, names) {
   const options = new Map();
@@ -25,17 +27,32 @@ function queryOptions(params, names) {
   return Object.fromEntries(options);
 }
 
+function queryMonth(params) {
+  const { month } = queryOptions(params, ['month']);
+  return parseMonth(month ?? currentMonth());
+}
+
+const reportPath = '/';
 const routes = new Map([
+  [reportPath, (params, options) => {
+    const month = queryMonth(params);
+    const end = monthEnd(month);
+    const { data } = loadData(options);
+    return renderReportPage({
+      summary: summarizeMonth(data.transactions, data.budgets, month),
+      transactions: filterTransactions(data.transactions, { from: `${month}-01`, to: end }),
+      balances: accountBalances(data, end),
+    });
+  }],
   ['/api/transactions', (params, options) => {
     const filters = parseListingFilters(queryOptions(params, ['from', 'to', 'type', 'category', 'account', 'tag']));
     const { data: { transactions } } = loadData(options);
     return filterTransactions(transactions, filters);
   }],
   ['/api/summary', (params, options) => {
-    const { month } = queryOptions(params, ['month']);
-    const parsedMonth = parseMonth(month ?? currentMonth());
+    const month = queryMonth(params);
     const { data: { transactions, budgets } } = loadData(options);
-    return summarizeMonth(transactions, budgets, parsedMonth);
+    return summarizeMonth(transactions, budgets, month);
   }],
   ['/api/report', (params, options) => {
     const { year } = queryOptions(params, ['year']);
@@ -45,34 +62,41 @@ const routes = new Map([
   }],
 ]);
 
-function sendJson(response, status, value, headers = {}) {
-  const body = JSON.stringify(value);
-  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...headers });
-  response.end(body);
-}
-
 export function createServer(options) {
   return createHttpServer((request, response) => {
+    const queryStart = request.url.indexOf('?');
+    const pathname = queryStart === -1 ? request.url : request.url.slice(0, queryStart);
+    const html = pathname === reportPath;
+    const contentType = html ? 'text/html' : 'application/json';
+
+    function send(status, value, headers) {
+      const body = html ? value : JSON.stringify(value);
+      response.writeHead(status, { 'content-type': `${contentType}; charset=utf-8`, ...headers });
+      response.end(body);
+    }
+
+    function sendError(status, message, headers) {
+      send(status, html ? renderErrorPage(status, message) : { error: message }, headers);
+    }
+
     try {
-      const queryStart = request.url.indexOf('?');
-      const pathname = queryStart === -1 ? request.url : request.url.slice(0, queryStart);
       const route = routes.get(pathname);
       if (!route) {
-        sendJson(response, 404, { error: `없는 경로입니다: ${pathname}` });
+        sendError(404, `없는 경로입니다: ${pathname}`);
       } else if (request.method !== 'GET') {
-        sendJson(response, 405, { error: `GET만 받습니다: ${request.method}` }, { allow: 'GET' });
+        sendError(405, `GET만 받습니다: ${request.method}`, { allow: 'GET' });
       } else {
         const query = queryStart === -1 ? '' : request.url.slice(queryStart);
-        sendJson(response, 200, route(new URLSearchParams(query), options));
+        send(200, route(new URLSearchParams(query), options));
       }
     } catch (error) {
       if (error instanceof UsageError) {
-        sendJson(response, 400, { error: error.message });
+        sendError(400, error.message);
       } else if (error instanceof DataError) {
-        sendJson(response, 500, { error: error.message });
+        sendError(500, error.message);
       } else {
         console.error(error);
-        sendJson(response, 500, { error: '서버 내부 오류입니다' });
+        sendError(500, '서버 내부 오류입니다');
       }
     }
   });

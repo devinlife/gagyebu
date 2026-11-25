@@ -7,7 +7,7 @@ import { validateDataOption } from '../store.js';
 
 export const name = 'serve';
 export const order = 110;
-export const summary = 'JSON API 웹 서버를 띄웁니다.';
+export const summary = 'JSON API와 보고서 화면 웹 서버를 띄웁니다.';
 
 const USAGE = '사용법: gagyebu serve [--port <번호>] [--data <경로>]';
 const DEFAULT_PORT = 4780;

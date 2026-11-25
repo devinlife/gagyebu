@@ -111,9 +111,6 @@ export function applyChanges(data, id, changes, usage) {
       throw new UsageError('이체에는 분류가 없습니다', usage);
     }
   } else {
-    if (updated.type === TRANSFER) {
-      throw new UsageError('이체로 구분을 바꿀 수 없습니다', usage);
-    }
     if (changes.toAccount !== undefined) {
       throw new UsageError('--to는 이체에만 쓸 수 있습니다', usage);
     }

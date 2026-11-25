@@ -1,3 +1,4 @@
+import { findCategoryIndex } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { parseAmount, parseDate, today } from '../input.js';
 import { parseOptions } from '../options.js';
@@ -53,6 +54,9 @@ export function run(argv) {
   const { nextId: id, transactions } = data;
   if (!Number.isSafeInteger(id) || id < 1 || !Array.isArray(transactions)) {
     throw new DataError(`데이터 파일을 읽을 수 없습니다: ${filePath} (nextId 또는 transactions가 올바르지 않습니다)`);
+  }
+  if (findCategoryIndex(data.categories, type, category) === -1) {
+    throw new DataError(`없는 분류입니다: ${category} (gagyebu category add로 더하세요)`);
   }
   const transaction = { id, date, type, amount, category, account: '현금', memo, tags: [] };
   transactions.push(transaction);

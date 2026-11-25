@@ -67,16 +67,16 @@ test('분류만 바꾸면 기존 금액, 날짜, 유형과 메모를 보존한�
   const { data, original, run, read } = fixture(t);
   writeFileSync(data, JSON.stringify(original));
 
-  const { status, stdout, stderr } = run('1', '--category', '생활비');
+  const { status, stdout, stderr } = run('1', '--category', '급여');
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
-  assert.equal(stdout, '수정했습니다: #1 2026-02-27 수입 40,000원 생활비 2월분\n');
+  assert.equal(stdout, '수정했습니다: #1 2026-02-27 수입 40,000원 급여 2월분\n');
   assert.deepEqual(read(), {
     ...original,
     version: 2,
     categories: DEFAULT_CATEGORIES,
-    transactions: [{ ...original.transactions[0], category: '생활비' }, original.transactions[1]],
+    transactions: [{ ...original.transactions[0], category: '급여' }, original.transactions[1]],
   });
 });
 
@@ -85,13 +85,13 @@ test('금액과 날짜를 정규화하고 빈 메모로 기존 메모를 지운�
   writeFileSync(data, JSON.stringify(original));
 
   const { status, stdout, stderr } = run('2',
-    '--type', 'income', '--category', '월급', '--date', '어제', '--amount', '5000원', '--memo', '');
+    '--type', 'income', '--category', '급여', '--date', '어제', '--amount', '5000원', '--memo', '');
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
-  assert.equal(stdout, '수정했습니다: #2 2026-02-28 수입 5,000원 월급\n');
+  assert.equal(stdout, '수정했습니다: #2 2026-02-28 수입 5,000원 급여\n');
   assert.deepEqual(read().transactions[1], {
-    ...original.transactions[1], type: 'income', category: '월급', date: '2026-02-28', amount: 5000, memo: '',
+    ...original.transactions[1], type: 'income', category: '급여', date: '2026-02-28', amount: 5000, memo: '',
   });
 });
 
@@ -125,6 +125,38 @@ test('잘못된 사용법을 데이터 읽기 전에 보고하고 파일을 보�
     assert.equal(stderr, `오류: ${message}\n${usage}\n`);
     assert.equal(readFileSync(data, 'utf8'), original);
   }
+});
+
+test('수정 결과의 구분에 분류가 등록되지 않으면 거래를 보존한다', (t) => {
+  const { data, original, run } = fixture(t);
+  const saved = JSON.stringify(original);
+  writeFileSync(data, saved);
+
+  for (const [args, name] of [
+    [['--category', '커피'], '커피'],
+    [['--type', 'income'], '식비'],
+    [['--type', 'income', '--category', '교통'], '교통'],
+  ]) {
+    const { status, stdout, stderr } = run('2', ...args);
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 없는 분류입니다: ${name} (gagyebu category add로 더하세요)\n`);
+    assert.equal(readFileSync(data, 'utf8'), saved);
+  }
+});
+
+test('구분과 분류를 건드리지 않는 수정은 기존 분류를 검사하지 않는다', (t) => {
+  const { data, original, run, read } = fixture(t);
+  const saved = {
+    ...original,
+    version: 2,
+    categories: { ...DEFAULT_CATEGORIES, expense: ['기타'] },
+  };
+  writeFileSync(data, JSON.stringify(saved));
+
+  const { status, stderr } = run('2', '--memo', '점심');
+  assert.equal(status, 0, stderr);
+  assert.deepEqual(read().transactions[1], { ...original.transactions[1], memo: '점심' });
 });
 
 test('없는 번호를 보고하고 데이터 파일을 만들거나 바꾸지 않는다', (t) => {

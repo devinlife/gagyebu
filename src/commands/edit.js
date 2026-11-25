@@ -1,3 +1,4 @@
+import { findCategoryIndex } from '../category.js';
 import { DataError, UsageError } from '../errors.js';
 import { parseAmount, parseDate } from '../input.js';
 import { parseOptions } from '../options.js';
@@ -77,6 +78,13 @@ export function run(argv) {
   const transaction = data.transactions.find((entry) => entry.id === id);
   if (!transaction) {
     throw new DataError(`거래 #${id}가 없습니다`);
+  }
+
+  if (type !== undefined || category !== undefined) {
+    const nextCategory = category ?? transaction.category;
+    if (findCategoryIndex(data.categories, type ?? transaction.type, nextCategory) === -1) {
+      throw new DataError(`없는 분류입니다: ${nextCategory} (gagyebu category add로 더하세요)`);
+    }
   }
 
   Object.assign(transaction, changes);

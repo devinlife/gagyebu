@@ -42,19 +42,19 @@ function assertUsageError({ status, stdout, stderr }, message) {
 
 test('모든 옵션을 받아 거래를 저장하고 지정한 경로를 우선한다', (t) => {
   const { data, directory, run, read } = fixture(t);
-  const result = run('12300', '--type', 'income', '--category', '월급',
+  const result = run('12300', '--type', 'income', '--category', '급여',
     '--date', '2026-02-28', '--memo', '11월분', '--data', data);
 
   assert.equal(result.status, 0);
   assert.equal(result.stderr, '');
-  assert.equal(result.stdout, '추가했습니다: #1 2026-02-28 수입 12,300원 월급 11월분\n');
+  assert.equal(result.stdout, '추가했습니다: #1 2026-02-28 수입 12,300원 급여 11월분\n');
   assert.deepEqual(readdirSync(directory), ['data.json']);
   assert.deepEqual(read(), {
     version: 2,
     nextId: 2,
     categories: DEFAULT_CATEGORIES,
     transactions: [{
-      id: 1, date: '2026-02-28', type: 'income', amount: 12300, category: '월급',
+      id: 1, date: '2026-02-28', type: 'income', amount: 12300, category: '급여',
       account: '현금', memo: '11월분', tags: [],
     }],
   });
@@ -79,6 +79,20 @@ test('거래 기본값과 로컬 날짜를 저장한다', (t) => {
       account: '현금', memo: '', tags: [],
     });
     assert.equal(result.stdout, `추가했습니다: #1 ${transaction.date} 지출 5,000원 기타\n`);
+  }
+});
+
+test('거래 구분에 등록되지 않은 분류를 거부하고 파일을 보존한다', (t) => {
+  const { data, run } = fixture(t);
+  const original = JSON.stringify({ version: 1, nextId: 1, transactions: [] });
+  writeFileSync(data, original);
+
+  for (const [type, category] of [['expense', '커피'], ['income', '식비']]) {
+    const { status, stdout, stderr } = run('1000', '--type', type, '--category', category, '--data', data);
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: 없는 분류입니다: ${category} (gagyebu category add로 더하세요)\n`);
+    assert.equal(readFileSync(data, 'utf8'), original);
   }
 });
 

@@ -36,6 +36,8 @@ test('내보낸 거래의 내용을 복원해 새 번호를 주고 다시 가져
   writeDataFixture(sourcePath, transactions, 54);
   assertResult(runCli(['export', '--out', csv, '--data', sourcePath], { env }), 0,
     `2건을 내보냈습니다: ${csv}\n`);
+  assertResult(runCli(['account', 'add', '@은행', '--data', dataPath], { env }), 0,
+    '계좌를 더했습니다: @은행 (시작 잔액 0원)\n');
   assertResult(run(csv, '--data', dataPath), 0, '2건을 더했습니다(중복 0건 건너뜀).\n');
   const saved = readJson(dataPath);
   assert.equal(saved.nextId, 3);
@@ -72,6 +74,19 @@ test('오류 행의 물리 줄 번호를 출력하고 기존 데이터 파일을
   const expected = '오류: 2개 행이 잘못되어 아무것도 더하지 않았습니다\n'
     + '5행: 금액은 양의 정수여야 합니다: 0\n'
     + '7행: type은 expense·income·지출·수입 중 하나여야 합니다: 이\\r\\n체\n';
+  for (const flags of [[], ['--dry-run']]) {
+    assertResult(run(csv, ...flags), 1, '', expected);
+    assert.equal(readFileSync(dataPath, 'utf8'), original);
+  }
+});
+
+test('등록되지 않은 계좌와 삭제된 기본 계좌는 행 오류로 보고하고 파일을 보존한다', (t) => {
+  const { csv, dataPath, run } = fixture(t);
+  const original = writeJson(dataPath, currentData({ accounts: [{ name: '카드', opening: 0 }] }));
+  writeFileSync(csv, `${header},account\n${validRow},카드\n${validRow},없는통장\n${validRow},\n`);
+  const expected = '오류: 2개 행이 잘못되어 아무것도 더하지 않았습니다\n'
+    + '3행: 없는 계좌입니다: 없는통장 (gagyebu account add로 더하세요)\n'
+    + '4행: 없는 계좌입니다: 현금 (gagyebu account add로 더하세요)\n';
   for (const flags of [[], ['--dry-run']]) {
     assertResult(run(csv, ...flags), 1, '', expected);
     assert.equal(readFileSync(dataPath, 'utf8'), original);

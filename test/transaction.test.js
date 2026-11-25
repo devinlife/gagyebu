@@ -79,7 +79,9 @@ test('새 거래의 번호를 채우고 계좌를 확인하며 데이터는 그�
 
 test('가져올 거래를 검증해 기존 거래의 중복을 세고 새 번호를 매긴다', () => {
   const existing = Object.freeze(transaction({ id: 5, amount: 12000 }));
-  const data = Object.freeze({ nextId: 7, categories: DEFAULT_CATEGORIES, transactions: Object.freeze([existing]) });
+  const data = currentData({ nextId: 7, transactions: Object.freeze([existing]) });
+  data.accounts.push({ name: '카드', opening: 0 });
+  Object.freeze(data);
   const expense = { date: existing.date, type: '지출', amount: '1만2천', category: '식비', account: '카드' };
   const income = { date: existing.date, type: '수입', amount: '12,300원', category: '', account: '' };
   const { added, duplicates, errors } = importTransactions(data, [
@@ -101,7 +103,7 @@ test('가져올 거래를 검증해 기존 거래의 중복을 세고 새 번호
 
 test('중복 판정의 다섯 필드 중 하나라도 다르면 거래를 더한다', () => {
   const existing = transaction({ id: 1, category: '기타' });
-  const data = { nextId: 2, categories: DEFAULT_CATEGORIES, transactions: [existing] };
+  const data = currentData({ nextId: 2, transactions: [existing] });
   const fields = { date: '2026-02-10', type: 'expense', amount: '1000', category: '기타', memo: '' };
   const changes = [
     { date: '2026-02-11' },
@@ -125,7 +127,7 @@ test('중복 판정의 다섯 필드 중 하나라도 다르면 거래를 더한
 });
 
 test('가져올 각 행의 첫 오류를 모으고 중복도 검증한다', () => {
-  const data = { nextId: 2, categories: DEFAULT_CATEGORIES, transactions: [transaction({ id: 1 })] };
+  const data = currentData({ nextId: 2, transactions: [transaction({ id: 1 })] });
   const fields = { date: '2026-02-10', type: 'expense', amount: '1000', category: '식비' };
   assert.deepEqual(importTransactions(data, [
     { line: 2, fields: { ...fields, category: '미등록' } },

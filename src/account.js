@@ -32,9 +32,12 @@ export function addAccount(accounts, name, opening) {
 export function removeAccount(data, name) {
   const { accounts } = data;
   const index = requireAccount(accounts, name, '');
-  const count = countUses(data, 'account').get(name)?.transactions ?? 0;
-  if (count > 0) {
-    throw new DataError(`${count}건의 거래가 쓰는 계좌입니다: ${name}`);
+  const uses = countUses(data, 'account').get(name);
+  if (uses?.transactions > 0) {
+    throw new DataError(`${uses.transactions}건의 거래가 쓰는 계좌입니다: ${name}`);
+  }
+  if (uses?.recurring > 0) {
+    throw new DataError(`${uses.recurring}개 반복 규칙이 쓰는 계좌입니다: ${name}`);
   }
   if (accounts.length === 1) {
     throw new DataError(`마지막 남은 계좌는 지울 수 없습니다: ${name}`);

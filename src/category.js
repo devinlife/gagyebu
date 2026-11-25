@@ -56,12 +56,14 @@ export function removeCategory(data, type, name) {
   const { categories } = data;
   const index = requireCategoryIndex(categories, type, name);
   const uses = countUses(data, 'category', type).get(name);
-  const count = uses?.transactions ?? 0;
-  if (count > 0) {
-    throw new DataError(`${count}건의 거래가 쓰는 분류입니다: ${name}`);
+  if (uses?.transactions > 0) {
+    throw new DataError(`${uses.transactions}건의 거래가 쓰는 분류입니다: ${name}`);
   }
   if (uses?.budgets > 0) {
     throw new DataError(`예산이 있는 분류입니다: ${name}`);
+  }
+  if (uses?.recurring > 0) {
+    throw new DataError(`${uses.recurring}개 반복 규칙이 쓰는 분류입니다: ${name}`);
   }
   return { ...categories, [type]: categories[type].toSpliced(index, 1) };
 }

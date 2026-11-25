@@ -94,6 +94,28 @@ test('쓰지 않는 계좌만 지우고 삭제 거부 시 파일을 보존한다
   assert.equal(readFileSync(file, 'utf8'), single);
 });
 
+test('반복 규칙이 쓰는 계좌 삭제를 거부하고 데이터와 이력을 보존한다', (t) => {
+  const { file, run } = fixture(t);
+  const historyPath = `${file}.history.json`;
+  const accounts = [{ name: '현금', opening: 0 }, { name: '카드', opening: 0 }];
+  const recurring = [{
+    id: 1, day: 31, type: 'expense', amount: 12000, category: '식비', account: '카드',
+    memo: '', tags: [], start: '2026-02', end: null,
+  }];
+  writeJson(file, currentData({ accounts, recurring, nextRecurringId: 2 }));
+  const added = run('add', '통장');
+  assert.equal(added.status, 0, added.stderr);
+  const original = readFileSync(file, 'utf8');
+  const history = readFileSync(historyPath, 'utf8');
+
+  const { status, stdout, stderr } = run('rm', '카드');
+  assert.equal(status, 1, stderr);
+  assert.equal(stdout, '');
+  assert.equal(stderr, '오류: 1개 반복 규칙이 쓰는 계좌입니다: 카드\n');
+  assert.equal(readFileSync(file, 'utf8'), original);
+  assert.equal(readFileSync(historyPath, 'utf8'), history);
+});
+
 test('잘못된 계좌 명령은 해당 사용법을 보여 준다', (t) => {
   const { run } = fixture(t);
   assertUsageError(run(), '계좌 하위 명령이 없습니다', usage);

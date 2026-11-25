@@ -30,7 +30,8 @@ test('등록한 계좌만 순서대로 나열하고 거래 수를 보여 준다'
 });
 
 test('쓰지 않는 계좌를 지우고 없는 계좌와 쓰는 계좌와 마지막 계좌는 지울 수 없다', () => {
-  const data = currentData({ accounts: [cash, card], transactions: [transaction({ account: '카드' })] });
+  const recurring = [{ id: 1, account: '카드' }, { id: 2, account: '카드' }];
+  const data = currentData({ accounts: [cash, card], transactions: [transaction({ account: '카드' })], recurring });
   assert.deepEqual(removeAccount(data, '현금'), [card]);
   assert.deepEqual(data.accounts, [cash, card]);
   assert.throws(() => removeAccount(data, '미등록'), {
@@ -38,6 +39,12 @@ test('쓰지 않는 계좌를 지우고 없는 계좌와 쓰는 계좌와 마지
   });
   assert.throws(() => removeAccount(data, '카드'), {
     constructor: DataError, message: '1건의 거래가 쓰는 계좌입니다: 카드',
+  });
+  assert.throws(() => removeAccount({ ...data, transactions: [] }, '카드'), {
+    constructor: DataError, message: '2개 반복 규칙이 쓰는 계좌입니다: 카드',
+  });
+  assert.throws(() => removeAccount({ ...data, accounts: [card], transactions: [] }, '카드'), {
+    constructor: DataError, message: '2개 반복 규칙이 쓰는 계좌입니다: 카드',
   });
   assert.throws(() => removeAccount(currentData(), '현금'), {
     constructor: DataError, message: '마지막 남은 계좌는 지울 수 없습니다: 현금',

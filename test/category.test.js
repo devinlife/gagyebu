@@ -175,6 +175,23 @@ test('같은 이름을 다른 구분에서 쓰는 거래는 분류 삭제를 막
   assert.deepEqual(read().categories.income, ['용돈', '기타']);
 });
 
+test('같은 구분의 반복 규칙이 쓰는 분류 삭제를 거부하고 데이터와 이력을 보존한다', (t) => {
+  const { data, run } = fixture(t);
+  const historyPath = `${data}.history.json`;
+  const recurring = [{
+    id: 1, day: 31, type: 'income', amount: 12000, category: '기타', account: '현금',
+    memo: '', tags: [], start: '2026-02', end: null,
+  }];
+  writeJson(data, currentData({ recurring, nextRecurringId: 2 }));
+  assertOutput(run('rm', '기타'), '분류를 지웠습니다: 지출 기타\n');
+  const original = readFileSync(data, 'utf8');
+  const history = readFileSync(historyPath, 'utf8');
+
+  assertError(run('rm', '기타', '--type', 'income'), 1, '오류: 1개 반복 규칙이 쓰는 분류입니다: 기타\n');
+  assert.equal(readFileSync(data, 'utf8'), original);
+  assert.equal(readFileSync(historyPath, 'utf8'), history);
+});
+
 test('잘못된 하위 명령과 옵션 및 인자를 사용법 오류로 보고한다', (t) => {
   const { directory, run } = fixture(t);
   assertUsageError(run(), '분류 하위 명령이 없습니다', usage);
@@ -244,12 +261,13 @@ test('공용 분류 추가는 원본을 보존하고 같은 구분에서 중복�
   assert.deepEqual(categories.expense, ['식비']);
 });
 
-test('공용 분류 삭제는 등록, 거래, 예산을 순서대로 검사하며 원본을 보존한다', () => {
-  const categories = Object.freeze({ expense: Object.freeze(['식비', '교통']), income: Object.freeze(['식비']) });
+test('공용 분류 삭제는 등록, 거래, 예산, 반복 규칙을 순서대로 검사하며 원본을 보존한다', () => {
+  const categories = Object.freeze({ expense: Object.freeze(['식비', '교통', '주거']), income: Object.freeze(['식비']) });
   const data = Object.freeze({
     categories,
     transactions: Object.freeze([transaction({ id: 1, category: '식비' })]),
     budgets: Object.freeze({ 식비: 1000, 교통: 2000 }),
+    recurring: Object.freeze(['식비', '교통', '주거'].map((category) => ({ type: 'expense', category }))),
   });
 
   assert.throws(() => removeCategory(data, 'expense', '기타'), {
@@ -261,6 +279,9 @@ test('공용 분류 삭제는 등록, 거래, 예산을 순서대로 검사하�
   assert.throws(() => removeCategory(data, 'expense', '교통'), {
     constructor: DataError, message: '예산이 있는 분류입니다: 교통',
   });
-  assert.deepEqual(removeCategory(data, 'income', '식비'), { expense: ['식비', '교통'], income: [] });
+  assert.throws(() => removeCategory(data, 'expense', '주거'), {
+    constructor: DataError, message: '1개 반복 규칙이 쓰는 분류입니다: 주거',
+  });
+  assert.deepEqual(removeCategory(data, 'income', '식비'), { expense: categories.expense, income: [] });
   assert.deepEqual(categories.income, ['식비']);
 });

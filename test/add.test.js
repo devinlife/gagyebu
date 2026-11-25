@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
-const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
+const usage = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
 function fixture(t, envOverrides = {}) {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-add-'));
@@ -229,4 +229,19 @@ test('실제로 있는 윤일과 100년 이전 날짜를 받는다', (t) => {
     assert.equal(result.status, 0);
     assert.equal(read().transactions.at(-1).date, date);
   }
+});
+
+test('반복 태그를 정규화해 저장하고 확인 줄에 표시한다', (t) => {
+  const { data, run, read } = fixture(t);
+  const { status, stdout, stderr } = run('1000', '--date', '2026-03-01',
+    '--tag', '회식', '--tag', ' #법인,회식 ', '--data', data);
+
+  assert.equal(status, 0);
+  assert.equal(stderr, '');
+  assert.equal(stdout, '추가했습니다: #1 2026-03-01 지출 1,000원 기타 #회식 #법인\n');
+  assert.deepEqual(read().transactions[0].tags, ['회식', '법인']);
+
+  const saved = readFileSync(data, 'utf8');
+  assertUsageError(run('1000', '--tag', 'a b', '--data', data));
+  assert.equal(readFileSync(data, 'utf8'), saved);
 });

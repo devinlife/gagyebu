@@ -3,16 +3,17 @@ import { DataError, UsageError } from '../errors.js';
 import { parseAmount, parseDate, today } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath, writeData } from '../store.js';
-import { describeTransaction } from '../transaction.js';
+import { describeTransaction, parseTags } from '../transaction.js';
 
 export const summary = '거래 하나를 더합니다.';
 
-const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
+const USAGE = '사용법: gagyebu add <금액> [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--data <경로>]';
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['type', 'category', 'date', 'memo', 'data'],
+    values: ['type', 'category', 'date', 'memo', 'tag', 'data'],
     flags: ['help'],
+    repeatable: ['tag'],
   });
   if (error) {
     throw new UsageError(error, USAGE);
@@ -49,6 +50,7 @@ export function run(argv) {
     throw new UsageError('--data 값이 비었습니다', USAGE);
   }
 
+  const tags = parseTags(options.tag, USAGE);
   const filePath = resolveDataPath(options.data);
   const data = readData(filePath);
   const { nextId: id, transactions } = data;
@@ -58,7 +60,7 @@ export function run(argv) {
   if (findCategoryIndex(data.categories, type, category) === -1) {
     throw new DataError(`없는 분류입니다: ${category} (gagyebu category add로 더하세요)`);
   }
-  const transaction = { id, date, type, amount, category, account: '현금', memo, tags: [] };
+  const transaction = { id, date, type, amount, category, account: '현금', memo, tags };
   transactions.push(transaction);
   data.nextId += 1;
   writeData(filePath, data);

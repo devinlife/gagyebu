@@ -57,7 +57,7 @@ test('지정한 거래만 삭제하고 나머지 거래의 순서와 다음 번�
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
-  assert.equal(stdout, '삭제했습니다: #2 2026-03-01 지출 6,000원 식비 아침\n');
+  assert.equal(stdout, '삭제했습니다: #2 2026-03-01 지출 6,000원 식비 아침 #외식\n');
   assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
     ...original,
     version: 2,

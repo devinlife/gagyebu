@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_CATEGORIES } from '../src/store.js';
 
 const binPath = fileURLToPath(new URL('../bin/gagyebu.js', import.meta.url));
-const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
+const usage = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
 function fixture(t) {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'gagyebu-edit-'));
@@ -53,7 +53,7 @@ test('준 값만 바꾸고 다른 거래와 다음 번호를 보존한다', (t) 
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
-  assert.equal(stdout, '수정했습니다: #2 2026-03-01 지출 12,000원 식비 점심\n');
+  assert.equal(stdout, '수정했습니다: #2 2026-03-01 지출 12,000원 식비 점심 #외식\n');
   assert.deepEqual(JSON.parse(readFileSync(override, 'utf8')), {
     ...original,
     version: 2,
@@ -89,7 +89,7 @@ test('금액과 날짜를 정규화하고 빈 메모로 기존 메모를 지운�
 
   assert.equal(status, 0);
   assert.equal(stderr, '');
-  assert.equal(stdout, '수정했습니다: #2 2026-02-28 수입 5,000원 급여\n');
+  assert.equal(stdout, '수정했습니다: #2 2026-02-28 수입 5,000원 급여 #외식\n');
   assert.deepEqual(read().transactions[1], {
     ...original.transactions[1], type: 'income', category: '급여', date: '2026-02-28', amount: 5000, memo: '',
   });
@@ -197,4 +197,32 @@ test('edit --help는 사용법을 한 줄로 출력한다', (t) => {
   assert.equal(stderr, '');
   assert.equal(stdout, `${usage}\n`);
   assert.deepEqual(readdirSync(directory), []);
+});
+
+test('태그를 교체하거나 모두 지우는 옵션만으로 거래를 수정한다', (t) => {
+  const { data, original, run, read } = fixture(t);
+  writeFileSync(data, JSON.stringify(original));
+
+  assert.equal(run('2', '--tag', ' #회식 ', '--tag=법인,회식').status, 0);
+  assert.deepEqual(read().transactions[1], { ...original.transactions[1], tags: ['회식', '법인'] });
+
+  assert.equal(run('2', '--clear-tags').status, 0);
+  assert.deepEqual(read().transactions[1], { ...original.transactions[1], tags: [] });
+});
+
+test('태그 교체와 지우기를 함께 쓰거나 지우기에 값을 주면 파일을 보존한다', (t) => {
+  const { data, original, run } = fixture(t);
+  const saved = JSON.stringify(original);
+  writeFileSync(data, saved);
+
+  for (const [args, message] of [
+    [['--tag', '회식', '--clear-tags'], '--tag와 --clear-tags는 함께 쓸 수 없습니다'],
+    [['--clear-tags=x'], '--clear-tags은 값을 받지 않습니다'],
+  ]) {
+    const { status, stdout, stderr } = run('2', ...args);
+    assert.equal(status, 2);
+    assert.equal(stdout, '');
+    assert.equal(stderr, `오류: ${message}\n${usage}\n`);
+    assert.equal(readFileSync(data, 'utf8'), saved);
+  }
 });

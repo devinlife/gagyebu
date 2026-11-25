@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { describeTransaction, parseId } from '../src/transaction.js';
+import { describeTransaction, parseId, parseTags } from '../src/transaction.js';
 
 test('거래 확인 줄에 날짜, 유형, 금액, 분류와 메모를 표시한다', () => {
   assert.equal(describeTransaction({
@@ -18,5 +18,17 @@ test('거래 번호는 앞에 0이나 부호가 없는 양의 안전한 정수�
   }
   for (const text of ['0', '-1', '01', '1.5', '1e3', 'abc', '', ' 1', '+1', '9007199254740992', '1\n']) {
     assert.equal(parseId(text), null, JSON.stringify(text));
+  }
+});
+
+test('태그에서 쉼표, 앞뒤 공백과 첫 #을 처리하고 중복을 뺀다', () => {
+  assert.deepEqual(parseTags(['회식,법인', ' #회식 ', '##a']), ['회식', '법인', '#a']);
+  assert.deepEqual(parseTags(['😀'.repeat(20)]), ['😀'.repeat(20)]);
+  assert.deepEqual(parseTags(), []);
+});
+
+test('태그는 공백 없는 1~20자여야 한다', () => {
+  for (const tag of ['', 'a,', '#', ' ', 'a b', '😀'.repeat(21)]) {
+    assert.throws(() => parseTags([tag]), /태그는 공백 없는 1~20자여야 합니다/);
   }
 });

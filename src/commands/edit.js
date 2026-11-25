@@ -3,16 +3,17 @@ import { DataError, UsageError } from '../errors.js';
 import { parseAmount, parseDate } from '../input.js';
 import { parseOptions } from '../options.js';
 import { readData, resolveDataPath, writeData } from '../store.js';
-import { describeTransaction, parseId } from '../transaction.js';
+import { describeTransaction, parseId, parseTags } from '../transaction.js';
 
 export const summary = '거래의 값 일부를 바꿉니다.';
 
-const USAGE = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--data <경로>]';
+const USAGE = '사용법: gagyebu edit <번호> [--amount <금액>] [--type expense|income] [--category <분류>] [--date YYYY-MM-DD] [--memo <글>] [--tag <태그>] [--clear-tags] [--data <경로>]';
 
 export function run(argv) {
   const { args, options, error } = parseOptions(argv, {
-    values: ['amount', 'type', 'category', 'date', 'memo', 'data'],
-    flags: ['help'],
+    values: ['amount', 'type', 'category', 'date', 'memo', 'tag', 'data'],
+    flags: ['help', 'clear-tags'],
+    repeatable: ['tag'],
   });
   if (error) {
     throw new UsageError(error, USAGE);
@@ -61,6 +62,12 @@ export function run(argv) {
   }
   if (memo !== undefined) {
     changes.memo = memo;
+  }
+  if (options.tag !== undefined && options['clear-tags']) {
+    throw new UsageError('--tag와 --clear-tags는 함께 쓸 수 없습니다', USAGE);
+  }
+  if (options.tag !== undefined || options['clear-tags']) {
+    changes.tags = parseTags(options.tag, USAGE);
   }
   if (options.data === '') {
     throw new UsageError('--data 값이 비었습니다', USAGE);
